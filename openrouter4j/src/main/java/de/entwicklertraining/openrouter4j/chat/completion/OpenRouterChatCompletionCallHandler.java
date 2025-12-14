@@ -149,6 +149,7 @@ public final class OpenRouterChatCompletionCallHandler {
                 .responseSchema(original.responseSchema())
                 .responseMimeType(original.responseMimeType())
                 .thinking(original.thinkingBudget())
+                .stream(original.stream())
                 .addAllMessages(updatedMessages);
 
         // Add provider selection if present

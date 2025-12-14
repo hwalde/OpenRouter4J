@@ -15,6 +15,7 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 ## Features
 
 * Chat Completions including tool calling, structured outputs and vision inputs
+* **Streaming support** for real-time token generation using Server-Sent Events (SSE)
 * Access to 200+ AI models through a single unified API
 * Provider selection for routing requests to specific providers
 * Vision capabilities for image understanding and analysis
@@ -29,7 +30,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -98,17 +99,59 @@ client.chat().completion()
         .execute();
 ```
 
-### Configuring the Client
+### Streaming Example
 
-`OpenRouterClient` accepts an `ApiClientSettings` object for fine-grained control over retries and timeouts. The API key can be configured directly and a hook can inspect each request before it is sent:
+The [streaming example](openrouter4j-examples/src/main/java/de/entwicklertraining/openrouter4j/examples/OpenRouterChatCompletionStreamingExample.java)
+demonstrates real-time token streaming:
 
 ```java
-ApiClientSettings settings = ApiClientSettings.builder()
-        .apiKey("your-openrouter-api-key")
-        .beforeSend(req -> System.out.println("Sending " + req.getHttpMethod() + " " + req.getRelativeUrl()))
-        .build();
+OpenRouterClient client = new OpenRouterClient();
 
-OpenRouterClient client = new OpenRouterClient(settings);
+StreamingResponseHandler<String> handler = new StreamingResponseHandler<>() {
+    @Override
+    public void onStreamStart() {
+        System.out.println("=== Streaming started ===");
+    }
+
+    @Override
+    public void onData(String chunk) {
+        System.out.print(chunk);  // Print each token as it arrives
+    }
+
+    @Override
+    public void onComplete() {
+        System.out.println("\n=== Streaming completed ===");
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+        System.err.println("Error: " + throwable.getMessage());
+    }
+};
+
+client.chat().completion()
+        .model("google/gemini-2.5-flash")
+        .addMessage("user", "Explain streaming APIs in 3-4 sentences.")
+        .stream(handler)  // Enable streaming with handler
+        .executeAsync()
+        .get();
+```
+
+### Configuring the Client
+
+`OpenRouterClient` accepts an `ApiClientSettings` object for fine-grained control over retries and timeouts.
+The API key is automatically read from the `OPENROUTER_API_KEY` environment variable, or can be configured
+via `ApiHttpConfiguration`:
+
+```java
+// Option 1: Use environment variable (recommended)
+OpenRouterClient client = new OpenRouterClient();
+
+// Option 2: Explicit API key via HTTP configuration
+ApiHttpConfiguration httpConfig = ApiHttpConfiguration.builder()
+        .header("Authorization", "Bearer your-openrouter-api-key")
+        .build();
+OpenRouterClient client = new OpenRouterClient(ApiClientSettings.builder().build(), httpConfig);
 ```
 
 ## Project Structure

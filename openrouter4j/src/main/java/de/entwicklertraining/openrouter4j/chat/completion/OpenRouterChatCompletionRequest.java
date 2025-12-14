@@ -33,6 +33,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final String responseMimeType;
     private final List<String> providers; // OpenRouter-specific: provider selection
     private final Integer thinkingBudget; // For reasoning models
+    private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
             Set.of("jpg", "jpeg", "png", "webp", "heic", "heif");
@@ -53,7 +54,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             OpenRouterJsonSchema responseSchema,
             String responseMimeType,
             List<String> providers,
-            Integer thinkingBudget
+            Integer thinkingBudget,
+            boolean stream
     ) {
         super(builder);
         this.client = client;
@@ -71,6 +73,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.responseMimeType = responseMimeType;
         this.providers = providers;
         this.thinkingBudget = thinkingBudget;
+        this.stream = stream;
     }
 
     public String model() {
@@ -127,6 +130,13 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public Integer thinkingBudget() {
         return thinkingBudget;
+    }
+
+    /**
+     * Whether streaming is enabled for this request.
+     */
+    public boolean stream() {
+        return stream;
     }
 
     @Override
@@ -232,6 +242,11 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             root.put("reasoning", reasoning);
         }
 
+        // Streaming
+        if (stream) {
+            root.put("stream", true);
+        }
+
         return root.toString();
     }
 
@@ -246,7 +261,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public static final class Builder extends ApiRequestBuilderBase<Builder, OpenRouterChatCompletionRequest> {
         private final OpenRouterClient client;
-        private String model = "google/gemini-2.0-flash-exp";
+        private String model = "google/gemini-2.5-flash";
         private Double temperature;
         private Integer topK;
         private Double topP;
@@ -260,8 +275,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private String responseMimeType;
         private final List<String> providers = new ArrayList<>();
         private Integer thinkingBudget;
+        private boolean streamEnabled;
 
         public Builder(OpenRouterClient client) {
+            super(client); // Pass client to parent for execute() methods
             this.client = client;
         }
 
@@ -378,6 +395,18 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         /**
+         * Enables or disables streaming for this request.
+         * When enabled, partial message deltas will be sent as server-sent events.
+         *
+         * @param enableStream true to enable streaming, false to disable
+         * @return This builder instance
+         */
+        public Builder stream(boolean enableStream) {
+            this.streamEnabled = enableStream;
+            return this;
+        }
+
+        /**
          * Sets provider preference order (OpenRouter-specific).
          * Example: provider("google-ai-studio", "openai")
          */
@@ -484,6 +513,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         public OpenRouterChatCompletionRequest build() {
+            // If streaming is enabled via api-base StreamingInfo, also set the stream flag
+            boolean shouldStream = streamEnabled || (getStreamingInfo() != null && getStreamingInfo().isEnabled());
+
             return new OpenRouterChatCompletionRequest(
                     this,
                     client,
@@ -500,7 +532,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     responseSchema,
                     responseMimeType,
                     List.copyOf(providers),
-                    thinkingBudget
+                    thinkingBudget,
+                    shouldStream
             );
         }
 
