@@ -30,7 +30,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.1.1</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -135,6 +135,40 @@ client.chat().completion()
         .stream(handler)  // Enable streaming with handler
         .executeAsync()
         .get();
+```
+
+### Streaming with Function Calling
+
+The [streaming + function calling example](openrouter4j-examples/src/main/java/de/entwicklertraining/openrouter4j/examples/OpenRouterChatCompletionStreamingWithFunctionCallingExample.java)
+demonstrates both features combined. The library automatically handles the tool-call loop while streaming the final answer:
+
+```java
+StreamingToolCallHandler handler = new StreamingToolCallHandler() {
+    @Override
+    public void onData(String chunk) {
+        System.out.print(chunk);  // Streamed token by token
+    }
+
+    @Override
+    public void onToolCallDetected(String name, String id, JSONObject args) {
+        System.out.println("Tool called: " + name);
+    }
+
+    @Override
+    public void onFinalComplete() {
+        System.out.println("\nDone!");
+    }
+
+    @Override public void onComplete() {}
+    @Override public void onError(Throwable t) { t.printStackTrace(); }
+};
+
+client.chat().completion()
+        .model("google/gemini-2.5-flash")
+        .addTool(weatherTool)
+        .stream(handler)
+        .addMessage("user", "What's the weather in Berlin?")
+        .execute();
 ```
 
 ### Configuring the Client

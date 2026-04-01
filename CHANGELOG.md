@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-04-01
+### Added
+- **NEW**: Combined streaming + function calling (tool use) support
+- **NEW**: `StreamingToolCallHandler` interface with lifecycle events: `onToolCallDetected()`, `onToolExecuted()`, `onTurnComplete()`, `onFinalComplete()`
+- **NEW**: Streaming + function calling example (`OpenRouterChatCompletionStreamingWithFunctionCallingExample`)
+- When both `.stream(handler)` and `.addTool(tool)` are set, `execute()` and `executeAsync()` automatically orchestrate a streaming multi-turn tool-call loop
+
+### Changed
+- Updated api-base dependency from 2.2.1 to 2.2.2
+
 ## [1.1.1] - 2025-12-15
 ### Changed
 - Updated api-base dependency from 2.2.0 to 2.2.1
