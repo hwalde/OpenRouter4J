@@ -1,6 +1,10 @@
 package de.entwicklertraining.openrouter4j.chat.completion;
 
 import de.entwicklertraining.api.base.ApiClient;
+import de.entwicklertraining.api.base.streaming.SSEStreamProcessor;
+import de.entwicklertraining.api.base.streaming.StreamingFormat;
+import de.entwicklertraining.api.base.streaming.StreamingInfo;
+import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -8,6 +12,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Handles OpenRouter chat completion requests with automatic tool calling loops.
@@ -128,6 +133,157 @@ public final class OpenRouterChatCompletionCallHandler {
             // Build the next request with updated messages
             currentRequest = buildNextRequest(initialRequest, messages);
         }
+    }
+
+    public CompletableFuture<OpenRouterChatCompletionResponse> handleStreamingRequest(
+            OpenRouterChatCompletionRequest initialRequest,
+            StreamingResponseHandler<String> userHandler,
+            boolean useRetry
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<JSONObject> messages = new ArrayList<>(initialRequest.messages());
+            var toolMap = new HashMap<String, OpenRouterToolDefinition>();
+            for (var tool : initialRequest.tools()) {
+                toolMap.put(tool.name(), tool);
+            }
+
+            OpenRouterChatCompletionRequest currentRequest = initialRequest;
+            int turnCount = 0;
+
+            while (true) {
+                turnCount++;
+                if (turnCount > MAX_TURNS) {
+                    throw new ApiClient.ApiClientException(
+                            "Exceeded maximum of " + MAX_TURNS + " streaming call iterations without final stop."
+                    );
+                }
+
+                StreamingToolCallAccumulator accumulator = new StreamingToolCallAccumulator(userHandler);
+                OpenRouterChatCompletionRequest streamingRequest =
+                        buildStreamingRequest(currentRequest, messages, accumulator);
+
+                if (useRetry) {
+                    client.executeWithRetry(streamingRequest);
+                } else {
+                    client.execute(streamingRequest);
+                }
+
+                if (!accumulator.hasToolCalls()) {
+                    if (userHandler instanceof StreamingToolCallHandler stch) {
+                        stch.onFinalComplete();
+                    }
+                    userHandler.onComplete();
+
+                    return new OpenRouterChatCompletionResponse(
+                            buildSyntheticResponseJson(accumulator, initialRequest.model()),
+                            initialRequest
+                    );
+                }
+
+                JSONArray toolCalls = accumulator.getAccumulatedToolCalls();
+                messages.add(accumulator.buildAssistantMessage());
+
+                for (int i = 0; i < toolCalls.length(); i++) {
+                    JSONObject toolCall = toolCalls.getJSONObject(i);
+                    String toolCallId = toolCall.getString("id");
+                    JSONObject functionObj = toolCall.getJSONObject("function");
+                    String functionName = functionObj.getString("name");
+                    String argumentsStr = functionObj.getString("arguments");
+
+                    if (!toolMap.containsKey(functionName)) {
+                        throw new ApiClient.ApiResponseUnusableException(
+                                "Unknown tool requested: " + functionName
+                        );
+                    }
+
+                    JSONObject args;
+                    try {
+                        args = new JSONObject(argumentsStr);
+                    } catch (Exception e) {
+                        throw new ApiClient.ApiResponseUnusableException(
+                                "Failed to parse tool call arguments for " + functionName + ": " + e.getMessage()
+                        );
+                    }
+
+                    if (userHandler instanceof StreamingToolCallHandler stch) {
+                        stch.onToolCallDetected(functionName, toolCallId, args);
+                    }
+
+                    OpenRouterToolDefinition toolDef = toolMap.get(functionName);
+                    OpenRouterToolResult result = toolDef.callback().handle(
+                            new OpenRouterToolCallContext(args)
+                    );
+
+                    if (userHandler instanceof StreamingToolCallHandler stch) {
+                        stch.onToolExecuted(functionName, toolCallId, result);
+                    }
+
+                    JSONObject toolResultMsg = new JSONObject();
+                    toolResultMsg.put("role", "tool");
+                    toolResultMsg.put("tool_call_id", toolCallId);
+                    toolResultMsg.put("content", result.content().toString());
+                    messages.add(toolResultMsg);
+                }
+
+                if (userHandler instanceof StreamingToolCallHandler stch) {
+                    stch.onTurnComplete(turnCount);
+                }
+
+                currentRequest = buildNextRequest(initialRequest, messages);
+            }
+        });
+    }
+
+    private OpenRouterChatCompletionRequest buildStreamingRequest(
+            OpenRouterChatCompletionRequest original,
+            List<JSONObject> updatedMessages,
+            StreamingToolCallAccumulator accumulator
+    ) {
+        var builder = OpenRouterChatCompletionRequest.builder(client)
+                .model(original.model())
+                .maxExecutionTimeInSeconds(original.getMaxExecutionTimeInSeconds())
+                .setCancelSupplier(original.getIsCanceledSupplier())
+                .temperature(original.temperature())
+                .topK(original.topK())
+                .topP(original.topP())
+                .maxOutputTokens(original.maxTokens())
+                .stopSequences(original.stopSequences())
+                .tools(original.tools())
+                .toolChoice(original.toolChoice())
+                .parallelToolCalls(original.parallelToolCalls())
+                .responseSchema(original.responseSchema())
+                .responseMimeType(original.responseMimeType())
+                .thinking(original.thinkingBudget())
+                .stream(true)
+                .addAllMessages(updatedMessages);
+
+        if (original.providers() != null && !original.providers().isEmpty()) {
+            builder.provider(original.providers().toArray(new String[0]));
+        }
+        if (original.hasCaptureOnSuccess()) {
+            builder.captureOnSuccess(original.getCaptureOnSuccess());
+        }
+        if (original.hasCaptureOnError()) {
+            builder.captureOnError(original.getCaptureOnError());
+        }
+
+        builder.setRawJsonStreaming(accumulator);
+        return builder.build();
+    }
+
+    private JSONObject buildSyntheticResponseJson(StreamingToolCallAccumulator accumulator, String model) {
+        JSONObject msg = accumulator.buildAssistantMessage();
+        JSONObject choice = new JSONObject();
+        choice.put("index", 0);
+        choice.put("message", msg);
+        choice.put("finish_reason", accumulator.getFinishReason() != null ? accumulator.getFinishReason() : "stop");
+
+        JSONObject root = new JSONObject();
+        root.put("choices", new JSONArray().put(choice));
+        if (model != null) {
+            root.put("model", model);
+        }
+        return root;
     }
 
     private OpenRouterChatCompletionRequest buildNextRequest(

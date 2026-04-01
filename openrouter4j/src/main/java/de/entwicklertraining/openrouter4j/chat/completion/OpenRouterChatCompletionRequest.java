@@ -1,6 +1,10 @@
 package de.entwicklertraining.openrouter4j.chat.completion;
 
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
+import de.entwicklertraining.api.base.streaming.SSEStreamProcessor;
+import de.entwicklertraining.api.base.streaming.StreamingFormat;
+import de.entwicklertraining.api.base.streaming.StreamingInfo;
+import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -406,6 +410,17 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             return this;
         }
 
+        void setRawJsonStreaming(StreamingResponseHandler<String> handler) {
+            SSEStreamProcessor<String> rawProcessor = new SSEStreamProcessor<>(
+                    String.class, SSEStreamProcessor.CommonExtractors.RAW_JSON
+            );
+            this.streamingInfo = StreamingInfo.builder()
+                    .format(StreamingFormat.SERVER_SENT_EVENTS)
+                    .handler(handler)
+                    .customProcessor(rawProcessor)
+                    .build();
+        }
+
         /**
          * Sets provider preference order (OpenRouter-specific).
          * Example: provider("google-ai-studio", "openai")
@@ -539,12 +554,31 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         @Override
         public OpenRouterChatCompletionResponse execute() {
-            return new OpenRouterChatCompletionCallHandler(client).handleRequest(build(), false);
+            OpenRouterChatCompletionRequest req = build();
+            var handler = new OpenRouterChatCompletionCallHandler(client);
+            if (!req.tools().isEmpty() && req.isStreamingEnabled()) {
+                return handler.handleStreamingRequest(req, extractStreamingHandler(), false).join();
+            }
+            return handler.handleRequest(req, false);
         }
 
         @Override
         public OpenRouterChatCompletionResponse executeWithExponentialBackoff() {
-            return new OpenRouterChatCompletionCallHandler(client).handleRequest(build(), true);
+            OpenRouterChatCompletionRequest req = build();
+            var handler = new OpenRouterChatCompletionCallHandler(client);
+            if (!req.tools().isEmpty() && req.isStreamingEnabled()) {
+                return handler.handleStreamingRequest(req, extractStreamingHandler(), true).join();
+            }
+            return handler.handleRequest(req, true);
+        }
+
+        @SuppressWarnings("unchecked")
+        private StreamingResponseHandler<String> extractStreamingHandler() {
+            var info = getStreamingInfo();
+            if (info != null && info.isEnabled() && info.getHandler() != null) {
+                return (StreamingResponseHandler<String>) info.getHandler();
+            }
+            throw new IllegalStateException("Streaming handler is required for streaming + tool calling");
         }
     }
 }
