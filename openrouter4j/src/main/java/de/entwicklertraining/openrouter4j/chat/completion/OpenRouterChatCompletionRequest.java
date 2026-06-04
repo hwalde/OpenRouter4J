@@ -36,6 +36,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final OpenRouterJsonSchema responseSchema;
     private final String responseMimeType;
     private final List<String> providers; // OpenRouter-specific: provider selection
+    private final Boolean requireParameters; // OpenRouter-specific: provider.require_parameters
+    private final Boolean allowFallbacks; // OpenRouter-specific: provider.allow_fallbacks
     private final Integer thinkingBudget; // For reasoning models
     private final boolean stream; // Enable streaming responses
 
@@ -58,6 +60,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             OpenRouterJsonSchema responseSchema,
             String responseMimeType,
             List<String> providers,
+            Boolean requireParameters,
+            Boolean allowFallbacks,
             Integer thinkingBudget,
             boolean stream
     ) {
@@ -76,6 +80,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.responseSchema = responseSchema;
         this.responseMimeType = responseMimeType;
         this.providers = providers;
+        this.requireParameters = requireParameters;
+        this.allowFallbacks = allowFallbacks;
         this.thinkingBudget = thinkingBudget;
         this.stream = stream;
     }
@@ -130,6 +136,14 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public List<String> providers() {
         return providers;
+    }
+
+    public Boolean requireParameters() {
+        return requireParameters;
+    }
+
+    public Boolean allowFallbacks() {
+        return allowFallbacks;
     }
 
     public Integer thinkingBudget() {
@@ -228,13 +242,24 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         // Provider selection (OpenRouter-specific)
-        if (providers != null && !providers.isEmpty()) {
+        // The provider object is emitted whenever any provider routing option is set,
+        // not only when an order list is present.
+        boolean hasProviderOrder = providers != null && !providers.isEmpty();
+        if (hasProviderOrder || requireParameters != null || allowFallbacks != null) {
             JSONObject providerObj = new JSONObject();
-            JSONArray orderArr = new JSONArray();
-            for (String p : providers) {
-                orderArr.put(p);
+            if (hasProviderOrder) {
+                JSONArray orderArr = new JSONArray();
+                for (String p : providers) {
+                    orderArr.put(p);
+                }
+                providerObj.put("order", orderArr);
             }
-            providerObj.put("order", orderArr);
+            if (requireParameters != null) {
+                providerObj.put("require_parameters", requireParameters);
+            }
+            if (allowFallbacks != null) {
+                providerObj.put("allow_fallbacks", allowFallbacks);
+            }
             root.put("provider", providerObj);
         }
 
@@ -278,6 +303,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private OpenRouterJsonSchema responseSchema;
         private String responseMimeType;
         private final List<String> providers = new ArrayList<>();
+        private Boolean requireParameters;
+        private Boolean allowFallbacks;
         private Integer thinkingBudget;
         private boolean streamEnabled;
 
@@ -432,6 +459,47 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         /**
+         * Sets provider.require_parameters (OpenRouter-specific).
+         * <p>
+         * When {@code true}, OpenRouter only routes the request to endpoints that support
+         * ALL parameters of the request (e.g. structured outputs via response_format,
+         * tools, ...). This matters because by default OpenRouter silently ignores
+         * unsupported parameters: with a responseSchema set, the request may be routed
+         * to an endpoint without structured_outputs support and the schema is then
+         * dropped without any error - the model answers with free-form text instead.
+         * <p>
+         * Note: if no endpoint of the model supports all requested parameters,
+         * OpenRouter responds with HTTP 404 ("No endpoints found that can handle the
+         * requested parameters") instead of silently degrading.
+         *
+         * @param require true to restrict routing to fully compatible endpoints
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder requireParameters(boolean require) {
+            this.requireParameters = require;
+            return this;
+        }
+
+        /**
+         * Sets provider.allow_fallbacks (OpenRouter-specific).
+         * <p>
+         * By default ({@code true}), OpenRouter may fall back to other providers when
+         * the preferred providers (see {@link #provider(String...)}) are unavailable or
+         * fail. Set to {@code false} to pin the request strictly to the providers given
+         * in the order list - if none of them can serve the request, OpenRouter returns
+         * an error instead of routing elsewhere.
+         *
+         * @param allow false to disable fallbacks to providers outside the order list
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder allowFallbacks(boolean allow) {
+            this.allowFallbacks = allow;
+            return this;
+        }
+
+        /**
          * Adds an image via external URL. Validates supported file extensions.
          * OpenRouter supports multimodal inputs similar to OpenAI.
          */
@@ -547,6 +615,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     responseSchema,
                     responseMimeType,
                     List.copyOf(providers),
+                    requireParameters,
+                    allowFallbacks,
                     thinkingBudget,
                     shouldStream
             );
