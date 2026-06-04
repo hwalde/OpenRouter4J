@@ -92,10 +92,16 @@ X-Title: <YOUR_SITE_NAME>
 ```json
 {
   "provider": {
-    "order": ["google-ai-studio", "openai"]
+    "order": ["google-ai-studio", "openai"],
+    "require_parameters": true,
+    "allow_fallbacks": false
   }
 }
 ```
+
+- `order`: Provider-Präferenzreihenfolge (Builder: `provider(String...)`)
+- `require_parameters`: nur Endpoints, die ALLE Request-Parameter unterstützen (Builder: `requireParameters(boolean)`) — ohne dieses Flag werden z.B. `response_format`-Schemas auf inkompatiblen Endpoints stillschweigend ignoriert; gibt es keinen passenden Endpoint, antwortet OpenRouter mit HTTP 404
+- `allow_fallbacks`: `false` = hartes Pinning auf die `order`-Liste, kein Ausweichen auf andere Provider (Builder: `allowFallbacks(boolean)`)
 
 ---
 

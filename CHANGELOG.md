@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-06-04
+### Added
+- **NEW**: `requireParameters(boolean)` builder method - sets `provider.require_parameters` so OpenRouter only routes to endpoints that support ALL request parameters (e.g. structured outputs). Prevents the silent-ignore pitfall where a `responseSchema` is dropped without error on endpoints lacking `structured_outputs` support. If no endpoint qualifies, OpenRouter responds with HTTP 404 ("No endpoints found that can handle the requested parameters").
+- **NEW**: `allowFallbacks(boolean)` builder method - sets `provider.allow_fallbacks`; with `false` the request is pinned strictly to the providers in the order list.
+- **NEW**: Examples `OpenRouterChatCompletionWithRequireParametersExample` and `OpenRouterChatCompletionWithAllowFallbacksExample`
+
+### Changed
+- The `provider` object is now also emitted when only `require_parameters`/`allow_fallbacks` are set (previously it required a non-empty provider order list)
+
 ## [1.2.0] - 2026-04-01
 ### Added
 - **NEW**: Combined streaming + function calling (tool use) support

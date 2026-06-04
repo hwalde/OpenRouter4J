@@ -30,7 +30,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 
@@ -98,6 +98,34 @@ client.chat().completion()
         .addMessage("user", "Hello!")
         .execute();
 ```
+
+Two additional routing options control how strictly OpenRouter follows your request:
+
+```java
+// require_parameters: only route to endpoints that support ALL request parameters.
+// Without this, endpoints lacking structured_outputs support silently IGNORE a
+// responseSchema and answer with free-form text. If no endpoint qualifies,
+// OpenRouter responds with HTTP 404 ("No endpoints found that can handle the
+// requested parameters").
+client.chat().completion()
+        .model("deepseek/deepseek-v4-flash")
+        .requireParameters(true)
+        .responseSchema(mySchema)
+        .addMessage("user", "Hello!")
+        .execute();
+
+// allow_fallbacks=false: pin the request strictly to the providers in the order
+// list - no silent fallback to other providers if they are unavailable.
+client.chat().completion()
+        .model("deepseek/deepseek-v4-flash")
+        .provider("alibaba")
+        .allowFallbacks(false)
+        .addMessage("user", "Hello!")
+        .execute();
+```
+
+See `OpenRouterChatCompletionWithRequireParametersExample` and
+`OpenRouterChatCompletionWithAllowFallbacksExample` in the examples module.
 
 ### Streaming Example
 
