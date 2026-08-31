@@ -4,12 +4,15 @@ import de.entwicklertraining.api.base.ApiResponse;
 import org.json.JSONObject;
 
 /**
- * Abstrakte Basis für OpenRouter-spezifische Responses,
- * erbt nun von ApiResponse<OpenRouterRequest<?>>.
+ * Abstract base for OpenRouter-specific responses; extends
+ * {@code ApiResponse<OpenRouterRequest<?>>} from the api-base library.
+ *
+ * @param <T> the request type this response belongs to
  */
 public abstract class OpenRouterResponse<T extends OpenRouterRequest<?>> extends ApiResponse<T> {
 
-    protected final JSONObject json;  // In OpenRouterResponse wollen wir das JSON parsen/halten
+    /** The parsed response body. Subclasses read their accessors out of this. */
+    protected final JSONObject json;
 
     protected OpenRouterResponse(JSONObject json, T request) {
         super(request);

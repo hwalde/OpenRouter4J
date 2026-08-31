@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Fixed
+- **Build**: `maven-surefire-plugin` is now pinned to 3.5.2. Maven's built-in default is 2.12.4, which cannot execute JUnit 5 tests: the suite reported `Tests run: 0` while the build stayed green, so no test in this project had ever actually run. All 18 tests now execute.
+- **Build**: GPG signing moved into a `release` profile. It was bound to the `verify` phase, so `mvn verify` failed for anyone without a private signing key - every contributor and every CI run. Plain `mvn verify` now works without a key; releases use `mvn -Prelease deploy`.
+- **Javadoc**: `OpenRouterResponse` was documented in German with unescaped generics, producing 14 `invalid input: '<'` warnings in the published javadoc jar. Rewritten in English with the generics escaped and the missing `@param <T>` added.
+- **Javadoc**: `StreamingToolCallHandler` linked to `#onData(String)`, which does not exist on that type - `onData` is inherited as `onData(T)`. The link now resolves.
+
 ## [1.3.0] - 2026-06-04
 ### Added
 - **NEW**: `requireParameters(boolean)` builder method - sets `provider.require_parameters` so OpenRouter only routes to endpoints that support ALL request parameters (e.g. structured outputs). Prevents the silent-ignore pitfall where a `responseSchema` is dropped without error on endpoints lacking `structured_outputs` support. If no endpoint qualifies, OpenRouter responds with HTTP 404 ("No endpoints found that can handle the requested parameters").

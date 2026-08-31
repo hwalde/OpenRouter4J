@@ -11,7 +11,7 @@ import org.json.JSONObject;
  * <p>When both streaming and tools are active, the library automatically
  * orchestrates a multi-turn loop: each turn is streamed, tool calls are
  * detected and executed between turns, and the final text answer is
- * streamed to {@link #onData(String)}.
+ * streamed to {@link StreamingResponseHandler#onData(Object)}.
  *
  * <p>A regular {@link StreamingResponseHandler} can also be used — it will
  * simply not receive the extra lifecycle events.
