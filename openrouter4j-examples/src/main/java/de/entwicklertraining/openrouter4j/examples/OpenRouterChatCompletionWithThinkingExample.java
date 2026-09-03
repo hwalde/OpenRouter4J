@@ -71,7 +71,8 @@ public class OpenRouterChatCompletionWithThinkingExample {
                 .provider("google-ai-studio")
                 .addMessage("user", question)
                 .reasoningEffort("low")
-                .reasoningExclude(true) // reasoning.exclude
+                .reasoningEnabled(true) // reasoning.enabled - explicit on-switch (provider default otherwise)
+                .reasoningExclude(true) // reasoning.exclude - reason, but keep the output out of the response
                 .execute();
 
         System.out.println("Response with reasoning excluded:");
