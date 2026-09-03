@@ -4,15 +4,18 @@ import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionResponse;
 
 /**
- * An example demonstrating the "thinking" feature in OpenRouter API.
+ * An example demonstrating the reasoning feature in the OpenRouter API.
  *
- * The thinking feature allows the model to show its reasoning process before providing a final answer.
- * This can be useful for complex tasks where you want to see how the model arrived at its conclusion.
+ * OpenRouter expects the reasoning configuration in the current format:
+ * {@code "reasoning": {"effort": "...", "max_tokens": N, "exclude": ..., "enabled": ...}}.
+ * The old {@code "reasoning": {"type": "enabled", "budget": N}} shape is obsolete and
+ * is no longer sent by this library.
  *
- * This example shows three different ways to use the thinking feature:
- * 1. Without thinking (disabled)
- * 2. With thinking enabled and a budget
- * 3. With thinking enabled but no budget specified
+ * This example shows different ways to configure reasoning:
+ * 1. Without reasoning (default)
+ * 2. With a reasoning token budget ({@code reasoning.max_tokens})
+ * 3. With an effort hint ({@code reasoning.effort})
+ * 4. With reasoning enabled but the output excluded from the response
  */
 public class OpenRouterChatCompletionWithThinkingExample {
 
@@ -20,42 +23,58 @@ public class OpenRouterChatCompletionWithThinkingExample {
         // Create the OpenRouter client
         OpenRouterClient client = new OpenRouterClient();
 
-        // Example 1: Without thinking (disabled by default)
-        System.out.println("EXAMPLE 1: WITHOUT THINKING (DISABLED)");
+        String question = "Solve this math problem step by step: If a train travels at 120 km/h and another train travels at 80 km/h in the opposite direction, how long will it take for them to be 500 km apart if they start at the same location?";
+
+        // Example 1: Without reasoning (disabled by default)
+        System.out.println("EXAMPLE 1: WITHOUT REASONING (DISABLED)");
         OpenRouterChatCompletionResponse response1 = client.chat().completion()
                 .model("google/gemini-2.5-flash")
                 .provider("google-ai-studio")
-                .addMessage("user", "Solve this math problem step by step: If a train travels at 120 km/h and another train travels at 80 km/h in the opposite direction, how long will it take for them to be 500 km apart if they start at the same location?")
-                // No thinking method call means thinking is disabled
+                .addMessage("user", question)
+                // No reasoning method call means no reasoning key is sent at all
                 .execute();
 
-        System.out.println("Response without thinking:");
+        System.out.println("Response without reasoning:");
         System.out.println(response1.assistantMessage());
         System.out.println("\n-----------------------------------\n");
 
-        // Example 2: With thinking enabled and a budget
-        System.out.println("EXAMPLE 2: WITH THINKING ENABLED AND BUDGET");
+        // Example 2: With an explicit reasoning token budget
+        System.out.println("EXAMPLE 2: WITH REASONING TOKEN BUDGET");
         OpenRouterChatCompletionResponse response2 = client.chat().completion()
                 .model("google/gemini-2.5-flash")
                 .provider("google-ai-studio")
-                .addMessage("user", "Solve this math problem step by step: If a train travels at 120 km/h and another train travels at 80 km/h in the opposite direction, how long will it take for them to be 500 km apart if they start at the same location?")
-                .thinking(1000) // Set thinking budget to 1000 tokens
+                .addMessage("user", question)
+                .reasoningMaxTokens(1000) // reasoning.max_tokens
                 .execute();
 
-        System.out.println("Response with thinking budget of 1000 tokens:");
+        System.out.println("Response with reasoning budget of 1000 tokens:");
         System.out.println(response2.assistantMessage());
         System.out.println("\n-----------------------------------\n");
 
-        // Example 3: With thinking enabled but no budget specified
-        System.out.println("EXAMPLE 3: WITH THINKING ENABLED BUT NO BUDGET");
+        // Example 3: With an effort hint instead of a token budget
+        System.out.println("EXAMPLE 3: WITH REASONING EFFORT HINT");
         OpenRouterChatCompletionResponse response3 = client.chat().completion()
                 .model("google/gemini-2.5-flash")
                 .provider("google-ai-studio")
-                .addMessage("user", "Solve this math problem step by step: If a train travels at 120 km/h and another train travels at 80 km/h in the opposite direction, how long will it take for them to be 500 km apart if they start at the same location?")
-                .thinking(null) // This does nothing according to the requirements
+                .addMessage("user", question)
+                .reasoningEffort("high") // reasoning.effort
                 .execute();
 
-        System.out.println("Response with thinking enabled but no budget:");
+        System.out.println("Response with reasoning effort 'high':");
         System.out.println(response3.assistantMessage());
+        System.out.println("\n-----------------------------------\n");
+
+        // Example 4: Reason, but keep the reasoning output out of the response
+        System.out.println("EXAMPLE 4: REASONING EXCLUDED FROM RESPONSE");
+        OpenRouterChatCompletionResponse response4 = client.chat().completion()
+                .model("google/gemini-2.5-flash")
+                .provider("google-ai-studio")
+                .addMessage("user", question)
+                .reasoningEffort("low")
+                .reasoningExclude(true) // reasoning.exclude
+                .execute();
+
+        System.out.println("Response with reasoning excluded:");
+        System.out.println(response4.assistantMessage());
     }
 }

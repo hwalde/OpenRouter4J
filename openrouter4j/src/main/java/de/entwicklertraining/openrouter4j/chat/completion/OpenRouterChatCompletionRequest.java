@@ -38,7 +38,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final List<String> providers; // OpenRouter-specific: provider selection
     private final Boolean requireParameters; // OpenRouter-specific: provider.require_parameters
     private final Boolean allowFallbacks; // OpenRouter-specific: provider.allow_fallbacks
-    private final Integer thinkingBudget; // For reasoning models
+    private final String reasoningEffort; // reasoning.effort ("max", "xhigh", "high", "medium", "low", "minimal", "none")
+    private final Integer reasoningMaxTokens; // reasoning.max_tokens (Anthropic-style reasoning budget)
+    private final Boolean reasoningExclude; // reasoning.exclude - keep reasoning out of the response
+    private final Boolean reasoningEnabled; // reasoning.enabled - explicit switch for reasoning
     private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
@@ -62,7 +65,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             List<String> providers,
             Boolean requireParameters,
             Boolean allowFallbacks,
-            Integer thinkingBudget,
+            String reasoningEffort,
+            Integer reasoningMaxTokens,
+            Boolean reasoningExclude,
+            Boolean reasoningEnabled,
             boolean stream
     ) {
         super(builder);
@@ -82,7 +88,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.providers = providers;
         this.requireParameters = requireParameters;
         this.allowFallbacks = allowFallbacks;
-        this.thinkingBudget = thinkingBudget;
+        this.reasoningEffort = reasoningEffort;
+        this.reasoningMaxTokens = reasoningMaxTokens;
+        this.reasoningExclude = reasoningExclude;
+        this.reasoningEnabled = reasoningEnabled;
         this.stream = stream;
     }
 
@@ -146,8 +155,43 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         return allowFallbacks;
     }
 
+    /**
+     * The reasoning effort hint for reasoning models, or {@code null} when unset.
+     * One of "max", "xhigh", "high", "medium", "low", "minimal", "none".
+     */
+    public String reasoningEffort() {
+        return reasoningEffort;
+    }
+
+    /**
+     * The reasoning token budget (Anthropic-style {@code reasoning.max_tokens}), or {@code null} when unset.
+     */
+    public Integer reasoningMaxTokens() {
+        return reasoningMaxTokens;
+    }
+
+    /**
+     * Whether reasoning should be excluded from the response, or {@code null} when unset.
+     */
+    public Boolean reasoningExclude() {
+        return reasoningExclude;
+    }
+
+    /**
+     * The explicit reasoning switch ({@code reasoning.enabled}), or {@code null} when unset.
+     */
+    public Boolean reasoningEnabled() {
+        return reasoningEnabled;
+    }
+
+    /**
+     * @deprecated Legacy alias for {@link #reasoningMaxTokens()}. The old
+     * {@code "reasoning": {"type": "enabled", "budget": N}} wire format no longer
+     * exists in the OpenRouter API; the budget is now sent as {@code reasoning.max_tokens}.
+     */
+    @Deprecated
     public Integer thinkingBudget() {
-        return thinkingBudget;
+        return reasoningMaxTokens;
     }
 
     /**
@@ -263,11 +307,24 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             root.put("provider", providerObj);
         }
 
-        // Reasoning/thinking (if supported)
-        if (thinkingBudget != null) {
+        // Reasoning configuration (OpenRouter-specific, current API format).
+        // Emitted only when at least one reasoning option is set - an unset
+        // reasoning configuration must not appear in the JSON at all.
+        if (reasoningEffort != null || reasoningMaxTokens != null
+                || reasoningExclude != null || reasoningEnabled != null) {
             JSONObject reasoning = new JSONObject();
-            reasoning.put("type", "enabled");
-            reasoning.put("budget", thinkingBudget);
+            if (reasoningEffort != null) {
+                reasoning.put("effort", reasoningEffort);
+            }
+            if (reasoningMaxTokens != null) {
+                reasoning.put("max_tokens", reasoningMaxTokens);
+            }
+            if (reasoningExclude != null) {
+                reasoning.put("exclude", reasoningExclude);
+            }
+            if (reasoningEnabled != null) {
+                reasoning.put("enabled", reasoningEnabled);
+            }
             root.put("reasoning", reasoning);
         }
 
@@ -305,7 +362,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private final List<String> providers = new ArrayList<>();
         private Boolean requireParameters;
         private Boolean allowFallbacks;
-        private Integer thinkingBudget;
+        private String reasoningEffort;
+        private Integer reasoningMaxTokens;
+        private Boolean reasoningExclude;
+        private Boolean reasoningEnabled;
         private boolean streamEnabled;
 
         public Builder(OpenRouterClient client) {
@@ -419,9 +479,78 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         /**
          * Sets the thinking budget for reasoning models.
+         *
+         * @deprecated Use {@link #reasoningMaxTokens(Integer)} instead. The legacy
+         * {@code "reasoning": {"type": "enabled", "budget": N}} wire format is no longer
+         * accepted by the OpenRouter API; this method now produces the current
+         * {@code reasoning.max_tokens} form.
          */
+        @Deprecated
         public Builder thinking(Integer budget) {
-            this.thinkingBudget = budget;
+            this.reasoningMaxTokens = budget;
+            return this;
+        }
+
+        /**
+         * Sets the reasoning token budget ({@code reasoning.max_tokens}) for reasoning models.
+         * <p>
+         * JSON field: {@code reasoning.max_tokens}. Default: unset (the key is not sent).
+         * Trap: not every model supports explicit reasoning budgets; when in doubt use
+         * {@link #reasoningEffort(String)} instead, or combine the two - the API decides
+         * precedence when both are present.
+         *
+         * @param maxTokens maximum number of tokens the model may spend on reasoning
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/reasoning-tokens">Reasoning tokens</a>
+         */
+        public Builder reasoningMaxTokens(Integer maxTokens) {
+            this.reasoningMaxTokens = maxTokens;
+            return this;
+        }
+
+        /**
+         * Sets the reasoning effort hint ({@code reasoning.effort}) for reasoning models.
+         * <p>
+         * JSON field: {@code reasoning.effort}. Default: unset (the key is not sent).
+         * Documented values: {@code "max"}, {@code "xhigh"}, {@code "high"},
+         * {@code "medium"}, {@code "low"}, {@code "minimal"}, {@code "none"}.
+         *
+         * @param effort one of the documented effort levels
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/reasoning-tokens">Reasoning tokens</a>
+         */
+        public Builder reasoningEffort(String effort) {
+            this.reasoningEffort = effort;
+            return this;
+        }
+
+        /**
+         * Sets {@code reasoning.exclude}: when {@code true}, the model still reasons but the
+         * reasoning output is kept out of the response.
+         * <p>
+         * JSON field: {@code reasoning.exclude}. Default: unset (the key is not sent).
+         *
+         * @param exclude true to suppress reasoning output in the response
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/reasoning-tokens">Reasoning tokens</a>
+         */
+        public Builder reasoningExclude(Boolean exclude) {
+            this.reasoningExclude = exclude;
+            return this;
+        }
+
+        /**
+         * Sets {@code reasoning.enabled} as an explicit on/off switch for reasoning.
+         * <p>
+         * JSON field: {@code reasoning.enabled}. Default: unset (the key is not sent and
+         * the provider default applies).
+         *
+         * @param enabled true to explicitly enable, false to explicitly disable reasoning
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/reasoning-tokens">Reasoning tokens</a>
+         */
+        public Builder reasoningEnabled(Boolean enabled) {
+            this.reasoningEnabled = enabled;
             return this;
         }
 
@@ -617,7 +746,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     List.copyOf(providers),
                     requireParameters,
                     allowFallbacks,
-                    thinkingBudget,
+                    reasoningEffort,
+                    reasoningMaxTokens,
+                    reasoningExclude,
+                    reasoningEnabled,
                     shouldStream
             );
         }

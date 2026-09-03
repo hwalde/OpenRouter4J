@@ -234,7 +234,9 @@ public final class OpenRouterChatCompletionCallHandler {
         });
     }
 
-    private OpenRouterChatCompletionRequest buildStreamingRequest(
+    // Package-private so tests can exercise the hand-maintained option copy list
+    // (this is the list that historically drifted - keep it complete).
+    OpenRouterChatCompletionRequest buildStreamingRequest(
             OpenRouterChatCompletionRequest original,
             List<JSONObject> updatedMessages,
             StreamingToolCallAccumulator accumulator
@@ -253,12 +255,21 @@ public final class OpenRouterChatCompletionCallHandler {
                 .parallelToolCalls(original.parallelToolCalls())
                 .responseSchema(original.responseSchema())
                 .responseMimeType(original.responseMimeType())
-                .thinking(original.thinkingBudget())
+                .reasoningEffort(original.reasoningEffort())
+                .reasoningMaxTokens(original.reasoningMaxTokens())
+                .reasoningExclude(original.reasoningExclude())
+                .reasoningEnabled(original.reasoningEnabled())
                 .stream(true)
                 .addAllMessages(updatedMessages);
 
         if (original.providers() != null && !original.providers().isEmpty()) {
             builder.provider(original.providers().toArray(new String[0]));
+        }
+        if (original.requireParameters() != null) {
+            builder.requireParameters(original.requireParameters());
+        }
+        if (original.allowFallbacks() != null) {
+            builder.allowFallbacks(original.allowFallbacks());
         }
         if (original.hasCaptureOnSuccess()) {
             builder.captureOnSuccess(original.getCaptureOnSuccess());
@@ -286,7 +297,9 @@ public final class OpenRouterChatCompletionCallHandler {
         return root;
     }
 
-    private OpenRouterChatCompletionRequest buildNextRequest(
+    // Package-private so tests can exercise the hand-maintained option copy list
+    // (this is the list that historically drifted - keep it complete).
+    OpenRouterChatCompletionRequest buildNextRequest(
             OpenRouterChatCompletionRequest original,
             List<JSONObject> updatedMessages
     ) {
@@ -304,13 +317,24 @@ public final class OpenRouterChatCompletionCallHandler {
                 .parallelToolCalls(original.parallelToolCalls())
                 .responseSchema(original.responseSchema())
                 .responseMimeType(original.responseMimeType())
-                .thinking(original.thinkingBudget())
+                .reasoningEffort(original.reasoningEffort())
+                .reasoningMaxTokens(original.reasoningMaxTokens())
+                .reasoningExclude(original.reasoningExclude())
+                .reasoningEnabled(original.reasoningEnabled())
                 .stream(original.stream())
                 .addAllMessages(updatedMessages);
 
         // Add provider selection if present
         if (original.providers() != null && !original.providers().isEmpty()) {
             builder.provider(original.providers().toArray(new String[0]));
+        }
+
+        // Copy provider routing flags if present
+        if (original.requireParameters() != null) {
+            builder.requireParameters(original.requireParameters());
+        }
+        if (original.allowFallbacks() != null) {
+            builder.allowFallbacks(original.allowFallbacks());
         }
 
         // Copy capture settings if available
