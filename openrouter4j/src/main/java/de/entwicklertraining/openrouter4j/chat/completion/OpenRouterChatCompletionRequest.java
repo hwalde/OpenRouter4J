@@ -33,6 +33,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final List<JSONObject> messages;
     private final List<OpenRouterToolDefinition> tools;
     private final String toolChoice; // "auto", "required", "none"
+    private final String toolChoiceFunction; // named form: forces this specific tool via {"type":"function","function":{"name":...}}
     private final Boolean parallelToolCalls;
     private final OpenRouterJsonSchema responseSchema;
     private final String responseMimeType;
@@ -61,6 +62,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             List<JSONObject> messages,
             List<OpenRouterToolDefinition> tools,
             String toolChoice,
+            String toolChoiceFunction,
             Boolean parallelToolCalls,
             OpenRouterJsonSchema responseSchema,
             String responseMimeType,
@@ -85,6 +87,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.messages = messages;
         this.tools = tools;
         this.toolChoice = toolChoice;
+        this.toolChoiceFunction = toolChoiceFunction;
         this.parallelToolCalls = parallelToolCalls;
         this.responseSchema = responseSchema;
         this.responseMimeType = responseMimeType;
@@ -139,6 +142,13 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public String toolChoice() {
         return toolChoice;
+    }
+
+    /**
+     * The name of the forced tool for the named {@code tool_choice} form, or {@code null} when unset.
+     */
+    public String toolChoiceFunction() {
+        return toolChoiceFunction;
     }
 
     public Boolean parallelToolCalls() {
@@ -267,8 +277,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             }
             root.put("tools", toolsArr);
 
-            // tool_choice
-            if (toolChoice != null) {
+            // tool_choice - named object form wins over the plain string form
+            if (toolChoiceFunction != null) {
+                JSONObject functionChoice = new JSONObject();
+                functionChoice.put("type", "function");
+                JSONObject function = new JSONObject();
+                function.put("name", toolChoiceFunction);
+                functionChoice.put("function", function);
+                root.put("tool_choice", functionChoice);
+            } else if (toolChoice != null) {
                 root.put("tool_choice", toolChoice);
             }
 
@@ -370,6 +387,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private final List<JSONObject> messages = new ArrayList<>();
         private final List<OpenRouterToolDefinition> tools = new ArrayList<>();
         private String toolChoice;
+        private String toolChoiceFunction;
         private Boolean parallelToolCalls;
         private OpenRouterJsonSchema responseSchema;
         private String responseMimeType;
@@ -479,6 +497,24 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          */
         public Builder toolChoice(String choice) {
             this.toolChoice = choice;
+            return this;
+        }
+
+        /**
+         * Forces the model to call one specific tool - the named {@code tool_choice}
+         * object form {@code {"type":"function","function":{"name":...}}}.
+         * <p>
+         * JSON field: {@code tool_choice} (object form). Default: unset (the key is not sent).
+         * The string keywords ("auto", "required", "none") via {@link #toolChoice(String)}
+         * remain available; if both are set, the named form wins. The key is emitted only
+         * when tools are present, and the named tool must be among them.
+         *
+         * @param functionName name of the tool definition to force (must match a registered tool)
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/tool-calling">Tool calling</a>
+         */
+        public Builder toolChoiceFunction(String functionName) {
+            this.toolChoiceFunction = functionName;
             return this;
         }
 
@@ -777,6 +813,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     List.copyOf(messages),
                     List.copyOf(tools),
                     toolChoice,
+                    toolChoiceFunction,
                     parallelToolCalls,
                     responseSchema,
                     responseMimeType,

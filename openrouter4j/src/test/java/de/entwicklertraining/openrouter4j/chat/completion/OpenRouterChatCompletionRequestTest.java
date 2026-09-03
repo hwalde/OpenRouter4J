@@ -2,6 +2,8 @@ package de.entwicklertraining.openrouter4j.chat.completion;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterToolDefinition;
+import de.entwicklertraining.openrouter4j.OpenRouterToolResult;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -279,5 +281,64 @@ class OpenRouterChatCompletionRequestTest {
         JSONObject body = new JSONObject(next.getBody());
         assertThat(body.getInt("max_completion_tokens")).isEqualTo(2048);
         assertThat(body.getInt("max_tokens")).isEqualTo(1024);
+    }
+
+    private OpenRouterChatCompletionRequest.Builder builderWithTool() {
+        return baseBuilder().addTool(OpenRouterToolDefinition.builder("get_weather")
+                .description("Get the current weather of a city")
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("temperature", "20 degrees")))
+                .build());
+    }
+
+    @Test
+    void namedToolChoiceEmitsObjectForm() {
+        JSONObject body = bodyOf(builderWithTool().toolChoiceFunction("get_weather"));
+
+        JSONObject toolChoice = body.getJSONObject("tool_choice");
+        assertThat(toolChoice.getString("type")).isEqualTo("function");
+        assertThat(toolChoice.getJSONObject("function").getString("name")).isEqualTo("get_weather");
+    }
+
+    @Test
+    void stringToolChoiceKeywordsStillEmitPlainString() {
+        JSONObject body = bodyOf(builderWithTool().toolChoice("required"));
+
+        assertThat(body.getString("tool_choice")).isEqualTo("required");
+    }
+
+    @Test
+    void namedToolChoiceWinsOverStringForm() {
+        JSONObject body = bodyOf(builderWithTool()
+                .toolChoice("auto")
+                .toolChoiceFunction("get_weather"));
+
+        assertThat(body.getJSONObject("tool_choice").getJSONObject("function").getString("name"))
+                .isEqualTo("get_weather");
+    }
+
+    @Test
+    void noToolChoiceEmittedWithoutTools() {
+        JSONObject stringForm = bodyOf(baseBuilder().toolChoice("auto"));
+        JSONObject namedForm = bodyOf(baseBuilder().toolChoiceFunction("get_weather"));
+
+        assertThat(stringForm.has("tool_choice")).isFalse();
+        assertThat(namedForm.has("tool_choice")).isFalse();
+    }
+
+    @Test
+    void namedToolChoiceAccessorAndPropagation() throws Exception {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .toolChoiceFunction("get_weather")
+                .build();
+
+        assertThat(initial.toolChoiceFunction()).isEqualTo("get_weather");
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        assertThat(new JSONObject(next.getBody()).getJSONObject("tool_choice")
+                .getJSONObject("function").getString("name")).isEqualTo("get_weather");
     }
 }
