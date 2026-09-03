@@ -9,7 +9,7 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  *  - function calling (no tools)
  *
  * But uses:
- *  - temperature, topK, topP, maxOutputTokens
+ *  - temperature, topK, topP, maxCompletionTokens
  *  - stop sequences
  *  - parallelToolCalls
  *  - systemInstruction
@@ -28,7 +28,7 @@ public class OpenRouterChatCompletionAllSettingsNoFunctionNoStructureExample {
                 .temperature(1.0)
                 .topK(64)
                 .topP(0.8)
-                .maxOutputTokens(512)
+                .maxCompletionTokens(512) // successor of the deprecated max_tokens
                 .addStopSequence("END_OF_TEXT")
                 .parallelToolCalls(false)
                 .responseMimeType("text/plain")

@@ -28,6 +28,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final Integer topK;
     private final Double topP;
     private final Integer maxTokens; // OpenRouter uses max_tokens (not maxOutputTokens)
+    private final Integer maxCompletionTokens; // max_completion_tokens - successor of the deprecated max_tokens
     private final List<String> stopSequences;
     private final List<JSONObject> messages;
     private final List<OpenRouterToolDefinition> tools;
@@ -55,6 +56,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             Integer topK,
             Double topP,
             Integer maxTokens,
+            Integer maxCompletionTokens,
             List<String> stopSequences,
             List<JSONObject> messages,
             List<OpenRouterToolDefinition> tools,
@@ -78,6 +80,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.topK = topK;
         this.topP = topP;
         this.maxTokens = maxTokens;
+        this.maxCompletionTokens = maxCompletionTokens;
         this.stopSequences = stopSequences;
         this.messages = messages;
         this.tools = tools;
@@ -113,6 +116,13 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public Integer maxTokens() {
         return maxTokens;
+    }
+
+    /**
+     * The completion token limit sent as {@code max_completion_tokens}, or {@code null} when unset.
+     */
+    public Integer maxCompletionTokens() {
+        return maxCompletionTokens;
     }
 
     public List<String> stopSequences() {
@@ -238,6 +248,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         if (maxTokens != null) {
             root.put("max_tokens", maxTokens);
         }
+        if (maxCompletionTokens != null) {
+            root.put("max_completion_tokens", maxCompletionTokens);
+        }
         if (stopSequences != null && !stopSequences.isEmpty()) {
             JSONArray stopArr = new JSONArray();
             for (String s : stopSequences) {
@@ -352,6 +365,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private Integer topK;
         private Double topP;
         private Integer maxTokens;
+        private Integer maxCompletionTokens;
         private final List<String> stopSequences = new ArrayList<>();
         private final List<JSONObject> messages = new ArrayList<>();
         private final List<OpenRouterToolDefinition> tools = new ArrayList<>();
@@ -394,10 +408,32 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         /**
-         * Sets max_tokens parameter.
+         * Sets the {@code max_tokens} parameter (limit on generated tokens).
+         *
+         * @deprecated OpenRouter has deprecated {@code max_tokens} in favour of
+         * {@code max_completion_tokens}; use {@link #maxCompletionTokens(Integer)}
+         * instead. This method keeps working and still emits {@code max_tokens}.
          */
+        @Deprecated
         public Builder maxOutputTokens(Integer m) {
             this.maxTokens = m;
+            return this;
+        }
+
+        /**
+         * Sets the {@code max_completion_tokens} parameter (maximum tokens in the completion),
+         * the non-deprecated successor of {@code max_tokens}.
+         * <p>
+         * JSON field: {@code max_completion_tokens}. Default: unset (the key is not sent).
+         * Trap: if both {@link #maxCompletionTokens(Integer)} and the deprecated
+         * {@link #maxOutputTokens(Integer)} are set, both keys are emitted verbatim and the
+         * OpenRouter API decides which one takes precedence - do not rely on that combination.
+         *
+         * @param m maximum number of tokens in the completion
+         * @return This builder instance
+         */
+        public Builder maxCompletionTokens(Integer m) {
+            this.maxCompletionTokens = m;
             return this;
         }
 
@@ -736,6 +772,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     topK,
                     topP,
                     maxTokens,
+                    maxCompletionTokens,
                     List.copyOf(stopSequences),
                     List.copyOf(messages),
                     List.copyOf(tools),

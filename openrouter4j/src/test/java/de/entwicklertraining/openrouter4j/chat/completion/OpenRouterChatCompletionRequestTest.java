@@ -227,4 +227,57 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(reasoning.getBoolean("enabled")).isFalse();
         assertThat(reasoning.getString("effort")).isEqualTo("minimal");
     }
+
+    @Test
+    void maxCompletionTokensIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().maxCompletionTokens(2048));
+
+        assertThat(body.getInt("max_completion_tokens")).isEqualTo(2048);
+        assertThat(body.has("max_tokens")).isFalse();
+    }
+
+    @Test
+    void deprecatedMaxTokensStillEmitted() {
+        JSONObject body = bodyOf(baseBuilder().maxOutputTokens(1024));
+
+        assertThat(body.getInt("max_tokens")).isEqualTo(1024);
+        assertThat(body.has("max_completion_tokens")).isFalse();
+    }
+
+    @Test
+    void bothMaxTokenVariantsAreEmittedVerbatimWhenBothSet() {
+        JSONObject body = bodyOf(baseBuilder()
+                .maxCompletionTokens(2048)
+                .maxOutputTokens(1024));
+
+        assertThat(body.getInt("max_completion_tokens")).isEqualTo(2048);
+        assertThat(body.getInt("max_tokens")).isEqualTo(1024);
+    }
+
+    @Test
+    void noMaxTokenKeysWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("max_tokens")).isFalse();
+        assertThat(body.has("max_completion_tokens")).isFalse();
+    }
+
+    @Test
+    void maxCompletionTokensAccessorAndPropagation() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .maxCompletionTokens(2048)
+                .maxOutputTokens(1024)
+                .build();
+
+        assertThat(initial.maxCompletionTokens()).isEqualTo(2048);
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONObject body = new JSONObject(next.getBody());
+        assertThat(body.getInt("max_completion_tokens")).isEqualTo(2048);
+        assertThat(body.getInt("max_tokens")).isEqualTo(1024);
+    }
 }
