@@ -261,6 +261,15 @@ public final class OpenRouterChatCompletionCallHandler {
                 .reasoningMaxTokens(original.reasoningMaxTokens())
                 .reasoningExclude(original.reasoningExclude())
                 .reasoningEnabled(original.reasoningEnabled())
+                .frequencyPenalty(original.frequencyPenalty())
+                .presencePenalty(original.presencePenalty())
+                .repetitionPenalty(original.repetitionPenalty())
+                .seed(original.seed())
+                .minP(original.minP())
+                .topA(original.topA())
+                .logitBias(original.logitBias())
+                .logprobs(original.logprobs())
+                .topLogprobs(original.topLogprobs())
                 .stream(true)
                 .addAllMessages(updatedMessages);
 
@@ -325,6 +334,15 @@ public final class OpenRouterChatCompletionCallHandler {
                 .reasoningMaxTokens(original.reasoningMaxTokens())
                 .reasoningExclude(original.reasoningExclude())
                 .reasoningEnabled(original.reasoningEnabled())
+                .frequencyPenalty(original.frequencyPenalty())
+                .presencePenalty(original.presencePenalty())
+                .repetitionPenalty(original.repetitionPenalty())
+                .seed(original.seed())
+                .minP(original.minP())
+                .topA(original.topA())
+                .logitBias(original.logitBias())
+                .logprobs(original.logprobs())
+                .topLogprobs(original.topLogprobs())
                 .stream(original.stream())
                 .addAllMessages(updatedMessages);
 

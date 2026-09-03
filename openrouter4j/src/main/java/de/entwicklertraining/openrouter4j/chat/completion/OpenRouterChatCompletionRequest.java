@@ -44,6 +44,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final Integer reasoningMaxTokens; // reasoning.max_tokens (Anthropic-style reasoning budget)
     private final Boolean reasoningExclude; // reasoning.exclude - keep reasoning out of the response
     private final Boolean reasoningEnabled; // reasoning.enabled - explicit switch for reasoning
+    private final Double frequencyPenalty; // -2.0 to 2.0
+    private final Double presencePenalty; // -2.0 to 2.0
+    private final Double repetitionPenalty; // default 1.0
+    private final Integer seed;
+    private final Double minP;
+    private final Double topA;
+    private final Map<Integer, Double> logitBias; // token id -> bias (-100 to 100)
+    private final Boolean logprobs;
+    private final Integer topLogprobs; // 0-20
     private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
@@ -73,6 +82,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             Integer reasoningMaxTokens,
             Boolean reasoningExclude,
             Boolean reasoningEnabled,
+            Double frequencyPenalty,
+            Double presencePenalty,
+            Double repetitionPenalty,
+            Integer seed,
+            Double minP,
+            Double topA,
+            Map<Integer, Double> logitBias,
+            Boolean logprobs,
+            Integer topLogprobs,
             boolean stream
     ) {
         super(builder);
@@ -98,6 +116,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.reasoningMaxTokens = reasoningMaxTokens;
         this.reasoningExclude = reasoningExclude;
         this.reasoningEnabled = reasoningEnabled;
+        this.frequencyPenalty = frequencyPenalty;
+        this.presencePenalty = presencePenalty;
+        this.repetitionPenalty = repetitionPenalty;
+        this.seed = seed;
+        this.minP = minP;
+        this.topA = topA;
+        this.logitBias = logitBias == null ? null : Map.copyOf(logitBias);
+        this.logprobs = logprobs;
+        this.topLogprobs = topLogprobs;
         this.stream = stream;
     }
 
@@ -205,6 +232,70 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     }
 
     /**
+     * The frequency penalty ({@code frequency_penalty}, -2.0 to 2.0), or {@code null} when unset.
+     */
+    public Double frequencyPenalty() {
+        return frequencyPenalty;
+    }
+
+    /**
+     * The presence penalty ({@code presence_penalty}, -2.0 to 2.0), or {@code null} when unset.
+     */
+    public Double presencePenalty() {
+        return presencePenalty;
+    }
+
+    /**
+     * The repetition penalty ({@code repetition_penalty}, default 1.0), or {@code null} when unset.
+     */
+    public Double repetitionPenalty() {
+        return repetitionPenalty;
+    }
+
+    /**
+     * The deterministic sampling seed ({@code seed}), or {@code null} when unset.
+     */
+    public Integer seed() {
+        return seed;
+    }
+
+    /**
+     * The {@code min_p} sampling threshold, or {@code null} when unset.
+     */
+    public Double minP() {
+        return minP;
+    }
+
+    /**
+     * The {@code top_a} sampling threshold, or {@code null} when unset.
+     */
+    public Double topA() {
+        return topA;
+    }
+
+    /**
+     * The logit bias map ({@code logit_bias}: token id to bias, -100 to 100), or {@code null} when unset.
+     */
+    public Map<Integer, Double> logitBias() {
+        return logitBias;
+    }
+
+    /**
+     * Whether token log probabilities are returned ({@code logprobs}), or {@code null} when unset.
+     */
+    public Boolean logprobs() {
+        return logprobs;
+    }
+
+    /**
+     * The number of top token log probabilities to return ({@code top_logprobs}, 0-20),
+     * or {@code null} when unset.
+     */
+    public Integer topLogprobs() {
+        return topLogprobs;
+    }
+
+    /**
      * @deprecated Legacy alias for {@link #reasoningMaxTokens()}. The old
      * {@code "reasoning": {"type": "enabled", "budget": N}} wire format no longer
      * exists in the OpenRouter API; the budget is now sent as {@code reasoning.max_tokens}.
@@ -267,6 +358,39 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                 stopArr.put(s);
             }
             root.put("stop", stopArr);
+        }
+
+        // Sampling parameters - each emitted only when explicitly set
+        if (frequencyPenalty != null) {
+            root.put("frequency_penalty", frequencyPenalty);
+        }
+        if (presencePenalty != null) {
+            root.put("presence_penalty", presencePenalty);
+        }
+        if (repetitionPenalty != null) {
+            root.put("repetition_penalty", repetitionPenalty);
+        }
+        if (seed != null) {
+            root.put("seed", seed);
+        }
+        if (minP != null) {
+            root.put("min_p", minP);
+        }
+        if (topA != null) {
+            root.put("top_a", topA);
+        }
+        if (logitBias != null && !logitBias.isEmpty()) {
+            JSONObject logitBiasObj = new JSONObject();
+            for (Map.Entry<Integer, Double> e : logitBias.entrySet()) {
+                logitBiasObj.put(String.valueOf(e.getKey()), e.getValue());
+            }
+            root.put("logit_bias", logitBiasObj);
+        }
+        if (logprobs != null) {
+            root.put("logprobs", logprobs);
+        }
+        if (topLogprobs != null) {
+            root.put("top_logprobs", topLogprobs);
         }
 
         // Tools
@@ -398,6 +522,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private Integer reasoningMaxTokens;
         private Boolean reasoningExclude;
         private Boolean reasoningEnabled;
+        private Double frequencyPenalty;
+        private Double presencePenalty;
+        private Double repetitionPenalty;
+        private Integer seed;
+        private Double minP;
+        private Double topA;
+        private final Map<Integer, Double> logitBias = new LinkedHashMap<>();
+        private Boolean logprobs;
+        private Integer topLogprobs;
         private boolean streamEnabled;
 
         public Builder(OpenRouterClient client) {
@@ -627,6 +760,154 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         /**
+         * Sets {@code frequency_penalty} (-2.0 to 2.0): positive values reduce the
+         * likelihood of repeating tokens the model has already used.
+         * <p>
+         * JSON field: {@code frequency_penalty}. Default: unset (the key is not sent).
+         *
+         * @param penalty penalty value between -2.0 and 2.0
+         * @return This builder instance
+         */
+        public Builder frequencyPenalty(Double penalty) {
+            this.frequencyPenalty = penalty;
+            return this;
+        }
+
+        /**
+         * Sets {@code presence_penalty} (-2.0 to 2.0): positive values encourage the
+         * model to introduce new topics.
+         * <p>
+         * JSON field: {@code presence_penalty}. Default: unset (the key is not sent).
+         *
+         * @param penalty penalty value between -2.0 and 2.0
+         * @return This builder instance
+         */
+        public Builder presencePenalty(Double penalty) {
+            this.presencePenalty = penalty;
+            return this;
+        }
+
+        /**
+         * Sets {@code repetition_penalty} (default 1.0): values above 1.0 penalise
+         * repeated tokens.
+         * <p>
+         * JSON field: {@code repetition_penalty}. Default: unset (the key is not sent).
+         * Trap: not every provider supports this OpenRouter extension; pair it with
+         * {@link #requireParameters(boolean)} where it matters.
+         *
+         * @param penalty penalty value, typically around 1.0
+         * @return This builder instance
+         */
+        public Builder repetitionPenalty(Double penalty) {
+            this.repetitionPenalty = penalty;
+            return this;
+        }
+
+        /**
+         * Sets {@code seed} for (best-effort) deterministic sampling.
+         * <p>
+         * JSON field: {@code seed}. Default: unset (the key is not sent).
+         *
+         * @param seed the sampling seed
+         * @return This builder instance
+         */
+        public Builder seed(Integer seed) {
+            this.seed = seed;
+            return this;
+        }
+
+        /**
+         * Sets {@code min_p}: minimum probability for a token to be considered,
+         * relative to the most likely token.
+         * <p>
+         * JSON field: {@code min_p}. Default: unset (the key is not sent).
+         * Trap: not every provider supports this OpenRouter extension; pair it with
+         * {@link #requireParameters(boolean)} where it matters.
+         *
+         * @param minP threshold between 0.0 and 1.0
+         * @return This builder instance
+         */
+        public Builder minP(Double minP) {
+            this.minP = minP;
+            return this;
+        }
+
+        /**
+         * Sets {@code top_a}: an alternative sampling threshold that scales with the
+         * probability of the most likely token.
+         * <p>
+         * JSON field: {@code top_a}. Default: unset (the key is not sent).
+         * Trap: not every provider supports this OpenRouter extension; pair it with
+         * {@link #requireParameters(boolean)} where it matters.
+         *
+         * @param topA threshold value
+         * @return This builder instance
+         */
+        public Builder topA(Double topA) {
+            this.topA = topA;
+            return this;
+        }
+
+        /**
+         * Sets {@code logit_bias}: biases the likelihood of specific tokens
+         * (token id to bias, -100 to 100; -100 bans the token).
+         * <p>
+         * JSON field: {@code logit_bias}. Default: unset (the key is not sent).
+         * Calling this replaces any previously registered biases.
+         *
+         * @param bias map of token id to bias value
+         * @return This builder instance
+         */
+        public Builder logitBias(Map<Integer, Double> bias) {
+            this.logitBias.clear();
+            if (bias != null) {
+                this.logitBias.putAll(bias);
+            }
+            return this;
+        }
+
+        /**
+         * Adds a single {@code logit_bias} entry (token id to bias, -100 to 100).
+         *
+         * @param tokenId the token id to bias
+         * @param bias the bias value between -100 and 100
+         * @return This builder instance
+         * @see #logitBias(Map)
+         */
+        public Builder addLogitBias(Integer tokenId, Double bias) {
+            this.logitBias.put(tokenId, bias);
+            return this;
+        }
+
+        /**
+         * Sets {@code logprobs}: when {@code true}, the response includes the log
+         * probabilities of the output tokens.
+         * <p>
+         * JSON field: {@code logprobs}. Default: unset (the key is not sent).
+         *
+         * @param logprobs true to request token log probabilities
+         * @return This builder instance
+         */
+        public Builder logprobs(Boolean logprobs) {
+            this.logprobs = logprobs;
+            return this;
+        }
+
+        /**
+         * Sets {@code top_logprobs} (0-20): the number of most likely tokens for which
+         * log probabilities are returned. Requires {@link #logprobs(Boolean)} to be true.
+         * <p>
+         * JSON field: {@code top_logprobs}. Default: unset (the key is not sent).
+         *
+         * @param topLogprobs number of top tokens (0-20)
+         * @return This builder instance
+         */
+        public Builder topLogprobs(Integer topLogprobs) {
+            this.topLogprobs = topLogprobs;
+            return this;
+        }
+
+        /**
          * Enables or disables streaming for this request.
          * When enabled, partial message deltas will be sent as server-sent events.
          *
@@ -824,6 +1105,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     reasoningMaxTokens,
                     reasoningExclude,
                     reasoningEnabled,
+                    frequencyPenalty,
+                    presencePenalty,
+                    repetitionPenalty,
+                    seed,
+                    minP,
+                    topA,
+                    logitBias.isEmpty() ? null : Map.copyOf(logitBias),
+                    logprobs,
+                    topLogprobs,
                     shouldStream
             );
         }

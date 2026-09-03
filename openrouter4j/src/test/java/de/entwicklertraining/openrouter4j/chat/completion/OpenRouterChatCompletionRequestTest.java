@@ -8,6 +8,7 @@ import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -340,5 +341,120 @@ class OpenRouterChatCompletionRequestTest {
 
         assertThat(new JSONObject(next.getBody()).getJSONObject("tool_choice")
                 .getJSONObject("function").getString("name")).isEqualTo("get_weather");
+    }
+
+    @Test
+    void noSamplingKeysWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("frequency_penalty")).isFalse();
+        assertThat(body.has("presence_penalty")).isFalse();
+        assertThat(body.has("repetition_penalty")).isFalse();
+        assertThat(body.has("seed")).isFalse();
+        assertThat(body.has("min_p")).isFalse();
+        assertThat(body.has("top_a")).isFalse();
+        assertThat(body.has("logit_bias")).isFalse();
+        assertThat(body.has("logprobs")).isFalse();
+        assertThat(body.has("top_logprobs")).isFalse();
+    }
+
+    @Test
+    void allSamplingParametersAreEmitted() {
+        JSONObject body = bodyOf(baseBuilder()
+                .frequencyPenalty(0.5)
+                .presencePenalty(-1.0)
+                .repetitionPenalty(1.2)
+                .seed(42)
+                .minP(0.05)
+                .topA(0.75)
+                .logprobs(true)
+                .topLogprobs(5));
+
+        assertThat(body.getDouble("frequency_penalty")).isEqualTo(0.5);
+        assertThat(body.getDouble("presence_penalty")).isEqualTo(-1.0);
+        assertThat(body.getDouble("repetition_penalty")).isEqualTo(1.2);
+        assertThat(body.getInt("seed")).isEqualTo(42);
+        assertThat(body.getDouble("min_p")).isEqualTo(0.05);
+        assertThat(body.getDouble("top_a")).isEqualTo(0.75);
+        assertThat(body.getBoolean("logprobs")).isTrue();
+        assertThat(body.getInt("top_logprobs")).isEqualTo(5);
+    }
+
+    @Test
+    void logitBiasIsEmittedAsTokenIdToObject() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addLogitBias(50256, -100.0)
+                .addLogitBias(1234, 0.5));
+
+        JSONObject logitBias = body.getJSONObject("logit_bias");
+        assertThat(logitBias.getDouble("50256")).isEqualTo(-100.0);
+        assertThat(logitBias.getDouble("1234")).isEqualTo(0.5);
+    }
+
+    @Test
+    void logitBiasMapReplacesPreviousEntries() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addLogitBias(1, 1.0)
+                .logitBias(Map.of(2, 2.0)));
+
+        JSONObject logitBias = body.getJSONObject("logit_bias");
+        assertThat(logitBias.has("1")).isFalse();
+        assertThat(logitBias.getDouble("2")).isEqualTo(2.0);
+    }
+
+    @Test
+    void samplingAccessorsExposeOptions() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .frequencyPenalty(0.5)
+                .presencePenalty(-1.0)
+                .repetitionPenalty(1.2)
+                .seed(42)
+                .minP(0.05)
+                .topA(0.75)
+                .addLogitBias(50256, -100.0)
+                .logprobs(true)
+                .topLogprobs(5)
+                .build();
+
+        assertThat(request.frequencyPenalty()).isEqualTo(0.5);
+        assertThat(request.presencePenalty()).isEqualTo(-1.0);
+        assertThat(request.repetitionPenalty()).isEqualTo(1.2);
+        assertThat(request.seed()).isEqualTo(42);
+        assertThat(request.minP()).isEqualTo(0.05);
+        assertThat(request.topA()).isEqualTo(0.75);
+        assertThat(request.logitBias()).containsEntry(50256, -100.0);
+        assertThat(request.logprobs()).isTrue();
+        assertThat(request.topLogprobs()).isEqualTo(5);
+    }
+
+    @Test
+    void samplingParametersArePropagatedToFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .frequencyPenalty(0.5)
+                .presencePenalty(-1.0)
+                .repetitionPenalty(1.2)
+                .seed(42)
+                .minP(0.05)
+                .topA(0.75)
+                .addLogitBias(50256, -100.0)
+                .logprobs(true)
+                .topLogprobs(5)
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONObject body = new JSONObject(next.getBody());
+        assertThat(body.getDouble("frequency_penalty")).isEqualTo(0.5);
+        assertThat(body.getDouble("presence_penalty")).isEqualTo(-1.0);
+        assertThat(body.getDouble("repetition_penalty")).isEqualTo(1.2);
+        assertThat(body.getInt("seed")).isEqualTo(42);
+        assertThat(body.getDouble("min_p")).isEqualTo(0.05);
+        assertThat(body.getDouble("top_a")).isEqualTo(0.75);
+        assertThat(body.getJSONObject("logit_bias").getDouble("50256")).isEqualTo(-100.0);
+        assertThat(body.getBoolean("logprobs")).isTrue();
+        assertThat(body.getInt("top_logprobs")).isEqualTo(5);
     }
 }
