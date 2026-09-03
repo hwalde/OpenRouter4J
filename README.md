@@ -14,7 +14,7 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 
 ## Features
 
-* Chat Completions including tool calling, structured outputs and vision inputs
+* Chat Completions including tool calling (including forcing a specific tool), structured outputs, vision inputs and reasoning configuration (effort / max_tokens / exclude / enabled)
 * **Streaming support** for real-time token generation using Server-Sent Events (SSE)
 * Access to 200+ AI models through a single unified API
 * Provider selection for routing requests to specific providers
@@ -78,7 +78,7 @@ OpenRouterChatCompletionResponse response = client.chat().completion()
 System.out.println(response.assistantMessage());
 ```
 
-See the `openrouter4j-examples` module for more demonstrations including base64 images, structured outputs, and thinking mode.
+See the `openrouter4j-examples` module for more demonstrations including base64 images, structured outputs, reasoning configuration, named tool choice, and sampling options.
 
 ### Provider Selection
 

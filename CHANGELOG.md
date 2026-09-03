@@ -11,8 +11,12 @@ All notable changes to this project will be documented in this file.
 - **NEW**: Examples for reasoning (`OpenRouterChatCompletionWithThinkingExample`, rewritten), named tool choice (`OpenRouterChatCompletionWithNamedToolChoiceExample`) and sampling options (`OpenRouterChatCompletionWithSamplingOptionsExample`)
 
 ### Changed
-- **BREAKING (wire format)**: `thinking(Integer)` no longer sends the obsolete `"reasoning": {"type": "enabled", "budget": N}` shape, which no longer exists in the OpenRouter API schema. It now emits `"reasoning": {"max_tokens": N}`. The method is deprecated in favour of `reasoningMaxTokens(Integer)`.
-- **BREAKING**: `maxOutputTokens(Integer)` is deprecated in favour of `maxCompletionTokens(Integer)`; it keeps emitting the deprecated `max_tokens` key.
+- `thinking(Integer)` no longer sends the obsolete `"reasoning": {"type": "enabled", "budget": N}` shape. It now emits `"reasoning": {"max_tokens": N}`. This is a wire-format change of a published method, deliberately released as a **fix, not a breaking change**: the old format no longer exists in the OpenRouter API schema, so callers of `thinking()` have not received working reasoning behaviour to preserve - the request silently did not do what it said. Source and binary compatibility are fully intact; no code changes are required. The old JSON keys appear nowhere in the current OpenAPI schema (verified against https://openrouter.ai/openapi.yaml).
+
+### Deprecated
+- `thinking(Integer)` in favour of `reasoningMaxTokens(Integer)` (same emission, current name).
+- `maxOutputTokens(Integer)` in favour of `maxCompletionTokens(Integer)`; `maxOutputTokens` keeps emitting the deprecated `max_tokens` key exactly as before - existing callers are unaffected, the deprecation only steers new code to the non-deprecated parameter.
+- Accessor `thinkingBudget()` in favour of `reasoningMaxTokens()`; it keeps returning the same value.
 
 ### Fixed
 - **Copy lists**: `requireParameters` and `allowFallbacks` were silently lost on follow-up requests of the tool-call loop (from turn 2 on), both synchronously and in streaming mode. The hand-maintained option copy lists in `OpenRouterChatCompletionCallHandler` now carry all options, and the copy methods are covered by tests.

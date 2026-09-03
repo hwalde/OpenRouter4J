@@ -171,6 +171,8 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(request.reasoningMaxTokens()).isEqualTo(2048);
         assertThat(request.reasoningExclude()).isTrue();
         assertThat(request.reasoningEnabled()).isTrue();
+        // The deprecated alias must keep returning the same value
+        assertThat(request.thinkingBudget()).isEqualTo(2048);
     }
 
     @Test
@@ -190,6 +192,7 @@ class OpenRouterChatCompletionRequestTest {
                 .reasoningMaxTokens(1024)
                 .reasoningExclude(true)
                 .requireParameters(true)
+                .allowFallbacks(true)
                 .build();
 
         // The real copy path used by the tool-call loop between turns.
@@ -206,13 +209,22 @@ class OpenRouterChatCompletionRequestTest {
         // Regression guard for the copy lists (defect D1): provider routing flags
         // must survive into follow-up requests of the tool-call loop.
         assertThat(body.getJSONObject("provider").getBoolean("require_parameters")).isTrue();
+        assertThat(body.getJSONObject("provider").getBoolean("allow_fallbacks")).isTrue();
     }
 
     @Test
-    void reasoningIsPropagatedToStreamingFollowUpRequests() throws Exception {
-        OpenRouterChatCompletionRequest initial = baseBuilder()
+    void allNewOptionsArePropagatedToStreamingFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
                 .reasoningEnabled(false)
                 .reasoningEffort("minimal")
+                .reasoningMaxTokens(512)
+                .reasoningExclude(true)
+                .maxCompletionTokens(2048)
+                .toolChoiceFunction("get_weather")
+                .frequencyPenalty(0.5)
+                .seed(42)
+                .requireParameters(true)
+                .allowFallbacks(true)
                 .build();
 
         var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
@@ -229,6 +241,15 @@ class OpenRouterChatCompletionRequestTest {
         JSONObject reasoning = body.getJSONObject("reasoning");
         assertThat(reasoning.getBoolean("enabled")).isFalse();
         assertThat(reasoning.getString("effort")).isEqualTo("minimal");
+        assertThat(reasoning.getInt("max_tokens")).isEqualTo(512);
+        assertThat(reasoning.getBoolean("exclude")).isTrue();
+        assertThat(body.getInt("max_completion_tokens")).isEqualTo(2048);
+        assertThat(body.getJSONObject("tool_choice").getJSONObject("function").getString("name"))
+                .isEqualTo("get_weather");
+        assertThat(body.getDouble("frequency_penalty")).isEqualTo(0.5);
+        assertThat(body.getInt("seed")).isEqualTo(42);
+        assertThat(body.getJSONObject("provider").getBoolean("require_parameters")).isTrue();
+        assertThat(body.getJSONObject("provider").getBoolean("allow_fallbacks")).isTrue();
     }
 
     @Test
