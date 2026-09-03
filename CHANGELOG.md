@@ -2,8 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.4.0] - 2026-09-03
+### Added
+- **NEW**: `reasoningEffort(String)`, `reasoningMaxTokens(Integer)`, `reasoningExclude(Boolean)` and `reasoningEnabled(Boolean)` builder methods - configure reasoning via the current `reasoning` object format (`effort`, `max_tokens`, `exclude`, `enabled`). See the breaking change below for the replaced wire format.
+- **NEW**: `maxCompletionTokens(Integer)` builder method - emits `max_completion_tokens`, the non-deprecated successor of `max_tokens`. If both variants are set, both keys are emitted verbatim and the API decides precedence.
+- **NEW**: `toolChoiceFunction(String)` builder method - named `tool_choice` form, emits `{"type":"function","function":{"name":...}}` to force one specific tool. The string keywords ("auto", "required", "none") keep working; the named form wins when both are set.
+- **NEW**: Sampling parameters as typed builder methods: `frequencyPenalty(Double)`, `presencePenalty(Double)`, `repetitionPenalty(Double)`, `seed(Integer)`, `minP(Double)`, `topA(Double)`, `logitBias(Map)`/`addLogitBias(Integer, Double)`, `logprobs(Boolean)` and `topLogprobs(Integer)`.
+- **NEW**: Examples for reasoning (`OpenRouterChatCompletionWithThinkingExample`, rewritten), named tool choice (`OpenRouterChatCompletionWithNamedToolChoiceExample`) and sampling options (`OpenRouterChatCompletionWithSamplingOptionsExample`)
+
+### Changed
+- **BREAKING (wire format)**: `thinking(Integer)` no longer sends the obsolete `"reasoning": {"type": "enabled", "budget": N}` shape, which no longer exists in the OpenRouter API schema. It now emits `"reasoning": {"max_tokens": N}`. The method is deprecated in favour of `reasoningMaxTokens(Integer)`.
+- **BREAKING**: `maxOutputTokens(Integer)` is deprecated in favour of `maxCompletionTokens(Integer)`; it keeps emitting the deprecated `max_tokens` key.
+
 ### Fixed
+- **Copy lists**: `requireParameters` and `allowFallbacks` were silently lost on follow-up requests of the tool-call loop (from turn 2 on), both synchronously and in streaming mode. The hand-maintained option copy lists in `OpenRouterChatCompletionCallHandler` now carry all options, and the copy methods are covered by tests.
 - **Build**: `maven-surefire-plugin` is now pinned to 3.5.2. Maven's built-in default is 2.12.4, which cannot execute JUnit 5 tests: the suite reported `Tests run: 0` while the build stayed green, so no test in this project had ever actually run. All 18 tests now execute.
 - **Build**: GPG signing moved into a `release` profile. It was bound to the `verify` phase, so `mvn verify` failed for anyone without a private signing key - every contributor and every CI run. Plain `mvn verify` now works without a key; releases use `mvn -Prelease deploy`.
 - **Javadoc**: `OpenRouterResponse` was documented in German with unescaped generics, producing 14 `invalid input: '<'` warnings in the published javadoc jar. Rewritten in English with the generics escaped and the missing `@param <T>` added.
