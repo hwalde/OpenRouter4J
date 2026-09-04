@@ -25,6 +25,8 @@ public final class OpenRouterClient extends ApiClient {
 
     private static final String DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
+    private volatile OpenRouterAppAttribution appAttribution;
+
     /**
      * Creates a new OpenRouterClient with default settings.
      * The API key is read from the OPENROUTER_API_KEY environment variable.
@@ -103,6 +105,34 @@ public final class OpenRouterClient extends ApiClient {
 
     public OpenRouterChat chat() {
         return new OpenRouterChat(this);
+    }
+
+    /**
+     * Configures app attribution headers (app URL, display name, marketplace
+     * categories) once on the client; they are then sent with every request.
+     * <p>
+     * Per-request configuration via the
+     * {@code httpReferer}/{@code appTitle}/{@code appCategories} builder methods
+     * wins over this client-level default for that single request.
+     * <p>
+     * JSON fields: none - the values travel as the {@code HTTP-Referer},
+     * {@code X-OpenRouter-Title} (legacy alias {@code X-Title}) and
+     * {@code X-OpenRouter-Categories} (max 2 categories) HTTP headers.
+     *
+     * @param attribution the attribution data, or {@code null} to remove a previously
+     *        configured client-level attribution
+     * @return this client instance
+     */
+    public OpenRouterClient appAttribution(OpenRouterAppAttribution attribution) {
+        this.appAttribution = attribution;
+        return this;
+    }
+
+    /**
+     * @return the client-level app attribution, or {@code null} when none is configured
+     */
+    public OpenRouterAppAttribution appAttribution() {
+        return appAttribution;
     }
 
     public static class OpenRouterChat {

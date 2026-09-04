@@ -53,10 +53,43 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final Map<Integer, Double> logitBias; // token id -> bias (-100 to 100)
     private final Boolean logprobs;
     private final Integer topLogprobs; // 0-20
+    private final List<String> models; // fallback candidates, tried in order when the primary model fails
+    private final String httpReferer; // app-attribution header HTTP-Referer
+    private final String appTitle; // app-attribution header X-OpenRouter-Title (legacy alias X-Title)
+    private final List<String> appCategories; // app-attribution header X-OpenRouter-Categories (max 2)
+    private final Map<String, String> metadata; // up to 16 string key/value pairs attached to the generation
+    private final String user; // stable per-end-user identifier for abuse isolation
+    private final String sessionId; // groups related requests; sticky-routing key for prompt-cache hits
+    private final Boolean metadataInResponse; // opt-in: X-OpenRouter-Metadata header
+    private final String dataCollection; // provider.data_collection ("allow" / "deny")
+    private final List<String> ignoreProviders; // provider.ignore
+    private final List<String> onlyProviders; // provider.only
+    private final String maxPricePrompt; // provider.max_price.prompt
+    private final String maxPriceCompletion; // provider.max_price.completion
+    private final String maxPriceImage; // provider.max_price.image
+    private final String maxPriceAudio; // provider.max_price.audio
+    private final List<String> quantizations; // provider.quantizations
+    private final String sort; // provider.sort
+    private final Boolean enforceDistillableText; // provider.enforce_distillable_text
     private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
             Set.of("jpg", "jpeg", "png", "webp", "heic", "heif");
+
+    private static final int METADATA_MAX_ENTRIES = 16;
+    private static final int METADATA_MAX_KEY_LENGTH = 64;
+    private static final int METADATA_MAX_VALUE_LENGTH = 512;
+
+    /** Header carrying the app URL for attribution. */
+    public static final String HEADER_HTTP_REFERER = "HTTP-Referer";
+    /** Header carrying the app display name for attribution (legacy alias: {@code X-Title}). */
+    public static final String HEADER_APP_TITLE = "X-OpenRouter-Title";
+    /** Header carrying the comma-separated marketplace categories (max 2). */
+    public static final String HEADER_APP_CATEGORIES = "X-OpenRouter-Categories";
+    /** Header carrying the session identifier (the body field {@code session_id} wins). */
+    public static final String HEADER_SESSION_ID = "x-session-id";
+    /** Opt-in header to receive routing metadata under {@code openrouter_metadata}. */
+    public static final String HEADER_METADATA = "X-OpenRouter-Metadata";
 
     OpenRouterChatCompletionRequest(
             Builder builder,
@@ -91,6 +124,24 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             Map<Integer, Double> logitBias,
             Boolean logprobs,
             Integer topLogprobs,
+            List<String> models,
+            String httpReferer,
+            String appTitle,
+            List<String> appCategories,
+            Map<String, String> metadata,
+            String user,
+            String sessionId,
+            Boolean metadataInResponse,
+            String dataCollection,
+            List<String> ignoreProviders,
+            List<String> onlyProviders,
+            String maxPricePrompt,
+            String maxPriceCompletion,
+            String maxPriceImage,
+            String maxPriceAudio,
+            List<String> quantizations,
+            String sort,
+            Boolean enforceDistillableText,
             boolean stream
     ) {
         super(builder);
@@ -125,6 +176,24 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.logitBias = logitBias == null ? null : Map.copyOf(logitBias);
         this.logprobs = logprobs;
         this.topLogprobs = topLogprobs;
+        this.models = models == null ? null : List.copyOf(models);
+        this.httpReferer = httpReferer;
+        this.appTitle = appTitle;
+        this.appCategories = appCategories == null ? null : List.copyOf(appCategories);
+        this.metadata = metadata == null ? null : Map.copyOf(metadata);
+        this.user = user;
+        this.sessionId = sessionId;
+        this.metadataInResponse = metadataInResponse;
+        this.dataCollection = dataCollection;
+        this.ignoreProviders = ignoreProviders == null ? null : List.copyOf(ignoreProviders);
+        this.onlyProviders = onlyProviders == null ? null : List.copyOf(onlyProviders);
+        this.maxPricePrompt = maxPricePrompt;
+        this.maxPriceCompletion = maxPriceCompletion;
+        this.maxPriceImage = maxPriceImage;
+        this.maxPriceAudio = maxPriceAudio;
+        this.quantizations = quantizations == null ? null : List.copyOf(quantizations);
+        this.sort = sort;
+        this.enforceDistillableText = enforceDistillableText;
         this.stream = stream;
     }
 
@@ -296,6 +365,141 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     }
 
     /**
+     * The fallback model candidates ({@code models}, tried in order when the primary
+     * model is unavailable), empty when unset (never {@code null}).
+     */
+    public List<String> models() {
+        return models == null ? List.of() : models;
+    }
+
+    /**
+     * The app URL sent as the {@code HTTP-Referer} attribution header, or {@code null} when unset.
+     */
+    public String httpReferer() {
+        return httpReferer;
+    }
+
+    /**
+     * The display name sent as the {@code X-OpenRouter-Title} attribution header
+     * (the API still accepts the legacy {@code X-Title} alias), or {@code null} when unset.
+     */
+    public String appTitle() {
+        return appTitle;
+    }
+
+    /**
+     * The marketplace categories sent as the {@code X-OpenRouter-Categories}
+     * attribution header (at most 2), empty when unset (never {@code null}).
+     */
+    public List<String> appCategories() {
+        return appCategories == null ? List.of() : appCategories;
+    }
+
+    /**
+     * The metadata key/value pairs ({@code metadata}, up to 16 entries) attached to the
+     * generation, empty when unset (never {@code null}).
+     */
+    public Map<String, String> metadata() {
+        return metadata == null ? Map.of() : metadata;
+    }
+
+    /**
+     * The stable per-end-user identifier ({@code user}) for abuse isolation, or {@code null} when unset.
+     */
+    public String user() {
+        return user;
+    }
+
+    /**
+     * The session identifier ({@code session_id}) that groups related requests and serves
+     * as sticky-routing key to maximise prompt-cache hits, or {@code null} when unset.
+     */
+    public String sessionId() {
+        return sessionId;
+    }
+
+    /**
+     * Whether the response should include routing metadata under {@code openrouter_metadata}
+     * (sent as the {@code X-OpenRouter-Metadata: enabled} header), or {@code null} when unset.
+     */
+    public Boolean metadataInResponse() {
+        return metadataInResponse;
+    }
+
+    /**
+     * The {@code provider.data_collection} setting ({@code "allow"} or {@code "deny"}),
+     * or {@code null} when unset.
+     */
+    public String dataCollection() {
+        return dataCollection;
+    }
+
+    /**
+     * The provider slugs to skip ({@code provider.ignore}), empty when unset (never {@code null}).
+     */
+    public List<String> ignoreProviders() {
+        return ignoreProviders == null ? List.of() : ignoreProviders;
+    }
+
+    /**
+     * The only provider slugs allowed ({@code provider.only}), empty when unset (never {@code null}).
+     */
+    public List<String> onlyProviders() {
+        return onlyProviders == null ? List.of() : onlyProviders;
+    }
+
+    /**
+     * The prompt price cap ({@code provider.max_price.prompt}), or {@code null} when unset.
+     */
+    public String maxPricePrompt() {
+        return maxPricePrompt;
+    }
+
+    /**
+     * The completion price cap ({@code provider.max_price.completion}), or {@code null} when unset.
+     */
+    public String maxPriceCompletion() {
+        return maxPriceCompletion;
+    }
+
+    /**
+     * The image price cap ({@code provider.max_price.image}), or {@code null} when unset.
+     */
+    public String maxPriceImage() {
+        return maxPriceImage;
+    }
+
+    /**
+     * The audio price cap ({@code provider.max_price.audio}), or {@code null} when unset.
+     */
+    public String maxPriceAudio() {
+        return maxPriceAudio;
+    }
+
+    /**
+     * The accepted quantizations ({@code provider.quantizations}, e.g. {@code int4}, {@code fp8}),
+     * empty when unset (never {@code null}).
+     */
+    public List<String> quantizations() {
+        return quantizations == null ? List.of() : quantizations;
+    }
+
+    /**
+     * The provider sort criterion ({@code provider.sort}: {@code "price"}, {@code "throughput"}
+     * or {@code "latency"}), or {@code null} when unset.
+     */
+    public String sort() {
+        return sort;
+    }
+
+    /**
+     * The {@code provider.enforce_distillable_text} flag, or {@code null} when unset.
+     */
+    public Boolean enforceDistillableText() {
+        return enforceDistillableText;
+    }
+
+    /**
      * @deprecated Legacy alias for {@link #reasoningMaxTokens()}. The old
      * {@code "reasoning": {"type": "enabled", "budget": N}} wire format no longer
      * exists in the OpenRouter API; the budget is now sent as {@code reasoning.max_tokens}.
@@ -310,6 +514,107 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
      */
     public boolean stream() {
         return stream;
+    }
+
+    /**
+     * Creates the follow-up request for the next turn of the tool-call loop by copying
+     * every option of this request and replacing only the messages (and the streaming
+     * flag / accumulator where needed).
+     * <p>
+     * This is the single place where options are carried into the next turn - it reads
+     * the private fields of this class directly, so a newly added option cannot be
+     * forgotten here without the compiler noticing the unused field in the copy.
+     *
+     * @param updatedMessages the accumulated conversation messages for the next turn
+     * @param stream whether the follow-up request should stream
+     * @param accumulator the streaming tool-call accumulator for the streaming path,
+     *        or {@code null} for the non-streaming path
+     * @return the follow-up request
+     */
+    OpenRouterChatCompletionRequest copyForNextTurn(
+            List<JSONObject> updatedMessages,
+            boolean stream,
+            StreamingToolCallAccumulator accumulator
+    ) {
+        Builder b = new Builder(client);
+        b.model = model;
+        b.temperature = temperature;
+        b.topK = topK;
+        b.topP = topP;
+        b.maxTokens = maxTokens;
+        b.maxCompletionTokens = maxCompletionTokens;
+        b.stopSequences.addAll(stopSequences);
+        b.messages.addAll(updatedMessages);
+        b.tools.addAll(tools);
+        b.toolChoice = toolChoice;
+        b.toolChoiceFunction = toolChoiceFunction;
+        b.parallelToolCalls = parallelToolCalls;
+        b.responseSchema = responseSchema;
+        b.responseMimeType = responseMimeType;
+        b.providers.addAll(providers);
+        b.requireParameters = requireParameters;
+        b.allowFallbacks = allowFallbacks;
+        b.reasoningEffort = reasoningEffort;
+        b.reasoningMaxTokens = reasoningMaxTokens;
+        b.reasoningExclude = reasoningExclude;
+        b.reasoningEnabled = reasoningEnabled;
+        b.frequencyPenalty = frequencyPenalty;
+        b.presencePenalty = presencePenalty;
+        b.repetitionPenalty = repetitionPenalty;
+        b.seed = seed;
+        b.minP = minP;
+        b.topA = topA;
+        if (logitBias != null) {
+            b.logitBias.putAll(logitBias);
+        }
+        b.logprobs = logprobs;
+        b.topLogprobs = topLogprobs;
+        if (models != null) {
+            b.models.addAll(models);
+        }
+        b.httpReferer = httpReferer;
+        b.appTitle = appTitle;
+        if (appCategories != null) {
+            b.appCategories.addAll(appCategories);
+        }
+        if (metadata != null) {
+            b.metadata.putAll(metadata);
+        }
+        b.user = user;
+        b.sessionId = sessionId;
+        b.metadataInResponse = metadataInResponse;
+        b.dataCollection = dataCollection;
+        if (ignoreProviders != null) {
+            b.ignoreProviders.addAll(ignoreProviders);
+        }
+        if (onlyProviders != null) {
+            b.onlyProviders.addAll(onlyProviders);
+        }
+        b.maxPricePrompt = maxPricePrompt;
+        b.maxPriceCompletion = maxPriceCompletion;
+        b.maxPriceImage = maxPriceImage;
+        b.maxPriceAudio = maxPriceAudio;
+        if (quantizations != null) {
+            b.quantizations.addAll(quantizations);
+        }
+        b.sort = sort;
+        b.enforceDistillableText = enforceDistillableText;
+        b.streamEnabled = stream;
+
+        // Execution settings of the original request
+        b.maxExecutionTimeInSeconds(getMaxExecutionTimeInSeconds());
+        b.setCancelSupplier(getIsCanceledSupplier());
+        if (hasCaptureOnSuccess()) {
+            b.captureOnSuccess(getCaptureOnSuccess());
+        }
+        if (hasCaptureOnError()) {
+            b.captureOnError(getCaptureOnError());
+        }
+
+        if (accumulator != null) {
+            b.setRawJsonStreaming(accumulator);
+        }
+        return b.build();
     }
 
     @Override
@@ -393,6 +698,33 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             root.put("top_logprobs", topLogprobs);
         }
 
+        // Fallback model list (OpenRouter-specific): candidates tried in order when
+        // the primary model cannot serve the request. The single "model" field is
+        // always emitted; per API semantics the models list acts as fallback
+        // candidates for it.
+        if (models != null && !models.isEmpty()) {
+            JSONArray modelsArr = new JSONArray();
+            for (String m : models) {
+                modelsArr.put(m);
+            }
+            root.put("models", modelsArr);
+        }
+
+        // Observability (OpenRouter-specific) - each emitted only when explicitly set
+        if (metadata != null && !metadata.isEmpty()) {
+            JSONObject metadataObj = new JSONObject();
+            for (Map.Entry<String, String> e : metadata.entrySet()) {
+                metadataObj.put(e.getKey(), e.getValue());
+            }
+            root.put("metadata", metadataObj);
+        }
+        if (user != null) {
+            root.put("user", user);
+        }
+        if (sessionId != null) {
+            root.put("session_id", sessionId);
+        }
+
         // Tools
         if (!tools.isEmpty()) {
             JSONArray toolsArr = new JSONArray();
@@ -443,7 +775,14 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         // The provider object is emitted whenever any provider routing option is set,
         // not only when an order list is present.
         boolean hasProviderOrder = providers != null && !providers.isEmpty();
-        if (hasProviderOrder || requireParameters != null || allowFallbacks != null) {
+        if (hasProviderOrder || requireParameters != null || allowFallbacks != null
+                || dataCollection != null
+                || (ignoreProviders != null && !ignoreProviders.isEmpty())
+                || (onlyProviders != null && !onlyProviders.isEmpty())
+                || maxPricePrompt != null || maxPriceCompletion != null
+                || maxPriceImage != null || maxPriceAudio != null
+                || (quantizations != null && !quantizations.isEmpty())
+                || sort != null || enforceDistillableText != null) {
             JSONObject providerObj = new JSONObject();
             if (hasProviderOrder) {
                 JSONArray orderArr = new JSONArray();
@@ -457,6 +796,53 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             }
             if (allowFallbacks != null) {
                 providerObj.put("allow_fallbacks", allowFallbacks);
+            }
+            if (dataCollection != null) {
+                providerObj.put("data_collection", dataCollection);
+            }
+            if (ignoreProviders != null && !ignoreProviders.isEmpty()) {
+                JSONArray ignoreArr = new JSONArray();
+                for (String p : ignoreProviders) {
+                    ignoreArr.put(p);
+                }
+                providerObj.put("ignore", ignoreArr);
+            }
+            if (onlyProviders != null && !onlyProviders.isEmpty()) {
+                JSONArray onlyArr = new JSONArray();
+                for (String p : onlyProviders) {
+                    onlyArr.put(p);
+                }
+                providerObj.put("only", onlyArr);
+            }
+            if (maxPricePrompt != null || maxPriceCompletion != null
+                    || maxPriceImage != null || maxPriceAudio != null) {
+                JSONObject maxPriceObj = new JSONObject();
+                if (maxPricePrompt != null) {
+                    maxPriceObj.put("prompt", maxPricePrompt);
+                }
+                if (maxPriceCompletion != null) {
+                    maxPriceObj.put("completion", maxPriceCompletion);
+                }
+                if (maxPriceImage != null) {
+                    maxPriceObj.put("image", maxPriceImage);
+                }
+                if (maxPriceAudio != null) {
+                    maxPriceObj.put("audio", maxPriceAudio);
+                }
+                providerObj.put("max_price", maxPriceObj);
+            }
+            if (quantizations != null && !quantizations.isEmpty()) {
+                JSONArray quantArr = new JSONArray();
+                for (String q : quantizations) {
+                    quantArr.put(q);
+                }
+                providerObj.put("quantizations", quantArr);
+            }
+            if (sort != null) {
+                providerObj.put("sort", sort);
+            }
+            if (enforceDistillableText != null) {
+                providerObj.put("enforce_distillable_text", enforceDistillableText);
             }
             root.put("provider", providerObj);
         }
@@ -531,6 +917,24 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private final Map<Integer, Double> logitBias = new LinkedHashMap<>();
         private Boolean logprobs;
         private Integer topLogprobs;
+        private final List<String> models = new ArrayList<>();
+        private String httpReferer;
+        private String appTitle;
+        private final List<String> appCategories = new ArrayList<>();
+        private final Map<String, String> metadata = new LinkedHashMap<>();
+        private String user;
+        private String sessionId;
+        private Boolean metadataInResponse;
+        private String dataCollection;
+        private final List<String> ignoreProviders = new ArrayList<>();
+        private final List<String> onlyProviders = new ArrayList<>();
+        private String maxPricePrompt;
+        private String maxPriceCompletion;
+        private String maxPriceImage;
+        private String maxPriceAudio;
+        private final List<String> quantizations = new ArrayList<>();
+        private String sort;
+        private Boolean enforceDistillableText;
         private boolean streamEnabled;
 
         public Builder(OpenRouterClient client) {
@@ -908,6 +1312,409 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         /**
+         * Sets the fallback model candidates ({@code models}) that OpenRouter tries in
+         * order when the primary {@link #model(String)} cannot serve the request.
+         * <p>
+         * JSON field: {@code models}. Default: unset (the key is not sent).
+         * Trap: the primary {@code model} key is always emitted alongside; per the API
+         * semantics the {@code models} list acts as fallback candidates for {@code model},
+         * it does not replace it. Passing an empty list removes previously registered
+         * candidates and emits nothing.
+         *
+         * @param slugs the fallback model slugs in preference order
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/model-fallbacks">Model fallbacks</a>
+         */
+        public Builder models(String... slugs) {
+            return models(Arrays.asList(slugs));
+        }
+
+        /**
+         * List-based variant of {@link #models(String...)}.
+         *
+         * @param slugs the fallback model slugs in preference order
+         * @return This builder instance
+         */
+        public Builder models(List<String> slugs) {
+            this.models.clear();
+            if (slugs != null) {
+                this.models.addAll(slugs);
+            }
+            return this;
+        }
+
+        /**
+         * Sets the app URL sent as the {@code HTTP-Referer} attribution header - the
+         * primary identifier for the OpenRouter leaderboards.
+         * <p>
+         * Header: {@code HTTP-Referer}. Default: unset, unless a client-level attribution
+         * is configured via {@code OpenRouterClient.appAttribution(...)}; the per-request
+         * value wins for this request.
+         *
+         * @param url the app URL
+         * @return This builder instance
+         */
+        public Builder httpReferer(String url) {
+            this.httpReferer = url;
+            return this;
+        }
+
+        /**
+         * Sets the display name sent as the {@code X-OpenRouter-Title} attribution header,
+         * shown in rankings and analytics.
+         * <p>
+         * Header: {@code X-OpenRouter-Title}. Default: unset, unless a client-level
+         * attribution is configured via {@code OpenRouterClient.appAttribution(...)};
+         * the per-request value wins for this request. (The API still accepts the legacy
+         * {@code X-Title} header as a documented alias, but this library always sends
+         * {@code X-OpenRouter-Title}.)
+         *
+         * @param title the app display name
+         * @return This builder instance
+         */
+        public Builder appTitle(String title) {
+            this.appTitle = title;
+            return this;
+        }
+
+        /**
+         * Replaces the marketplace categories sent as the {@code X-OpenRouter-Categories}
+         * attribution header.
+         * <p>
+         * Header: {@code X-OpenRouter-Categories}. Default: unset, unless a client-level
+         * attribution is configured via {@code OpenRouterClient.appAttribution(...)}; the
+         * per-request value wins for this request.
+         * Trap: OpenRouter accepts at most 2 categories per request - more throw an
+         * {@link IllegalArgumentException}.
+         *
+         * @param categories the marketplace categories (at most 2)
+         * @return This builder instance
+         */
+        public Builder appCategories(String... categories) {
+            return appCategories(Arrays.asList(categories));
+        }
+
+        /**
+         * List-based variant of {@link #appCategories(String...)}.
+         *
+         * @param categories the marketplace categories (at most 2)
+         * @return This builder instance
+         */
+        public Builder appCategories(List<String> categories) {
+            if (categories != null && categories.size() > OpenRouterAppAttribution.MAX_CATEGORIES) {
+                throw new IllegalArgumentException(
+                        "At most " + OpenRouterAppAttribution.MAX_CATEGORIES
+                                + " categories are allowed per request, got " + categories.size());
+            }
+            this.appCategories.clear();
+            if (categories != null) {
+                this.appCategories.addAll(categories);
+            }
+            return this;
+        }
+
+        /**
+         * Sets {@code metadata}: up to 16 string key/value pairs (keys at most 64 chars,
+         * values at most 512 chars) attached to the generation and returned in
+         * generation listings.
+         * <p>
+         * JSON field: {@code metadata}. Default: unset (the key is not sent).
+         * Trap: OpenRouter rejects requests whose metadata exceeds the limits; this
+         * builder validates the limits up front and throws an
+         * {@link IllegalArgumentException} instead of letting the API fail later.
+         *
+         * @param keyValues the metadata entries
+         * @return This builder instance
+         */
+        public Builder metadata(Map<String, String> keyValues) {
+            validateMetadata(keyValues);
+            this.metadata.clear();
+            if (keyValues != null) {
+                this.metadata.putAll(keyValues);
+            }
+            return this;
+        }
+
+        /**
+         * Adds a single {@code metadata} entry (see {@link #metadata(Map)} for the limits).
+         *
+         * @param key the metadata key (at most 64 chars)
+         * @param value the metadata value (at most 512 chars)
+         * @return This builder instance
+         */
+        public Builder addMetadata(String key, String value) {
+            validateMetadata(Map.of(key, value));
+            if (this.metadata.size() >= METADATA_MAX_ENTRIES) {
+                throw new IllegalArgumentException(
+                        "At most " + METADATA_MAX_ENTRIES + " metadata entries are allowed");
+            }
+            this.metadata.put(key, value);
+            return this;
+        }
+
+        /**
+         * Sets {@code user}: a stable identifier of the end user this request belongs to,
+         * used by OpenRouter for abuse isolation.
+         * <p>
+         * JSON field: {@code user}. Default: unset (the key is not sent).
+         *
+         * @param user the stable per-end-user identifier
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/limits/usage-accounting">Usage accounting</a>
+         */
+        public Builder user(String user) {
+            this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets {@code session_id}: groups related requests into one session. OpenRouter
+         * uses it as sticky-routing key to maximise prompt-cache hits.
+         * <p>
+         * JSON field: {@code session_id}. Default: unset (the key is not sent).
+         * Additionally, the {@code x-session-id} header is set to the same value;
+         * per the API specification the body field takes precedence when both are present.
+         *
+         * @param sessionId the session identifier (at most 256 chars)
+         * @return This builder instance
+         */
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
+            return this;
+        }
+
+        /**
+         * Opts in to receiving routing metadata on the response: when {@code true}, the
+         * {@code X-OpenRouter-Metadata: enabled} header is sent and the response may
+         * carry an {@code openrouter_metadata} object. (The legacy
+         * {@code X-OpenRouter-Experimental-Metadata} header remains an accepted alias
+         * in the API, but this library always sends the current one.)
+         * <p>
+         * Header: {@code X-OpenRouter-Metadata}. Default: unset (the header is not sent).
+         *
+         * @param enabled true to opt in
+         * @return This builder instance
+         */
+        public Builder metadataInResponse(boolean enabled) {
+            this.metadataInResponse = enabled;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.data_collection}: whether the request may be routed to
+         * providers that train on prompts/completions.
+         * <p>
+         * JSON field: {@code provider.data_collection}. Default: unset (the key is not sent).
+         * Documented values: {@code "allow"} and {@code "deny"}; {@code "deny"} restricts
+         * routing to providers that do not train on the data - this can reduce the number
+         * of eligible endpoints noticeably.
+         *
+         * @param policy {@code "allow"} or {@code "deny"}
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder dataCollection(String policy) {
+            this.dataCollection = policy;
+            return this;
+        }
+
+        /**
+         * Replaces {@code provider.ignore}: provider slugs that must not serve the request.
+         * <p>
+         * JSON field: {@code provider.ignore}. Default: unset (the key is not sent).
+         * Passing an empty list removes previously registered slugs and emits nothing.
+         *
+         * @param slugs provider slugs to skip
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder ignoreProviders(String... slugs) {
+            return ignoreProviders(Arrays.asList(slugs));
+        }
+
+        /**
+         * List-based variant of {@link #ignoreProviders(String...)}.
+         *
+         * @param slugs provider slugs to skip
+         * @return This builder instance
+         */
+        public Builder ignoreProviders(List<String> slugs) {
+            this.ignoreProviders.clear();
+            if (slugs != null) {
+                this.ignoreProviders.addAll(slugs);
+            }
+            return this;
+        }
+
+        /**
+         * Adds a provider slug to {@code provider.ignore} (see {@link #ignoreProviders(String...)}).
+         *
+         * @param slug the provider slug to skip
+         * @return This builder instance
+         */
+        public Builder addIgnoreProvider(String slug) {
+            this.ignoreProviders.add(slug);
+            return this;
+        }
+
+        /**
+         * Replaces {@code provider.only}: restricts routing to exactly these provider slugs.
+         * <p>
+         * JSON field: {@code provider.only}. Default: unset (the key is not sent).
+         * Trap: unlike the order list ({@link #provider(String...)}), no other provider
+         * may serve the request; if none of the listed providers can, the call fails.
+         * Passing an empty list removes previously registered slugs and emits nothing.
+         *
+         * @param slugs the only providers allowed to serve the request
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder onlyProviders(String... slugs) {
+            return onlyProviders(Arrays.asList(slugs));
+        }
+
+        /**
+         * List-based variant of {@link #onlyProviders(String...)}.
+         *
+         * @param slugs the only providers allowed to serve the request
+         * @return This builder instance
+         */
+        public Builder onlyProviders(List<String> slugs) {
+            this.onlyProviders.clear();
+            if (slugs != null) {
+                this.onlyProviders.addAll(slugs);
+            }
+            return this;
+        }
+
+        /**
+         * Adds a provider slug to {@code provider.only} (see {@link #onlyProviders(String...)}).
+         *
+         * @param slug a provider slug allowed to serve the request
+         * @return This builder instance
+         */
+        public Builder addOnlyProvider(String slug) {
+            this.onlyProviders.add(slug);
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.max_price} caps for prompt and completion tokens. Prices are
+         * strings of the token price in USD per million tokens (e.g. {@code "0.5"}).
+         * <p>
+         * JSON field: {@code provider.max_price}. Default: unset (the key is not sent).
+         * The two-argument form leaves {@code image}/{@code audio} caps unset.
+         *
+         * @param prompt maximum prompt price, or {@code null} to leave it unset
+         * @param completion maximum completion price, or {@code null} to leave it unset
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder maxPrice(String prompt, String completion) {
+            return maxPrice(prompt, completion, null, null);
+        }
+
+        /**
+         * Sets {@code provider.max_price} caps for all four price categories.
+         *
+         * @param prompt maximum prompt price, or {@code null} to leave it unset
+         * @param completion maximum completion price, or {@code null} to leave it unset
+         * @param image maximum image price, or {@code null} to leave it unset
+         * @param audio maximum audio price, or {@code null} to leave it unset
+         * @return This builder instance
+         */
+        public Builder maxPrice(String prompt, String completion, String image, String audio) {
+            this.maxPricePrompt = prompt;
+            this.maxPriceCompletion = completion;
+            this.maxPriceImage = image;
+            this.maxPriceAudio = audio;
+            return this;
+        }
+
+        /**
+         * Replaces {@code provider.quantizations}: the quantization levels the request may
+         * be served with (e.g. {@code int4}, {@code fp8}, {@code fp16}, {@code bf16},
+         * {@code fp8_int8}).
+         * <p>
+         * JSON field: {@code provider.quantizations}. Default: unset (the key is not sent).
+         * Passing an empty list removes previously registered levels and emits nothing.
+         *
+         * @param levels the accepted quantization levels
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder quantizations(String... levels) {
+            return quantizations(Arrays.asList(levels));
+        }
+
+        /**
+         * List-based variant of {@link #quantizations(String...)}.
+         *
+         * @param levels the accepted quantization levels
+         * @return This builder instance
+         */
+        public Builder quantizations(List<String> levels) {
+            this.quantizations.clear();
+            if (levels != null) {
+                this.quantizations.addAll(levels);
+            }
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.sort}: the criterion providers are sorted by when routing.
+         * <p>
+         * JSON field: {@code provider.sort}. Default: unset (the key is not sent).
+         * Documented values: {@code "price"}, {@code "throughput"} and {@code "latency"}.
+         *
+         * @param criterion one of the documented sort criteria
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder sort(String criterion) {
+            this.sort = criterion;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.enforce_distillable_text}: when {@code true}, only endpoints
+         * that support distillable text output are eligible.
+         * <p>
+         * JSON field: {@code provider.enforce_distillable_text}. Default: unset (the key
+         * is not sent).
+         *
+         * @param enforce true to restrict routing to distillable-text endpoints
+         * @return This builder instance
+         */
+        public Builder enforceDistillableText(Boolean enforce) {
+            this.enforceDistillableText = enforce;
+            return this;
+        }
+
+        private static void validateMetadata(Map<String, String> keyValues) {
+            if (keyValues == null) {
+                return;
+            }
+            if (keyValues.size() > METADATA_MAX_ENTRIES) {
+                throw new IllegalArgumentException(
+                        "At most " + METADATA_MAX_ENTRIES + " metadata entries are allowed, got "
+                                + keyValues.size());
+            }
+            for (Map.Entry<String, String> e : keyValues.entrySet()) {
+                if (e.getKey() != null && e.getKey().length() > METADATA_MAX_KEY_LENGTH) {
+                    throw new IllegalArgumentException(
+                            "Metadata key '" + e.getKey() + "' exceeds " + METADATA_MAX_KEY_LENGTH
+                                    + " characters");
+                }
+                if (e.getValue() != null && e.getValue().length() > METADATA_MAX_VALUE_LENGTH) {
+                    throw new IllegalArgumentException(
+                            "Metadata value of key '" + e.getKey() + "' exceeds "
+                                    + METADATA_MAX_VALUE_LENGTH + " characters");
+                }
+            }
+        }
+
+        /**
          * Enables or disables streaming for this request.
          * When enabled, partial message deltas will be sent as server-sent events.
          *
@@ -1081,7 +1888,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             // If streaming is enabled via api-base StreamingInfo, also set the stream flag
             boolean shouldStream = streamEnabled || (getStreamingInfo() != null && getStreamingInfo().isEnabled());
 
-            return new OpenRouterChatCompletionRequest(
+            OpenRouterChatCompletionRequest request = new OpenRouterChatCompletionRequest(
                     this,
                     client,
                     model,
@@ -1114,8 +1921,65 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     logitBias.isEmpty() ? null : Map.copyOf(logitBias),
                     logprobs,
                     topLogprobs,
+                    models.isEmpty() ? null : List.copyOf(models),
+                    httpReferer,
+                    appTitle,
+                    appCategories.isEmpty() ? null : List.copyOf(appCategories),
+                    metadata.isEmpty() ? null : Map.copyOf(metadata),
+                    user,
+                    sessionId,
+                    metadataInResponse,
+                    dataCollection,
+                    ignoreProviders.isEmpty() ? null : List.copyOf(ignoreProviders),
+                    onlyProviders.isEmpty() ? null : List.copyOf(onlyProviders),
+                    maxPricePrompt,
+                    maxPriceCompletion,
+                    maxPriceImage,
+                    maxPriceAudio,
+                    quantizations.isEmpty() ? null : List.copyOf(quantizations),
+                    sort,
+                    enforceDistillableText,
                     shouldStream
             );
+            applyHeaders(request);
+            return request;
+        }
+
+        /**
+         * Applies the derived HTTP headers to a freshly built request:
+         * app attribution (per-request values win over the client-level default),
+         * {@code x-session-id} when a session identifier is configured, and the
+         * opt-in {@code X-OpenRouter-Metadata} header.
+         */
+        private void applyHeaders(OpenRouterChatCompletionRequest request) {
+            OpenRouterAppAttribution clientAttribution =
+                    client != null ? client.appAttribution() : null;
+
+            String referer = httpReferer != null ? httpReferer
+                    : clientAttribution != null ? clientAttribution.httpReferer() : null;
+            if (referer != null) {
+                request.setHeader(HEADER_HTTP_REFERER, referer);
+            }
+
+            String title = appTitle != null ? appTitle
+                    : clientAttribution != null ? clientAttribution.appTitle() : null;
+            if (title != null) {
+                request.setHeader(HEADER_APP_TITLE, title);
+            }
+
+            List<String> categories = !appCategories.isEmpty() ? appCategories
+                    : clientAttribution != null ? clientAttribution.categories() : List.of();
+            if (!categories.isEmpty()) {
+                request.setHeader(HEADER_APP_CATEGORIES, String.join(",", categories));
+            }
+
+            if (sessionId != null) {
+                request.setHeader(HEADER_SESSION_ID, sessionId);
+            }
+
+            if (Boolean.TRUE.equals(metadataInResponse)) {
+                request.setHeader(HEADER_METADATA, "enabled");
+            }
         }
 
         @Override

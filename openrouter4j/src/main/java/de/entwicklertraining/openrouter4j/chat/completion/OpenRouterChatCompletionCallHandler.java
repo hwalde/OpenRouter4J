@@ -234,63 +234,15 @@ public final class OpenRouterChatCompletionCallHandler {
         });
     }
 
-    // Package-private so tests can exercise the hand-maintained option copy list
-    // (this is the list that historically drifted - keep it complete).
+    // Package-private so tests can exercise the option copy path
+    // (previously a hand-maintained list that historically drifted; it now delegates
+    // to the copy factory on the request, which reads every field directly).
     OpenRouterChatCompletionRequest buildStreamingRequest(
             OpenRouterChatCompletionRequest original,
             List<JSONObject> updatedMessages,
             StreamingToolCallAccumulator accumulator
     ) {
-        var builder = OpenRouterChatCompletionRequest.builder(client)
-                .model(original.model())
-                .maxExecutionTimeInSeconds(original.getMaxExecutionTimeInSeconds())
-                .setCancelSupplier(original.getIsCanceledSupplier())
-                .temperature(original.temperature())
-                .topK(original.topK())
-                .topP(original.topP())
-                .maxOutputTokens(original.maxTokens())
-                .maxCompletionTokens(original.maxCompletionTokens())
-                .stopSequences(original.stopSequences())
-                .tools(original.tools())
-                .toolChoice(original.toolChoice())
-                .toolChoiceFunction(original.toolChoiceFunction())
-                .parallelToolCalls(original.parallelToolCalls())
-                .responseSchema(original.responseSchema())
-                .responseMimeType(original.responseMimeType())
-                .reasoningEffort(original.reasoningEffort())
-                .reasoningMaxTokens(original.reasoningMaxTokens())
-                .reasoningExclude(original.reasoningExclude())
-                .reasoningEnabled(original.reasoningEnabled())
-                .frequencyPenalty(original.frequencyPenalty())
-                .presencePenalty(original.presencePenalty())
-                .repetitionPenalty(original.repetitionPenalty())
-                .seed(original.seed())
-                .minP(original.minP())
-                .topA(original.topA())
-                .logitBias(original.logitBias())
-                .logprobs(original.logprobs())
-                .topLogprobs(original.topLogprobs())
-                .stream(true)
-                .addAllMessages(updatedMessages);
-
-        if (original.providers() != null && !original.providers().isEmpty()) {
-            builder.provider(original.providers().toArray(new String[0]));
-        }
-        if (original.requireParameters() != null) {
-            builder.requireParameters(original.requireParameters());
-        }
-        if (original.allowFallbacks() != null) {
-            builder.allowFallbacks(original.allowFallbacks());
-        }
-        if (original.hasCaptureOnSuccess()) {
-            builder.captureOnSuccess(original.getCaptureOnSuccess());
-        }
-        if (original.hasCaptureOnError()) {
-            builder.captureOnError(original.getCaptureOnError());
-        }
-
-        builder.setRawJsonStreaming(accumulator);
-        return builder.build();
+        return original.copyForNextTurn(updatedMessages, true, accumulator);
     }
 
     private JSONObject buildSyntheticResponseJson(StreamingToolCallAccumulator accumulator, String model) {
@@ -308,65 +260,13 @@ public final class OpenRouterChatCompletionCallHandler {
         return root;
     }
 
-    // Package-private so tests can exercise the hand-maintained option copy list
-    // (this is the list that historically drifted - keep it complete).
+    // Package-private so tests can exercise the option copy path
+    // (previously a hand-maintained list that historically drifted; it now delegates
+    // to the copy factory on the request, which reads every field directly).
     OpenRouterChatCompletionRequest buildNextRequest(
             OpenRouterChatCompletionRequest original,
             List<JSONObject> updatedMessages
     ) {
-        var builder = OpenRouterChatCompletionRequest.builder(client)
-                .model(original.model())
-                .maxExecutionTimeInSeconds(original.getMaxExecutionTimeInSeconds())
-                .setCancelSupplier(original.getIsCanceledSupplier())
-                .temperature(original.temperature())
-                .topK(original.topK())
-                .topP(original.topP())
-                .maxOutputTokens(original.maxTokens())
-                .maxCompletionTokens(original.maxCompletionTokens())
-                .stopSequences(original.stopSequences())
-                .tools(original.tools())
-                .toolChoice(original.toolChoice())
-                .toolChoiceFunction(original.toolChoiceFunction())
-                .parallelToolCalls(original.parallelToolCalls())
-                .responseSchema(original.responseSchema())
-                .responseMimeType(original.responseMimeType())
-                .reasoningEffort(original.reasoningEffort())
-                .reasoningMaxTokens(original.reasoningMaxTokens())
-                .reasoningExclude(original.reasoningExclude())
-                .reasoningEnabled(original.reasoningEnabled())
-                .frequencyPenalty(original.frequencyPenalty())
-                .presencePenalty(original.presencePenalty())
-                .repetitionPenalty(original.repetitionPenalty())
-                .seed(original.seed())
-                .minP(original.minP())
-                .topA(original.topA())
-                .logitBias(original.logitBias())
-                .logprobs(original.logprobs())
-                .topLogprobs(original.topLogprobs())
-                .stream(original.stream())
-                .addAllMessages(updatedMessages);
-
-        // Add provider selection if present
-        if (original.providers() != null && !original.providers().isEmpty()) {
-            builder.provider(original.providers().toArray(new String[0]));
-        }
-
-        // Copy provider routing flags if present
-        if (original.requireParameters() != null) {
-            builder.requireParameters(original.requireParameters());
-        }
-        if (original.allowFallbacks() != null) {
-            builder.allowFallbacks(original.allowFallbacks());
-        }
-
-        // Copy capture settings if available
-        if (original.hasCaptureOnSuccess()) {
-            builder.captureOnSuccess(original.getCaptureOnSuccess());
-        }
-        if (original.hasCaptureOnError()) {
-            builder.captureOnError(original.getCaptureOnError());
-        }
-
-        return builder.build();
+        return original.copyForNextTurn(updatedMessages, original.stream(), null);
     }
 }
