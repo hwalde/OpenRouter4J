@@ -78,7 +78,7 @@ OpenRouterChatCompletionResponse response = client.chat().completion()
 System.out.println(response.assistantMessage());
 ```
 
-See the `openrouter4j-examples` module for more demonstrations including base64 images, structured outputs, reasoning configuration, named tool choice, and sampling options.
+See the `openrouter4j-examples` module for more demonstrations including base64 images, structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), and extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort).
 
 ### Provider Selection
 
@@ -126,6 +126,12 @@ client.chat().completion()
 
 See `OpenRouterChatCompletionWithRequireParametersExample` and
 `OpenRouterChatCompletionWithAllowFallbacksExample` in the examples module.
+
+Further routing controls are available on the same builder and all emitted inside the
+same `provider` object: `dataCollection` (`"allow"`/`"deny"`), `ignoreProviders`/`onlyProviders`,
+`maxPrice` (per-million-token price caps), `quantizations`, `sort` (`"price"`, `"throughput"`,
+`"latency"`) and `enforceDistillableText`; see
+`OpenRouterChatCompletionWithProviderPreferencesExample`.
 
 ### Streaming Example
 
@@ -204,6 +210,11 @@ client.chat().completion()
 `OpenRouterClient` accepts an `ApiClientSettings` object for fine-grained control over retries and timeouts.
 The API key is automatically read from the `OPENROUTER_API_KEY` environment variable, or can be configured
 via `ApiHttpConfiguration`:
+
+App attribution (app URL, display name, marketplace categories) can be configured once on the client via
+`client.appAttribution(...)` - the headers (`HTTP-Referer`, `X-OpenRouter-Title`, `X-OpenRouter-Categories`)
+are then sent with every request. Per-request builder methods (`httpReferer`, `appTitle`, `appCategories`)
+win for that single request; see `OpenRouterChatCompletionWithAppAttributionExample`.
 
 ```java
 // Option 1: Use environment variable (recommended)

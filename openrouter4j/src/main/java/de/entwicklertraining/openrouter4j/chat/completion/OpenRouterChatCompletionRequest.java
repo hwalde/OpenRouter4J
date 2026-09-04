@@ -1331,6 +1331,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         /**
          * List-based variant of {@link #models(String...)}.
+         * Passing an empty list removes previously registered candidates and emits nothing.
          *
          * @param slugs the fallback model slugs in preference order
          * @return This builder instance
@@ -1396,6 +1397,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         /**
          * List-based variant of {@link #appCategories(String...)}.
+         * Trap: OpenRouter accepts at most 2 categories per request - more throw an
+         * {@link IllegalArgumentException}.
          *
          * @param categories the marketplace categories (at most 2)
          * @return This builder instance
@@ -1475,7 +1478,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * Additionally, the {@code x-session-id} header is set to the same value;
          * per the API specification the body field takes precedence when both are present.
          *
-         * @param sessionId the session identifier (at most 256 chars)
+         * @param sessionId the session identifier (the API accepts at most 256 chars;
+         *        not validated by the builder)
          * @return This builder instance
          */
         public Builder sessionId(String sessionId) {
@@ -1534,6 +1538,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         /**
          * List-based variant of {@link #ignoreProviders(String...)}.
+         * Passing an empty list removes previously registered slugs and emits nothing.
          *
          * @param slugs provider slugs to skip
          * @return This builder instance
@@ -1575,6 +1580,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         /**
          * List-based variant of {@link #onlyProviders(String...)}.
+         * Trap: unlike the order list ({@link #provider(String...)}), no other provider
+         * may serve the request; if none of the listed providers can, the call fails.
+         * Passing an empty list removes previously registered slugs and emits nothing.
          *
          * @param slugs the only providers allowed to serve the request
          * @return This builder instance
@@ -1649,6 +1657,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         /**
          * List-based variant of {@link #quantizations(String...)}.
+         * Passing an empty list removes previously registered levels and emits nothing.
          *
          * @param levels the accepted quantization levels
          * @return This builder instance
@@ -1691,6 +1700,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             return this;
         }
 
+        private static String truncateForMessage(String value) {
+            return value.length() <= 20 ? value : value.substring(0, 20) + "...";
+        }
+
         private static void validateMetadata(Map<String, String> keyValues) {
             if (keyValues == null) {
                 return;
@@ -1703,12 +1716,12 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             for (Map.Entry<String, String> e : keyValues.entrySet()) {
                 if (e.getKey() != null && e.getKey().length() > METADATA_MAX_KEY_LENGTH) {
                     throw new IllegalArgumentException(
-                            "Metadata key '" + e.getKey() + "' exceeds " + METADATA_MAX_KEY_LENGTH
-                                    + " characters");
+                            "Metadata key '" + truncateForMessage(e.getKey()) + "' exceeds "
+                                    + METADATA_MAX_KEY_LENGTH + " characters");
                 }
                 if (e.getValue() != null && e.getValue().length() > METADATA_MAX_VALUE_LENGTH) {
                     throw new IllegalArgumentException(
-                            "Metadata value of key '" + e.getKey() + "' exceeds "
+                            "Metadata value of key '" + truncateForMessage(e.getKey()) + "' exceeds "
                                     + METADATA_MAX_VALUE_LENGTH + " characters");
                 }
             }
