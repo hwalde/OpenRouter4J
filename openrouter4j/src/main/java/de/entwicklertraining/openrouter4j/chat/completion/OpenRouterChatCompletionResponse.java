@@ -346,7 +346,8 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
         if (error == null || error.isNull("code")) {
             return null;
         }
-        return error.optInt("code");
+        Object code = error.opt("code");
+        return code instanceof Number n ? n.intValue() : null;
     }
 
     /**
@@ -365,9 +366,12 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      */
     public void throwOnError() {
         if (hasError()) {
+            Object errorObj = getJson().opt("error");
+            String detail = errorMessage() != null
+                    ? errorMessage()
+                    : String.valueOf(errorObj);
             throw new ApiClient.ApiResponseUnusableException(
-                    "OpenRouter reported an error inside the response: "
-                            + (errorMessage() != null ? errorMessage() : error().toString()));
+                    "OpenRouter reported an error inside the response: " + detail);
         }
     }
 

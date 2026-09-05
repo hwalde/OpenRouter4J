@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.chat.completion;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
+import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
@@ -184,6 +185,42 @@ class StreamingToolCallAccumulatorTest {
         accumulator.reset();
         assertThat(accumulator.getUsage()).isNull();
         assertThat(accumulator.getNativeFinishReason()).isNull();
+    }
+
+    @Test
+    void syntheticResponseCarriesUsageAndNativeFinishReason() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(finishChunkWithNativeReason("stop", "end_turn"));
+        accumulator.onData(usageChunk(0.0012, 10, 15, 25));
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        assertThat(response.cost()).isEqualTo(0.0012);
+        assertThat(response.promptTokens()).isEqualTo(10);
+        assertThat(response.completionTokens()).isEqualTo(15);
+        assertThat(response.totalTokens()).isEqualTo(25);
+        assertThat(response.nativeFinishReason()).isEqualTo("end_turn");
+        assertThat(response.finishReason()).isEqualTo("stop");
+        assertThat(response.assistantMessage()).isEqualTo("Hello");
+    }
+
+    @Test
+    void syntheticResponseWithoutUsageChunkHasNoUsageOrNativeFinishReason() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(finishChunk("stop"));
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        assertThat(response.cost()).isNull();
+        assertThat(response.promptTokens()).isNull();
+        assertThat(response.nativeFinishReason()).isNull();
+        assertThat(response.finishReason()).isEqualTo("stop");
     }
 
     // --- Helpers ---

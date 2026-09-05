@@ -55,43 +55,80 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
         return new Builder();
     }
 
+    /** Returns the plugin discriminator {@code "web"} ({@code plugins[].id}). */
     @Override
     public String id() {
         return PLUGIN_ID;
     }
 
+    /**
+     * Returns the configured {@code plugins[].enabled} value, or {@code null}
+     * when unset (the key is not sent and {@code true} applies).
+     */
     public Boolean enabled() {
         return enabled;
     }
 
+    /**
+     * Returns the configured {@code plugins[].engine} value, or {@code null}
+     * when unset (the key is not sent).
+     */
     public String engine() {
         return engine;
     }
 
+    /**
+     * Returns the configured {@code plugins[].max_results} value, or
+     * {@code null} when unset (the key is not sent).
+     */
     public Integer maxResults() {
         return maxResults;
     }
 
+    /**
+     * Returns the configured {@code plugins[].max_uses} value, or
+     * {@code null} when unset (the key is not sent).
+     */
     public Integer maxUses() {
         return maxUses;
     }
 
+    /**
+     * Returns the configured {@code plugins[].mode} value, or {@code null}
+     * when unset (the key is not sent).
+     */
     public String mode() {
         return mode;
     }
 
+    /**
+     * Returns the configured {@code plugins[].search_prompt} value, or
+     * {@code null} when unset (the key is not sent).
+     */
     public String searchPrompt() {
         return searchPrompt;
     }
 
+    /**
+     * Returns the configured {@code plugins[].include_domains} values,
+     * empty when unset (never {@code null}).
+     */
     public List<String> includeDomains() {
         return includeDomains == null ? List.of() : includeDomains;
     }
 
+    /**
+     * Returns the configured {@code plugins[].exclude_domains} values,
+     * empty when unset (never {@code null}).
+     */
     public List<String> excludeDomains() {
         return excludeDomains == null ? List.of() : excludeDomains;
     }
 
+    /**
+     * Returns the configured {@code plugins[].user_location} value, or
+     * {@code null} when unset (the key is not sent).
+     */
     public UserLocation userLocation() {
         return userLocation;
     }
@@ -156,18 +193,22 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
             return new Builder();
         }
 
+        /** Returns the configured {@code city} value, or {@code null} when unset. */
         public String city() {
             return city;
         }
 
+        /** Returns the configured {@code country} value, or {@code null} when unset. */
         public String country() {
             return country;
         }
 
+        /** Returns the configured {@code region} value, or {@code null} when unset. */
         public String region() {
             return region;
         }
 
+        /** Returns the configured IANA {@code timezone} value, or {@code null} when unset. */
         public String timezone() {
             return timezone;
         }
@@ -220,6 +261,9 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
                 return this;
             }
 
+            /**
+             * Builds the {@link UserLocation} value type.
+             */
             public UserLocation build() {
                 return new UserLocation(this);
             }
@@ -330,6 +374,9 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
             return this;
         }
 
+        /**
+         * Builds the {@link OpenRouterWebSearchPlugin} value type.
+         */
         public OpenRouterWebSearchPlugin build() {
             return new OpenRouterWebSearchPlugin(this);
         }

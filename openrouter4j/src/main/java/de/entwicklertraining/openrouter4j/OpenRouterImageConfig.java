@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j;
 
 import org.json.JSONObject;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -35,32 +36,32 @@ public final class OpenRouterImageConfig {
     }
 
     /**
-     * Sets {@code image_config.num_images}: how many images the model should
-     * generate for the response (provider-dependent).
+     * Returns the configured {@code image_config.num_images} value, or
+     * {@code null} when unset (the key is not sent).
      */
     public Integer numImages() {
         return intValue("num_images");
     }
 
     /**
-     * Sets {@code image_config.aspect_ratio}: the requested aspect ratio of
-     * generated images, e.g. {@code "1:1"} or {@code "16:9"} (provider-dependent).
+     * Returns the configured {@code image_config.aspect_ratio} value, or
+     * {@code null} when unset (the key is not sent).
      */
     public String aspectRatio() {
         return stringValue("aspect_ratio");
     }
 
     /**
-     * Sets {@code image_config.resolution}: the requested image resolution,
-     * e.g. {@code "1K"}, {@code "2K"} or {@code "4K"} (provider-dependent).
+     * Returns the configured {@code image_config.resolution} value, or
+     * {@code null} when unset (the key is not sent).
      */
     public String resolution() {
         return stringValue("resolution");
     }
 
     /**
-     * Sets {@code image_config.quality}: the requested image quality,
-     * e.g. {@code "high"} (provider-dependent).
+     * Returns the configured {@code image_config.quality} value, or
+     * {@code null} when unset (the key is not sent).
      */
     public String quality() {
         return stringValue("quality");
@@ -77,7 +78,7 @@ public final class OpenRouterImageConfig {
      * Returns an unmodifiable copy of all configured options, in insertion order.
      */
     public Map<String, Object> options() {
-        return Map.copyOf(options);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(options));
     }
 
     /**
@@ -157,6 +158,9 @@ public final class OpenRouterImageConfig {
             return this;
         }
 
+        /**
+         * Builds the {@link OpenRouterImageConfig} value type.
+         */
         public OpenRouterImageConfig build() {
             return new OpenRouterImageConfig(new LinkedHashMap<>(options));
         }

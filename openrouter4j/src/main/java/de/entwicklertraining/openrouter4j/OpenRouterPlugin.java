@@ -30,8 +30,10 @@ public interface OpenRouterPlugin {
     JSONObject toJson();
 
     /**
-     * Creates a generic plugin that emits {@code {"id": id}} plus the given extra
-     * fields verbatim. Use this for plugin ids without a typed implementation.
+     * Creates a generic plugin that emits {@code {"id": id}} and nothing else.
+     * Use this for plugin ids without a typed implementation; chain
+     * {@link OpenRouterGenericPlugin#withOption(String, Object)} to add extra
+     * fields verbatim.
      *
      * @param id the plugin discriminator
      * @return a generic plugin emitting only the id field

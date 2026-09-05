@@ -123,6 +123,30 @@ class OpenRouterChatCompletionResponseTest {
     }
 
     @Test
+    void malformedTopLevelErrorStillThrowsLoudly() {
+        // error present but not an object - must not NPE, must throw loudly
+        OpenRouterChatCompletionResponse response = responseOf("{\"error\": \"rate limit\"}");
+
+        assertThat(response.hasError()).isTrue();
+        assertThat(response.error()).isNull();
+        assertThat(response.errorMessage()).isNull();
+
+        assertThatThrownBy(response::throwOnError)
+                .isInstanceOf(ApiClient.ApiResponseUnusableException.class)
+                .hasMessageContaining("rate limit");
+    }
+
+    @Test
+    void nonNumericErrorCodeReturnsNull() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {"error": {"code": "internal", "message": "boom"}}
+                """);
+
+        assertThat(response.errorCode()).isNull();
+        assertThat(response.errorMessage()).isEqualTo("boom");
+    }
+
+    @Test
     void successfulResponseHasNoError() {
         OpenRouterChatCompletionResponse response = responseOf("""
                 {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}

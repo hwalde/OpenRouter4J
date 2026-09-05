@@ -27,14 +27,25 @@ public class OpenRouterChatCompletionWithResponseDetailsExample {
                 .execute();
 
         // Fail loudly instead of mistaking a failed response for an empty one.
-        response.throwOnError();
+        // hasError()/error()/errorCode()/errorMessage() allow inspecting the
+        // failure without throwing.
+        if (response.hasError()) {
+            throw new IllegalStateException("OpenRouter failed: code=" + response.errorCode()
+                    + " message=" + response.errorMessage());
+        }
 
         System.out.println("Answer: " + response.assistantMessage());
         System.out.println("Provider: " + response.provider());
         System.out.println("Finish reason: " + response.finishReason()
                 + " (native: " + response.nativeFinishReason() + ")");
         System.out.println("Reasoning: " + response.reasoning());
+        if (!response.reasoningDetails().isEmpty()) {
+            System.out.println("Reasoning details: " + response.reasoningDetails().size() + " item(s)");
+        }
         System.out.println("Cost (USD): " + response.cost());
+        if (response.costDetails() != null) {
+            System.out.println("Cost details: " + response.costDetails());
+        }
         System.out.println("Cached prompt tokens: " + response.cachedPromptTokens());
         System.out.println("Reasoning tokens: " + response.reasoningTokens());
         if (response.openrouterMetadata() != null) {

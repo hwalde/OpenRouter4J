@@ -245,7 +245,9 @@ public final class OpenRouterChatCompletionCallHandler {
         return original.copyForNextTurn(updatedMessages, true, accumulator);
     }
 
-    private JSONObject buildSyntheticResponseJson(StreamingToolCallAccumulator accumulator, String model) {
+    // Package-private so tests can exercise the synthetic response of the
+    // streaming loop (usage object and native finish reason of the terminal chunk).
+    JSONObject buildSyntheticResponseJson(StreamingToolCallAccumulator accumulator, String model) {
         JSONObject msg = accumulator.buildAssistantMessage();
         JSONObject choice = new JSONObject();
         choice.put("index", 0);

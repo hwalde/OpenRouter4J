@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.chat.completion;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterAppAttribution;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterGenericPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterToolDefinition;
@@ -883,6 +884,24 @@ class OpenRouterChatCompletionRequestTest {
                 .build();
         assertThat(new JSONObject(request.getBody()).has("plugins")).isFalse();
         assertThat(request.plugins()).isEmpty();
+    }
+
+    @Test
+    void modalitiesCanBeClearedWithEmptyList() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .modalities("text", "image")
+                .modalities(List.of())
+                .build();
+        assertThat(new JSONObject(request.getBody()).has("modalities")).isFalse();
+        assertThat(request.modalities()).isEmpty();
+    }
+
+    @Test
+    void genericPluginRejectsIdOverride() {
+        assertThatThrownBy(() -> OpenRouterPlugin.of("web").withOption("id", "x"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterGenericPlugin("web", java.util.Map.of("id", "x")))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

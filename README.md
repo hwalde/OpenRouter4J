@@ -16,6 +16,8 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 
 * Chat Completions including tool calling (including forcing a specific tool), structured outputs, vision inputs and reasoning configuration (effort / max_tokens / exclude / enabled)
 * **Streaming support** for real-time token generation using Server-Sent Events (SSE)
+* Server-side plugins (web search) and multimodal output (`modalities` / `image_config`)
+* OpenRouter-specific response details: reasoning output, provider, native finish reason, routing metadata, cost and a loud error path for mid-request failures
 * Access to 200+ AI models through a single unified API
 * Provider selection for routing requests to specific providers
 * Vision capabilities for image understanding and analysis
@@ -78,7 +80,7 @@ OpenRouterChatCompletionResponse response = client.chat().completion()
 System.out.println(response.assistantMessage());
 ```
 
-See the `openrouter4j-examples` module for more demonstrations including base64 images, structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), and extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort).
+See the `openrouter4j-examples` module for more demonstrations including base64 images, structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort), server-side plugins (web search), multimodal output (`modalities` / `image_config`), and OpenRouter-specific response details (reasoning, provider, cost, loud error handling).
 
 ### Provider Selection
 
