@@ -241,21 +241,60 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
             private Builder() {
             }
 
+            /**
+             * Sets {@code user_location.city}: the approximate city name used to
+             * bias search results. Emitted inside {@code plugins[].user_location}
+             * (which always carries {@code "type": "approximate"}). Default: unset
+             * (the key is not sent); passing {@code null} removes the key.
+             *
+             * @param city the approximate city name, or {@code null} to unset
+             * @return This builder instance
+             */
             public Builder city(String city) {
                 this.city = city;
                 return this;
             }
 
+            /**
+             * Sets {@code user_location.country}: the ISO country code used to bias
+             * search results. Emitted inside {@code plugins[].user_location}
+             * (which always carries {@code "type": "approximate"}). Default: unset
+             * (the key is not sent); passing {@code null} removes the key.
+             *
+             * @param country the country code, or {@code null} to unset
+             * @return This builder instance
+             */
             public Builder country(String country) {
                 this.country = country;
                 return this;
             }
 
+            /**
+             * Sets {@code user_location.region}: the region/state used to bias
+             * search results. Emitted inside {@code plugins[].user_location}
+             * (which always carries {@code "type": "approximate"}). Default: unset
+             * (the key is not sent); passing {@code null} removes the key.
+             *
+             * @param region the region or state, or {@code null} to unset
+             * @return This builder instance
+             */
             public Builder region(String region) {
                 this.region = region;
                 return this;
             }
 
+            /**
+             * Sets {@code user_location.timezone}: the IANA timezone used to bias
+             * search results. Emitted inside {@code plugins[].user_location}
+             * (which always carries {@code "type": "approximate"}). Default: unset
+             * (the key is not sent); passing {@code null} removes the key.
+             * <p>
+             * Trap: {@code user_location} is passed through to native providers
+             * that support it (e.g. Anthropic) and ignored with non-native engines.
+             *
+             * @param timezone the IANA timezone, or {@code null} to unset
+             * @return This builder instance
+             */
             public Builder timezone(String timezone) {
                 this.timezone = timezone;
                 return this;

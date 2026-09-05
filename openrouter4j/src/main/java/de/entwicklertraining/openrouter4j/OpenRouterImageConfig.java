@@ -113,6 +113,11 @@ public final class OpenRouterImageConfig {
         /**
          * Sets {@code num_images}: how many images the model should generate
          * (provider-dependent).
+         * <p>
+         * Unlike unset, an explicit {@code null} is emitted as
+         * {@code "num_images": null} inside {@code image_config} - the API decides
+         * how to treat it. This verbatim behaviour applies to all typed setters
+         * below and to {@link #option(String, Object)}.
          */
         public Builder numImages(Integer numImages) {
             options.put("num_images", numImages);
