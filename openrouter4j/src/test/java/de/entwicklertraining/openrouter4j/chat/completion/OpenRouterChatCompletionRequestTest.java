@@ -3,8 +3,11 @@ package de.entwicklertraining.openrouter4j.chat.completion;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterAppAttribution;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
+import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterToolDefinition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolResult;
+import de.entwicklertraining.openrouter4j.OpenRouterWebSearchPlugin;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -794,6 +797,130 @@ class OpenRouterChatCompletionRequestTest {
     }
 
     // ------------------------------------------------------------------
+    // Plugins, modalities, image_config
+
+    @Test
+    void webPluginIsSerializedWithExplicitFieldsOnly() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addPlugin(OpenRouterWebSearchPlugin.builder()
+                        .maxResults(5)
+                        .engine("exa")
+                        .searchPrompt("Search the web")
+                        .build()));
+
+        assertThat(body.has("plugins")).isTrue();
+        assertThat(body.getJSONArray("plugins").length()).isEqualTo(1);
+        JSONObject plugin = body.getJSONArray("plugins").getJSONObject(0);
+        assertThat(plugin.getString("id")).isEqualTo("web");
+        assertThat(plugin.getInt("max_results")).isEqualTo(5);
+        assertThat(plugin.getString("engine")).isEqualTo("exa");
+        assertThat(plugin.getString("search_prompt")).isEqualTo("Search the web");
+        assertThat(plugin.has("enabled")).isFalse();
+        assertThat(plugin.has("mode")).isFalse();
+        assertThat(plugin.has("include_domains")).isFalse();
+        assertThat(plugin.has("exclude_domains")).isFalse();
+        assertThat(plugin.has("user_location")).isFalse();
+    }
+
+    @Test
+    void webPluginWithAllFieldsIsSerialized() {
+        JSONObject body = bodyOf(baseBuilder().plugins(
+                OpenRouterWebSearchPlugin.builder()
+                        .enabled(false)
+                        .engine("native")
+                        .maxResults(3)
+                        .maxUses(2)
+                        .mode("deep")
+                        .searchPrompt("prompt")
+                        .includeDomains(List.of("example.com"))
+                        .excludeDomains(List.of("*.substack.com"))
+                        .userLocation(OpenRouterWebSearchPlugin.UserLocation.builder()
+                                .city("Cologne")
+                                .country("DE")
+                                .build())
+                        .build()));
+
+        JSONObject plugin = body.getJSONArray("plugins").getJSONObject(0);
+        assertThat(plugin.getString("id")).isEqualTo("web");
+        assertThat(plugin.getBoolean("enabled")).isFalse();
+        assertThat(plugin.getString("engine")).isEqualTo("native");
+        assertThat(plugin.getInt("max_results")).isEqualTo(3);
+        assertThat(plugin.getInt("max_uses")).isEqualTo(2);
+        assertThat(plugin.getString("mode")).isEqualTo("deep");
+        assertThat(plugin.getString("search_prompt")).isEqualTo("prompt");
+        assertThat(plugin.getJSONArray("include_domains").toList()).containsExactly("example.com");
+        assertThat(plugin.getJSONArray("exclude_domains").toList()).containsExactly("*.substack.com");
+        JSONObject location = plugin.getJSONObject("user_location");
+        assertThat(location.getString("type")).isEqualTo("approximate");
+        assertThat(location.getString("city")).isEqualTo("Cologne");
+        assertThat(location.getString("country")).isEqualTo("DE");
+        assertThat(location.has("region")).isFalse();
+        assertThat(location.has("timezone")).isFalse();
+    }
+
+    @Test
+    void genericPluginIsSerializedVerbatim() {
+        JSONObject body = bodyOf(baseBuilder().plugins(
+                OpenRouterPlugin.of("file-parser").withOption("pdf", "some-parsing-engine")));
+
+        assertThat(body.getJSONArray("plugins").length()).isEqualTo(1);
+        JSONObject plugin = body.getJSONArray("plugins").getJSONObject(0);
+        assertThat(plugin.getString("id")).isEqualTo("file-parser");
+        assertThat(plugin.getString("pdf")).isEqualTo("some-parsing-engine");
+    }
+
+    @Test
+    void pluginsAreOmittedWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+        assertThat(body.has("plugins")).isFalse();
+    }
+
+    @Test
+    void pluginsCanBeClearedWithEmptyList() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .addPlugin(OpenRouterPlugin.of("web"))
+                .plugins(List.of())
+                .build();
+        assertThat(new JSONObject(request.getBody()).has("plugins")).isFalse();
+        assertThat(request.plugins()).isEmpty();
+    }
+
+    @Test
+    void modalitiesAreSerializedAndOmittedWhenUnset() {
+        assertThat(bodyOf(baseBuilder()).has("modalities")).isFalse();
+
+        JSONObject body = bodyOf(baseBuilder().modalities("text", "image"));
+        assertThat(body.getJSONArray("modalities").toList()).containsExactly("text", "image");
+        assertThat(baseBuilder().modalities("text", "image").build().modalities())
+                .containsExactly("text", "image");
+    }
+
+    @Test
+    void imageConfigIsSerializedAndOmittedWhenUnset() {
+        assertThat(bodyOf(baseBuilder()).has("image_config")).isFalse();
+
+        JSONObject body = bodyOf(baseBuilder().imageConfig(OpenRouterImageConfig.builder()
+                .numImages(2)
+                .aspectRatio("16:9")
+                .resolution("2K")
+                .build()));
+
+        JSONObject imageConfig = body.getJSONObject("image_config");
+        assertThat(imageConfig.getInt("num_images")).isEqualTo(2);
+        assertThat(imageConfig.getString("aspect_ratio")).isEqualTo("16:9");
+        assertThat(imageConfig.getString("resolution")).isEqualTo("2K");
+    }
+
+    @Test
+    void imageConfigSupportsArbitraryProviderOptions() {
+        JSONObject body = bodyOf(baseBuilder().imageConfig(OpenRouterImageConfig.builder()
+                .option("quality", "high")
+                .build()));
+
+        assertThat(body.getJSONObject("image_config").getString("quality")).isEqualTo("high");
+    }
+
+    // ------------------------------------------------------------------
     // Every new option must survive the tool-loop copy path (sync + streaming)
 
     @Test
@@ -814,6 +941,9 @@ class OpenRouterChatCompletionRequestTest {
             .quantizations("int4")
             .sort("latency")
             .enforceDistillableText(true)
+            .addPlugin(OpenRouterWebSearchPlugin.builder().maxResults(5).build())
+            .modalities("text", "image")
+            .imageConfig(OpenRouterImageConfig.builder().aspectRatio("1:1").build())
             .build();
 
     var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
@@ -834,6 +964,10 @@ class OpenRouterChatCompletionRequestTest {
     assertThat(provider.getJSONArray("quantizations").toList()).containsExactly("int4");
     assertThat(provider.getString("sort")).isEqualTo("latency");
     assertThat(provider.getBoolean("enforce_distillable_text")).isTrue();
+    assertThat(body.getJSONArray("plugins").getJSONObject(0).getString("id")).isEqualTo("web");
+    assertThat(body.getJSONArray("plugins").getJSONObject(0).getInt("max_results")).isEqualTo(5);
+    assertThat(body.getJSONArray("modalities").toList()).containsExactly("text", "image");
+    assertThat(body.getJSONObject("image_config").getString("aspect_ratio")).isEqualTo("1:1");
 
     Map<String, String> headers = next.getAdditionalHeaders();
     assertThat(headers.get("HTTP-Referer")).isEqualTo("https://myapp.example");
@@ -853,6 +987,9 @@ class OpenRouterChatCompletionRequestTest {
             .metadataInResponse(true)
             .dataCollection("deny")
             .sort("latency")
+            .addPlugin(OpenRouterPlugin.of("web"))
+            .modalities("text")
+            .imageConfig(OpenRouterImageConfig.builder().numImages(1).build())
             .build();
 
     var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
@@ -873,6 +1010,9 @@ class OpenRouterChatCompletionRequestTest {
     assertThat(body.getString("session_id")).isEqualTo("session-abc");
     assertThat(body.getJSONObject("provider").getString("data_collection")).isEqualTo("deny");
     assertThat(body.getJSONObject("provider").getString("sort")).isEqualTo("latency");
+    assertThat(body.getJSONArray("plugins").getJSONObject(0).getString("id")).isEqualTo("web");
+    assertThat(body.getJSONArray("modalities").toList()).containsExactly("text");
+    assertThat(body.getJSONObject("image_config").getInt("num_images")).isEqualTo(1);
 
     Map<String, String> headers = next.getAdditionalHeaders();
     assertThat(headers.get("HTTP-Referer")).isEqualTo("https://myapp.example");

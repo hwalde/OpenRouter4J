@@ -20,7 +20,9 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
 
     private final StreamingResponseHandler<String> userHandler;
     private String finishReason;
+    private String nativeFinishReason;
     private String role;
+    private JSONObject usage;
     private final StringBuilder contentBuilder = new StringBuilder();
     private final TreeMap<Integer, ToolCallData> toolCallsByIndex = new TreeMap<>();
 
@@ -37,6 +39,14 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
     public void onData(String rawJson) {
         try {
             JSONObject json = new JSONObject(rawJson);
+
+            // The terminal usage chunk carries the usage object with an empty
+            // choices array ("choices": []) - read it before the choices check
+            // so it is not silently dropped.
+            if (json.has("usage") && !json.isNull("usage")) {
+                this.usage = json.getJSONObject("usage");
+            }
+
             JSONArray choices = json.optJSONArray("choices");
             if (choices == null || choices.isEmpty()) return;
 
@@ -44,6 +54,10 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
 
             if (choice.has("finish_reason") && !choice.isNull("finish_reason")) {
                 this.finishReason = choice.getString("finish_reason");
+            }
+
+            if (choice.has("native_finish_reason") && !choice.isNull("native_finish_reason")) {
+                this.nativeFinishReason = choice.getString("native_finish_reason");
             }
 
             JSONObject delta = choice.optJSONObject("delta");
@@ -113,6 +127,25 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         return finishReason;
     }
 
+    /**
+     * The provider-native finish reason of the last chunk that carried one
+     * ({@code choices[0].native_finish_reason}), or {@code null} when absent.
+     */
+    String getNativeFinishReason() {
+        return nativeFinishReason;
+    }
+
+    /**
+     * The usage object of the terminal usage chunk, or {@code null} when the
+     * stream carried no usage. OpenRouter emits one final chunk whose
+     * {@code choices} array is empty and whose {@code usage} object holds the
+     * token and cost totals; that chunk is not content and is not forwarded to
+     * the user handler - it is exposed here instead.
+     */
+    JSONObject getUsage() {
+        return usage;
+    }
+
     boolean hasToolCalls() {
         return "tool_calls".equals(finishReason) && !toolCallsByIndex.isEmpty();
     }
@@ -147,6 +180,8 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
 
     void reset() {
         finishReason = null;
+        nativeFinishReason = null;
+        usage = null;
         toolCallsByIndex.clear();
         role = null;
         contentBuilder.setLength(0);

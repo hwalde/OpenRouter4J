@@ -251,11 +251,19 @@ public final class OpenRouterChatCompletionCallHandler {
         choice.put("index", 0);
         choice.put("message", msg);
         choice.put("finish_reason", accumulator.getFinishReason() != null ? accumulator.getFinishReason() : "stop");
+        if (accumulator.getNativeFinishReason() != null) {
+            choice.put("native_finish_reason", accumulator.getNativeFinishReason());
+        }
 
         JSONObject root = new JSONObject();
         root.put("choices", new JSONArray().put(choice));
         if (model != null) {
             root.put("model", model);
+        }
+        if (accumulator.getUsage() != null) {
+            // Terminal usage chunk - exposed so the response accessors
+            // (cost(), promptTokens(), ...) work on the streaming path too.
+            root.put("usage", accumulator.getUsage());
         }
         return root;
     }

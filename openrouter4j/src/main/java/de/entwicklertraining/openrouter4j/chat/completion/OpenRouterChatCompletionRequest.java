@@ -71,6 +71,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final List<String> quantizations; // provider.quantizations
     private final String sort; // provider.sort
     private final Boolean enforceDistillableText; // provider.enforce_distillable_text
+    private final List<OpenRouterPlugin> plugins; // OpenRouter server-side plugins
+    private final List<String> modalities; // output modalities ("text", "image", "audio")
+    private final OpenRouterImageConfig imageConfig; // provider-specific image generation options
     private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
@@ -142,6 +145,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             List<String> quantizations,
             String sort,
             Boolean enforceDistillableText,
+            List<OpenRouterPlugin> plugins,
+            List<String> modalities,
+            OpenRouterImageConfig imageConfig,
             boolean stream
     ) {
         super(builder);
@@ -194,6 +200,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.quantizations = quantizations == null ? null : List.copyOf(quantizations);
         this.sort = sort;
         this.enforceDistillableText = enforceDistillableText;
+        this.plugins = plugins == null ? null : List.copyOf(plugins);
+        this.modalities = modalities == null ? null : List.copyOf(modalities);
+        this.imageConfig = imageConfig;
         this.stream = stream;
     }
 
@@ -500,6 +509,30 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     }
 
     /**
+     * The server-side plugins attached to this request ({@code plugins}),
+     * empty when unset (never {@code null}).
+     */
+    public List<OpenRouterPlugin> plugins() {
+        return plugins == null ? List.of() : plugins;
+    }
+
+    /**
+     * The requested output modalities ({@code modalities}: {@code "text"},
+     * {@code "image"}, {@code "audio"}), empty when unset (never {@code null}).
+     */
+    public List<String> modalities() {
+        return modalities == null ? List.of() : modalities;
+    }
+
+    /**
+     * The provider-specific image generation configuration ({@code image_config}),
+     * or {@code null} when unset.
+     */
+    public OpenRouterImageConfig imageConfig() {
+        return imageConfig;
+    }
+
+    /**
      * @deprecated Legacy alias for {@link #reasoningMaxTokens()}. The old
      * {@code "reasoning": {"type": "enabled", "budget": N}} wire format no longer
      * exists in the OpenRouter API; the budget is now sent as {@code reasoning.max_tokens}.
@@ -599,6 +632,13 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
         b.sort = sort;
         b.enforceDistillableText = enforceDistillableText;
+        if (plugins != null) {
+            b.plugins.addAll(plugins);
+        }
+        if (modalities != null) {
+            b.modalities.addAll(modalities);
+        }
+        b.imageConfig = imageConfig;
         b.streamEnabled = stream;
 
         // Execution settings of the original request
@@ -868,6 +908,32 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             root.put("reasoning", reasoning);
         }
 
+        // Plugins (OpenRouter-specific): server-side plugins such as web search.
+        // Emitted only when at least one plugin is set.
+        if (plugins != null && !plugins.isEmpty()) {
+            JSONArray pluginsArr = new JSONArray();
+            for (OpenRouterPlugin plugin : plugins) {
+                pluginsArr.put(plugin.toJson());
+            }
+            root.put("plugins", pluginsArr);
+        }
+
+        // Output modalities (OpenRouter-specific): "text", "image", "audio".
+        // Emitted only when explicitly set - a multimodal-output model needs
+        // e.g. modalities("text", "image") to actually produce images.
+        if (modalities != null && !modalities.isEmpty()) {
+            JSONArray modalitiesArr = new JSONArray();
+            for (String modality : modalities) {
+                modalitiesArr.put(modality);
+            }
+            root.put("modalities", modalitiesArr);
+        }
+
+        // Image generation configuration (OpenRouter-specific, provider-specific keys).
+        if (imageConfig != null) {
+            root.put("image_config", imageConfig.toJson());
+        }
+
         // Streaming
         if (stream) {
             root.put("stream", true);
@@ -935,6 +1001,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private final List<String> quantizations = new ArrayList<>();
         private String sort;
         private Boolean enforceDistillableText;
+        private final List<OpenRouterPlugin> plugins = new ArrayList<>();
+        private final List<String> modalities = new ArrayList<>();
+        private OpenRouterImageConfig imageConfig;
         private boolean streamEnabled;
 
         public Builder(OpenRouterClient client) {
@@ -1704,6 +1773,127 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             return value.length() <= 20 ? value : value.substring(0, 20) + "...";
         }
 
+        /**
+         * Replaces the server-side plugins attached to this request ({@code plugins}).
+         * <p>
+         * JSON field: {@code plugins} (array). Default: unset (the key is not sent).
+         * Each plugin is emitted with its discriminator {@code id} plus its
+         * configured fields; {@link OpenRouterWebSearchPlugin} is the typed
+         * implementation of the {@code web} plugin, {@link OpenRouterPlugin#of(String)}
+         * creates a generic escape hatch for every other plugin id.
+         * <p>
+         * Trap: web search results are delivered to the model as tool calls
+         * ({@code server_tool_calls}) executed server-side by OpenRouter. Combining
+         * plugins with client-side {@code tools} / {@code tool_choice} means two
+         * independent tool-call flows in one request.
+         * <p>
+         * Passing an empty list removes previously registered plugins and emits nothing.
+         *
+         * @param plugins the plugins to enable for this request
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/plugins">OpenRouter plugins</a>
+         */
+        public Builder plugins(OpenRouterPlugin... plugins) {
+            return plugins(Arrays.asList(plugins));
+        }
+
+        /**
+         * List-based variant of {@link #plugins(OpenRouterPlugin...)}.
+         * Passing an empty list removes previously registered plugins and emits nothing.
+         *
+         * @param plugins the plugins to enable for this request
+         * @return This builder instance
+         */
+        public Builder plugins(List<OpenRouterPlugin> plugins) {
+            this.plugins.clear();
+            if (plugins != null) {
+                this.plugins.addAll(plugins);
+            }
+            return this;
+        }
+
+        /**
+         * Adds a single plugin to the {@code plugins} array
+         * (see {@link #plugins(OpenRouterPlugin...)}).
+         *
+         * @param plugin the plugin to enable for this request
+         * @return This builder instance
+         */
+        public Builder addPlugin(OpenRouterPlugin plugin) {
+            this.plugins.add(plugin);
+            return this;
+        }
+
+        /**
+         * Sets the requested output modalities ({@code modalities}).
+         * <p>
+         * JSON field: {@code modalities} (array of {@code "text"}, {@code "image"},
+         * {@code "audio"}). Default: unset (the key is not sent; the provider's
+         * default - text only - applies).
+         * <p>
+         * Trap: multimodal-output models (e.g. image-generating Gemini models) do
+         * not produce images unless {@code "image"} is requested here; combine with
+         * {@link #imageConfig(OpenRouterImageConfig)} for image count, aspect ratio
+         * or resolution. Not every provider supports non-text output - pair with
+         * {@link #requireParameters(boolean)} where it matters.
+         * <p>
+         * Passing an empty list removes previously registered modalities and emits nothing.
+         *
+         * @param modalities the output modalities to request
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/image-generation">Image generation</a>
+         */
+        public Builder modalities(String... modalities) {
+            return modalities(Arrays.asList(modalities));
+        }
+
+        /**
+         * List-based variant of {@link #modalities(String...)}.
+         * Passing an empty list removes previously registered modalities and emits nothing.
+         *
+         * @param modalities the output modalities to request
+         * @return This builder instance
+         */
+        public Builder modalities(List<String> modalities) {
+            this.modalities.clear();
+            if (modalities != null) {
+                this.modalities.addAll(modalities);
+            }
+            return this;
+        }
+
+        /**
+         * Adds a single output modality to {@code modalities}
+         * (see {@link #modalities(String...)}).
+         *
+         * @param modality one of {@code "text"}, {@code "image"}, {@code "audio"}
+         * @return This builder instance
+         */
+        public Builder addModality(String modality) {
+            this.modalities.add(modality);
+            return this;
+        }
+
+        /**
+         * Sets the provider-specific image generation configuration
+         * ({@code image_config}): image count, aspect ratio, resolution and similar
+         * provider-specific options.
+         * <p>
+         * JSON field: {@code image_config}. Default: unset (the key is not sent).
+         * <p>
+         * Trap: the key is only meaningful for multimodal-output models and must be
+         * combined with {@link #modalities(String...)} containing {@code "image"} -
+         * without that, providers ignore it.
+         *
+         * @param config the image generation configuration
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/image-generation">Image generation</a>
+         */
+        public Builder imageConfig(OpenRouterImageConfig config) {
+            this.imageConfig = config;
+            return this;
+        }
+
         private static void validateMetadata(Map<String, String> keyValues) {
             if (keyValues == null) {
                 return;
@@ -1952,6 +2142,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     quantizations.isEmpty() ? null : List.copyOf(quantizations),
                     sort,
                     enforceDistillableText,
+                    plugins.isEmpty() ? null : List.copyOf(plugins),
+                    modalities.isEmpty() ? null : List.copyOf(modalities),
+                    imageConfig,
                     shouldStream
             );
             applyHeaders(request);

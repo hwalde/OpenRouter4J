@@ -7,6 +7,8 @@ import de.entwicklertraining.openrouter4j.OpenRouterResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -16,12 +18,15 @@ import java.util.Objects;
  * {
  *   "id": "gen-xxx",
  *   "model": "google/gemini-2.5-flash",
+ *   "provider": "Google AI Studio",
  *   "choices": [{
  *     "index": 0,
  *     "message": {
  *       "role": "assistant",
  *       "content": "Response text",
  *       "refusal": null,
+ *       "reasoning": "chain-of-thought output of reasoning models",
+ *       "reasoning_details": [ ... ],
  *       "tool_calls": [{
  *         "id": "call_xxx",
  *         "type": "function",
@@ -31,12 +36,18 @@ import java.util.Objects;
  *         }
  *       }]
  *     },
- *     "finish_reason": "stop|tool_calls|length"
+ *     "finish_reason": "stop|tool_calls|length",
+ *     "native_finish_reason": "provider-native finish reason"
  *   }],
+ *   "openrouter_metadata": { ... routing metadata, opt-in via X-OpenRouter-Metadata ... },
  *   "usage": {
  *     "prompt_tokens": 10,
  *     "completion_tokens": 20,
- *     "total_tokens": 30
+ *     "total_tokens": 30,
+ *     "cost": 0.0012,
+ *     "cost_details": { ... },
+ *     "prompt_tokens_details": {"cached_tokens": 2},
+ *     "completion_tokens_details": {"reasoning_tokens": 5}
  *   }
  * }
  */
@@ -229,5 +240,188 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      */
     public String id() {
         return getJson().optString("id", null);
+    }
+
+    /**
+     * Returns the chain-of-thought output of reasoning models from
+     * choices[0].message.reasoning, or {@code null} when the model did not
+     * reason or reasoning was excluded from the response.
+     */
+    public String reasoning() {
+        try {
+            JSONArray choices = getJson().getJSONArray("choices");
+            JSONObject firstChoice = choices.getJSONObject(0);
+            JSONObject message = firstChoice.getJSONObject("message");
+            return message.optString("reasoning", null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the reasoning detail objects from choices[0].message.reasoning_details,
+     * empty when absent (never {@code null}). The objects carry provider-specific
+     * chain-of-thought details (e.g. encrypted or plain text summaries).
+     */
+    public List<JSONObject> reasoningDetails() {
+        try {
+            JSONArray choices = getJson().getJSONArray("choices");
+            JSONObject firstChoice = choices.getJSONObject(0);
+            JSONObject message = firstChoice.getJSONObject("message");
+            JSONArray details = message.optJSONArray("reasoning_details");
+            List<JSONObject> result = new ArrayList<>();
+            if (details != null) {
+                for (int i = 0; i < details.length(); i++) {
+                    JSONObject detail = details.optJSONObject(i);
+                    if (detail != null) {
+                        result.add(detail);
+                    }
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /**
+     * Returns the provider-native finish reason from choices[0].native_finish_reason,
+     * or {@code null} when absent. OpenRouter normalises the finish reason into
+     * {@link #finishReason()}; this accessor surfaces the raw value the upstream
+     * provider reported next to it.
+     */
+    public String nativeFinishReason() {
+        try {
+            JSONArray choices = getJson().getJSONArray("choices");
+            JSONObject firstChoice = choices.getJSONObject(0);
+            return firstChoice.optString("native_finish_reason", null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the top-level {@code provider} field - the name of the provider that
+     * served this request - or {@code null} when absent.
+     */
+    public String provider() {
+        return getJson().optString("provider", null);
+    }
+
+    /**
+     * Returns the routing metadata object ({@code openrouter_metadata}), or
+     * {@code null} when absent. It is only present when the request opted in via
+     * the {@code X-OpenRouter-Metadata: enabled} header
+     * ({@code OpenRouterChatCompletionRequest.Builder#metadataInResponse(boolean)}).
+     */
+    public JSONObject openrouterMetadata() {
+        return getJson().optJSONObject("openrouter_metadata");
+    }
+
+    /**
+     * Checks whether the response carries a top-level {@code error} object.
+     * OpenRouter reports mid-request failures this way - inside an otherwise
+     * valid HTTP 200 response. Because the accessors of this class swallow
+     * exceptions and return {@code null}, such a response would otherwise look
+     * like an empty one instead of a failed one.
+     */
+    public boolean hasError() {
+        return getJson().has("error") && !getJson().isNull("error");
+    }
+
+    /**
+     * Returns the raw top-level {@code error} object, or {@code null} when the
+     * response does not carry one (see {@link #hasError()}).
+     */
+    public JSONObject error() {
+        return getJson().optJSONObject("error");
+    }
+
+    /**
+     * Returns the numeric error code from the top-level {@code error} object,
+     * or {@code null} when absent.
+     */
+    public Integer errorCode() {
+        JSONObject error = error();
+        if (error == null || error.isNull("code")) {
+            return null;
+        }
+        return error.optInt("code");
+    }
+
+    /**
+     * Returns the message from the top-level {@code error} object,
+     * or {@code null} when absent.
+     */
+    public String errorMessage() {
+        JSONObject error = error();
+        return error != null ? error.optString("message", null) : null;
+    }
+
+    /**
+     * Throws an exception when the response carries a top-level {@code error}
+     * object (see {@link #hasError()}). Call this before trusting the other
+     * accessors when a failed response must not look like an empty one.
+     */
+    public void throwOnError() {
+        if (hasError()) {
+            throw new ApiClient.ApiResponseUnusableException(
+                    "OpenRouter reported an error inside the response: "
+                            + (errorMessage() != null ? errorMessage() : error().toString()));
+        }
+    }
+
+    /**
+     * Returns the cost of this completion in USD from {@code usage.cost},
+     * or {@code null} when absent.
+     */
+    public Double cost() {
+        JSONObject usage = usage();
+        if (usage == null || usage.isNull("cost")) {
+            return null;
+        }
+        return usage.optDouble("cost");
+    }
+
+    /**
+     * Returns the cost breakdown from {@code usage.cost_details}, or {@code null}
+     * when absent.
+     */
+    public JSONObject costDetails() {
+        JSONObject usage = usage();
+        return usage != null ? usage.optJSONObject("cost_details") : null;
+    }
+
+    /**
+     * Returns the number of cached prompt tokens from
+     * {@code usage.prompt_tokens_details.cached_tokens}, or {@code null} when absent.
+     */
+    public Integer cachedPromptTokens() {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("prompt_tokens_details");
+        if (details == null || details.isNull("cached_tokens")) {
+            return null;
+        }
+        return details.optInt("cached_tokens");
+    }
+
+    /**
+     * Returns the number of reasoning tokens from
+     * {@code usage.completion_tokens_details.reasoning_tokens}, or {@code null}
+     * when absent.
+     */
+    public Integer reasoningTokens() {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("completion_tokens_details");
+        if (details == null || details.isNull("reasoning_tokens")) {
+            return null;
+        }
+        return details.optInt("reasoning_tokens");
     }
 }

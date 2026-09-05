@@ -130,6 +130,62 @@ class StreamingToolCallAccumulatorTest {
         assertThat(accumulator.getFinishReason()).isNull();
     }
 
+    @Test
+    void terminalUsageChunkIsCapturedAndNotForwarded() {
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(usageChunk(0.0012, 10, 15, 25));
+
+        assertThat(receivedContent).containsExactly("Hello");
+        assertThat(accumulator.getUsage()).isNotNull();
+        assertThat(accumulator.getUsage().getDouble("cost")).isEqualTo(0.0012);
+        assertThat(accumulator.getUsage().getInt("prompt_tokens")).isEqualTo(10);
+        assertThat(accumulator.getUsage().getInt("completion_tokens")).isEqualTo(15);
+        assertThat(accumulator.getUsage().getInt("total_tokens")).isEqualTo(25);
+        assertThat(accumulator.getFinishReason()).isNull();
+    }
+
+    @Test
+    void usageObjectWithEmptyChoicesArrayIsCaptured() {
+        // OpenRouter emits the terminal usage chunk with "choices": [] - it must
+        // not trip the empty-choices early return.
+        String chunk = new JSONObject()
+                .put("id", "gen-xxx")
+                .put("choices", new JSONArray())
+                .put("usage", new JSONObject().put("total_tokens", 25))
+                .toString();
+        accumulator.onData(chunk);
+
+        assertThat(accumulator.getUsage()).isNotNull();
+        assertThat(accumulator.getUsage().getInt("total_tokens")).isEqualTo(25);
+    }
+
+    @Test
+    void nativeFinishReasonIsCaptured() {
+        String chunk = new JSONObject()
+                .put("choices", new JSONArray().put(new JSONObject()
+                        .put("index", 0)
+                        .put("delta", new JSONObject())
+                        .put("finish_reason", "stop")
+                        .put("native_finish_reason", "end_turn")))
+                .toString();
+        accumulator.onData(chunk);
+
+        assertThat(accumulator.getFinishReason()).isEqualTo("stop");
+        assertThat(accumulator.getNativeFinishReason()).isEqualTo("end_turn");
+    }
+
+    @Test
+    void resetClearsUsageAndNativeFinishReason() {
+        accumulator.onData(usageChunk(0.0012, 10, 15, 25));
+        accumulator.onData(finishChunkWithNativeReason("stop", "end_turn"));
+        assertThat(accumulator.getUsage()).isNotNull();
+        assertThat(accumulator.getNativeFinishReason()).isEqualTo("end_turn");
+
+        accumulator.reset();
+        assertThat(accumulator.getUsage()).isNull();
+        assertThat(accumulator.getNativeFinishReason()).isNull();
+    }
+
     // --- Helpers ---
 
     private String contentChunk(String text) {
@@ -178,6 +234,28 @@ class StreamingToolCallAccumulatorTest {
                 .put("index", 0)
                 .put("delta", new JSONObject().put("tool_calls", new JSONArray().put(tc)))
                 .put("finish_reason", JSONObject.NULL)))
+            .toString();
+    }
+
+    private String usageChunk(double cost, int prompt, int completion, int total) {
+        return new JSONObject()
+            .put("id", "gen-xxx")
+            .put("choices", new JSONArray())
+            .put("usage", new JSONObject()
+                .put("cost", cost)
+                .put("prompt_tokens", prompt)
+                .put("completion_tokens", completion)
+                .put("total_tokens", total))
+            .toString();
+    }
+
+    private String finishChunkWithNativeReason(String reason, String nativeReason) {
+        return new JSONObject()
+            .put("choices", new JSONArray().put(new JSONObject()
+                .put("index", 0)
+                .put("delta", new JSONObject())
+                .put("finish_reason", reason)
+                .put("native_finish_reason", nativeReason)))
             .toString();
     }
 }
