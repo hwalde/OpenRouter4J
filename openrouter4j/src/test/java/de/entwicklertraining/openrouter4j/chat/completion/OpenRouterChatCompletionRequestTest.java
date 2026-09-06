@@ -3,12 +3,19 @@ package de.entwicklertraining.openrouter4j.chat.completion;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterAppAttribution;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterDatetimeServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterGenericServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterServerTool;
+import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolDefinition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolResult;
+import de.entwicklertraining.openrouter4j.OpenRouterWebFetchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -1038,5 +1045,262 @@ class OpenRouterChatCompletionRequestTest {
     assertThat(headers.get("X-OpenRouter-Title")).isEqualTo("My App");
     assertThat(headers.get("x-session-id")).isEqualTo("session-abc");
     assertThat(headers.get("X-OpenRouter-Metadata")).isEqualTo("enabled");
+    }
+
+    // ------------------------------------------------------------------
+    // Server tools in the tools array, server-tool tool_choice, stop_server_tools_when
+
+    @Test
+    void serverToolIsEmittedIntoToolsArray() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addServerTool(OpenRouterWebSearchServerTool.builder()
+                        .maxResults(5)
+                        .engine("exa")
+                        .build()));
+
+        assertThat(body.has("tools")).isTrue();
+        assertThat(body.getJSONArray("tools").length()).isEqualTo(1);
+        JSONObject tool = body.getJSONArray("tools").getJSONObject(0);
+        assertThat(tool.getString("type")).isEqualTo("openrouter:web_search");
+        assertThat(tool.getJSONObject("parameters").getInt("max_results")).isEqualTo(5);
+        assertThat(tool.getJSONObject("parameters").getString("engine")).isEqualTo("exa");
+        assertThat(tool.getJSONObject("parameters").has("max_uses")).isFalse();
+    }
+
+    @Test
+    void serverToolWithoutConfigurationEmitsTypeOnly() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addServerTool(OpenRouterDatetimeServerTool.unconfigured()));
+
+        JSONObject tool = body.getJSONArray("tools").getJSONObject(0);
+        assertThat(tool.getString("type")).isEqualTo("openrouter:datetime");
+        assertThat(tool.has("parameters")).isFalse();
+    }
+
+    @Test
+    void serverToolAndFunctionToolCanBeMixed() {
+        JSONObject body = bodyOf(builderWithTool()
+                .addServerTool(OpenRouterWebFetchServerTool.builder()
+                        .maxUses(10)
+                        .maxContentTokens(100_000)
+                        .allowedDomains(List.of("example.com"))
+                        .build())
+                .addServerTool(OpenRouterServerTool.of("openrouter:bash")
+                        .withOption("parameters", new JSONObject().put("engine", "openrouter"))));
+
+        assertThat(body.getJSONArray("tools").length()).isEqualTo(3);
+        JSONObject functionTool = body.getJSONArray("tools").getJSONObject(0);
+        assertThat(functionTool.getString("type")).isEqualTo("function");
+        assertThat(functionTool.getJSONObject("function").getString("name")).isEqualTo("get_weather");
+        JSONObject webFetch = body.getJSONArray("tools").getJSONObject(1);
+        assertThat(webFetch.getString("type")).isEqualTo("openrouter:web_fetch");
+        assertThat(webFetch.getJSONObject("parameters").getInt("max_uses")).isEqualTo(10);
+        assertThat(webFetch.getJSONObject("parameters").getInt("max_content_tokens")).isEqualTo(100_000);
+        assertThat(webFetch.getJSONObject("parameters").getJSONArray("allowed_domains").toList())
+                .containsExactly("example.com");
+        JSONObject bash = body.getJSONArray("tools").getJSONObject(2);
+        assertThat(bash.getString("type")).isEqualTo("openrouter:bash");
+        assertThat(bash.getJSONObject("parameters").getString("engine")).isEqualTo("openrouter");
+    }
+
+    @Test
+    void genericServerToolEmitsVerbatim() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addServerTool(OpenRouterServerTool.of("openrouter:subagent")
+                        .withOption("model", "openai/gpt-4o-mini")
+                        .withOption("description", "delegate")));
+
+        JSONObject tool = body.getJSONArray("tools").getJSONObject(0);
+        assertThat(tool.getString("type")).isEqualTo("openrouter:subagent");
+        assertThat(tool.getString("model")).isEqualTo("openai/gpt-4o-mini");
+        assertThat(tool.getString("description")).isEqualTo("delegate");
+    }
+
+    @Test
+    void genericServerToolRejectsTypeOverride() {
+        assertThatThrownBy(() -> new OpenRouterGenericServerTool("openrouter:bash",
+                java.util.Map.of("type", "function")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void toolChoiceAndParallelToolCallsEmittedWithServerToolsPresent() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addServerTool(OpenRouterServerTool.of("openrouter:web_search"))
+                .toolChoice("auto")
+                .parallelToolCalls(true));
+
+        assertThat(body.getString("tool_choice")).isEqualTo("auto");
+        assertThat(body.getBoolean("parallel_tool_calls")).isTrue();
+    }
+
+    @Test
+    void toolChoiceNotEmittedWithoutAnyTools() {
+        JSONObject body = bodyOf(baseBuilder().toolChoice("auto").parallelToolCalls(true));
+        assertThat(body.has("tools")).isFalse();
+        assertThat(body.has("tool_choice")).isFalse();
+        assertThat(body.has("parallel_tool_calls")).isFalse();
+    }
+
+    @Test
+    void serverToolChoiceEmitsObjectForm() {
+        JSONObject body = bodyOf(builderWithTool().toolChoiceServerTool("openrouter:web_search"));
+
+        JSONObject toolChoice = body.getJSONObject("tool_choice");
+        assertThat(toolChoice.getString("type")).isEqualTo("openrouter:web_search");
+        assertThat(toolChoice.has("function")).isFalse();
+    }
+
+    @Test
+    void serverToolChoiceFormWinsOverStringForm() {
+        JSONObject body = bodyOf(builderWithTool()
+                .toolChoice("auto")
+                .toolChoiceServerTool("web_search"));
+
+        assertThat(body.getJSONObject("tool_choice").getString("type")).isEqualTo("web_search");
+    }
+
+    @Test
+    void namedFunctionChoiceWinsOverServerToolChoiceForm() {
+        JSONObject body = bodyOf(builderWithTool()
+                .toolChoiceServerTool("openrouter:web_search")
+                .toolChoiceFunction("get_weather"));
+
+        assertThat(body.getJSONObject("tool_choice").getJSONObject("function").getString("name"))
+                .isEqualTo("get_weather");
+    }
+
+    @Test
+    void serverToolChoiceNotEmittedWithoutTools() {
+        JSONObject body = bodyOf(baseBuilder().toolChoiceServerTool("openrouter:web_search"));
+        assertThat(body.has("tool_choice")).isFalse();
+    }
+
+    @Test
+    void serverToolChoiceAccessorAndPropagation() {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .toolChoiceServerTool("openrouter:web_search")
+                .build();
+
+        assertThat(initial.toolChoiceServerTool()).isEqualTo("openrouter:web_search");
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        assertThat(new JSONObject(next.getBody()).getJSONObject("tool_choice").getString("type"))
+                .isEqualTo("openrouter:web_search");
+    }
+
+    @Test
+    void stopServerToolsWhenIsEmittedWithTypedConditions() {
+        JSONObject body = bodyOf(baseBuilder()
+                .stopServerToolsWhen(
+                        OpenRouterStopCondition.stepCountIs(5),
+                        OpenRouterStopCondition.hasToolCall("finalize"),
+                        OpenRouterStopCondition.maxTokensUsed(10_000),
+                        OpenRouterStopCondition.maxCost(0.5),
+                        OpenRouterStopCondition.finishReasonIs("length")));
+
+        assertThat(body.has("stop_server_tools_when")).isTrue();
+        JSONArray conditions = body.getJSONArray("stop_server_tools_when");
+        assertThat(conditions.length()).isEqualTo(5);
+
+        JSONObject stepCount = conditions.getJSONObject(0);
+        assertThat(stepCount.getString("type")).isEqualTo("step_count_is");
+        assertThat(stepCount.getInt("step_count")).isEqualTo(5);
+
+        JSONObject hasToolCall = conditions.getJSONObject(1);
+        assertThat(hasToolCall.getString("type")).isEqualTo("has_tool_call");
+        assertThat(hasToolCall.getString("tool_name")).isEqualTo("finalize");
+
+        JSONObject maxTokens = conditions.getJSONObject(2);
+        assertThat(maxTokens.getString("type")).isEqualTo("max_tokens_used");
+        assertThat(maxTokens.getLong("max_tokens")).isEqualTo(10_000L);
+
+        JSONObject maxCost = conditions.getJSONObject(3);
+        assertThat(maxCost.getString("type")).isEqualTo("max_cost");
+        assertThat(maxCost.getDouble("max_cost_in_dollars")).isEqualTo(0.5);
+
+        JSONObject finishReason = conditions.getJSONObject(4);
+        assertThat(finishReason.getString("type")).isEqualTo("finish_reason_is");
+        assertThat(finishReason.getString("reason")).isEqualTo("length");
+    }
+
+    @Test
+    void rawStopConditionIsEmittedVerbatim() {
+        JSONObject raw = new JSONObject()
+                .put("type", "some_future_condition")
+                .put("custom", "value");
+        JSONObject body = bodyOf(baseBuilder().stopServerToolsWhen(List.of(OpenRouterStopCondition.raw(raw))));
+
+        JSONObject condition = body.getJSONArray("stop_server_tools_when").getJSONObject(0);
+        assertThat(condition.getString("type")).isEqualTo("some_future_condition");
+        assertThat(condition.getString("custom")).isEqualTo("value");
+    }
+
+    @Test
+    void rawStopConditionRequiresTypeField() {
+        assertThatThrownBy(() -> OpenRouterStopCondition.raw(new JSONObject().put("custom", "value")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void stopServerToolsWhenIsOmittedWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+        assertThat(body.has("stop_server_tools_when")).isFalse();
+    }
+
+    @Test
+    void stopServerToolsWhenAccessorAndPropagation() {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .addServerTool(OpenRouterServerTool.of("openrouter:web_search"))
+                .stopServerToolsWhen(OpenRouterStopCondition.stepCountIs(3))
+                .build();
+
+        assertThat(initial.serverTools()).hasSize(1);
+        assertThat(initial.serverTools().get(0).type()).isEqualTo("openrouter:web_search");
+        assertThat(initial.stopServerToolsWhen()).hasSize(1);
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONObject body = new JSONObject(next.getBody());
+        assertThat(body.getJSONArray("tools").getJSONObject(0).getString("type")).isEqualTo("function");
+        assertThat(body.getJSONArray("tools").getJSONObject(1).getString("type"))
+                .isEqualTo("openrouter:web_search");
+        assertThat(body.getJSONArray("stop_server_tools_when").getJSONObject(0).getInt("step_count"))
+                .isEqualTo(3);
+    }
+
+    @Test
+    void serverToolsAndStopConditionsArePropagatedToStreamingFollowUpRequests() {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .addServerTool(OpenRouterWebSearchServerTool.builder().maxResults(3).build())
+                .stopServerToolsWhen(OpenRouterStopCondition.maxCost(1.0))
+                .toolChoiceServerTool("openrouter:web_search")
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildStreamingRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")),
+                new StreamingToolCallAccumulator(new StreamingResponseHandler<String>() {
+                    @Override public void onData(String chunk) { }
+                    @Override public void onComplete() { }
+                    @Override public void onError(Throwable error) { }
+                }));
+
+        assertThat(next.stream()).isTrue();
+
+        JSONObject body = new JSONObject(next.getBody());
+        assertThat(body.getJSONArray("tools").getJSONObject(1).getString("type"))
+                .isEqualTo("openrouter:web_search");
+        assertThat(body.getJSONArray("stop_server_tools_when").getJSONObject(0).getDouble("max_cost_in_dollars"))
+                .isEqualTo(1.0);
+        assertThat(body.getJSONObject("tool_choice").getString("type")).isEqualTo("openrouter:web_search");
     }
     }

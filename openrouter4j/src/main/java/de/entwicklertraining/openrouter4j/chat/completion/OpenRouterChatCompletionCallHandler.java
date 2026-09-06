@@ -246,7 +246,8 @@ public final class OpenRouterChatCompletionCallHandler {
     }
 
     // Package-private so tests can exercise the synthetic response of the
-    // streaming loop (usage object and native finish reason of the terminal chunk).
+    // streaming loop (usage object and native finish reason of the terminal chunk,
+    // and the error object of a mid-stream failure chunk).
     JSONObject buildSyntheticResponseJson(StreamingToolCallAccumulator accumulator, String model) {
         JSONObject msg = accumulator.buildAssistantMessage();
         JSONObject choice = new JSONObject();
@@ -266,6 +267,12 @@ public final class OpenRouterChatCompletionCallHandler {
             // Terminal usage chunk - exposed so the response accessors
             // (cost(), promptTokens(), ...) work on the streaming path too.
             root.put("usage", accumulator.getUsage());
+        }
+        if (accumulator.getError() != null) {
+            // Mid-stream failure chunk - exposed so the error accessors
+            // (hasError(), error(), errorCode(), errorMessage(), throwOnError())
+            // work on the streaming path too, matching the synchronous path.
+            root.put("error", accumulator.getError());
         }
         return root;
     }

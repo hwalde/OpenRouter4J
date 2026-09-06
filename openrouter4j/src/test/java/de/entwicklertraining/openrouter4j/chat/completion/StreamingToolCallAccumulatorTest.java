@@ -223,7 +223,97 @@ class StreamingToolCallAccumulatorTest {
         assertThat(response.finishReason()).isEqualTo("stop");
     }
 
+    @Test
+    void midStreamErrorChunkIsCapturedAndNotForwarded() {
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(errorChunk("Rate limit exceeded", 429, "rate_limit_exceeded", "provider_error"));
+
+        assertThat(receivedContent).containsExactly("Hello");
+        assertThat(accumulator.getError()).isNotNull();
+        assertThat(accumulator.getError().getString("message")).isEqualTo("Rate limit exceeded");
+        assertThat(accumulator.getError().getInt("code")).isEqualTo(429);
+        assertThat(accumulator.getFinishReason()).isNull();
+        assertThat(accumulator.hasToolCalls()).isFalse();
+    }
+
+    @Test
+    void midStreamErrorChunkIsExposedOnSyntheticResponse() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(errorChunk("Rate limit exceeded", 429, "rate_limit_exceeded", null));
+        accumulator.onData(usageChunk(0.002, 10, 5, 15));
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        assertThat(response.hasError()).isTrue();
+        assertThat(response.errorCode()).isEqualTo(429);
+        assertThat(response.errorMessage()).isEqualTo("Rate limit exceeded");
+        assertThat(response.error().getJSONObject("metadata").getString("error_type"))
+                .isEqualTo("rate_limit_exceeded");
+        assertThat(response.cost()).isEqualTo(0.002);
+        assertThat(response.assistantMessage()).isEqualTo("Hello");
+    }
+
+    @Test
+    void midStreamErrorChunkWithoutMetadataIsExposedOnSyntheticResponse() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        String chunk = new JSONObject()
+                .put("error", new JSONObject().put("message", "provider down").put("code", 502))
+                .toString();
+        accumulator.onData(chunk);
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        assertThat(response.hasError()).isTrue();
+        assertThat(response.errorCode()).isEqualTo(502);
+        assertThat(response.errorMessage()).isEqualTo("provider down");
+    }
+
+    @Test
+    void streamWithoutErrorChunkHasNoErrorOnSyntheticResponse() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(finishChunk("stop"));
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        assertThat(response.hasError()).isFalse();
+        assertThat(response.error()).isNull();
+        assertThat(response.errorCode()).isNull();
+        assertThat(response.errorMessage()).isNull();
+    }
+
+    @Test
+    void resetClearsError() {
+        accumulator.onData(errorChunk("fail", 500, null, null));
+        assertThat(accumulator.getError()).isNotNull();
+
+        accumulator.reset();
+        assertThat(accumulator.getError()).isNull();
+    }
+
     // --- Helpers ---
+
+    private String errorChunk(String message, Integer code, String errorType, String providerCode) {
+        JSONObject error = new JSONObject().put("message", message).put("code", code);
+        if (errorType != null || providerCode != null) {
+            JSONObject metadata = new JSONObject();
+            if (errorType != null) {
+                metadata.put("error_type", errorType);
+            }
+            if (providerCode != null) {
+                metadata.put("provider_code", providerCode);
+            }
+            error.put("metadata", metadata);
+        }
+        return new JSONObject().put("error", error).toString();
+    }
 
     private String contentChunk(String text) {
         return new JSONObject()

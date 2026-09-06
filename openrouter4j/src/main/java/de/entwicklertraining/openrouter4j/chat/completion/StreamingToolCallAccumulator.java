@@ -23,6 +23,7 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
     private String nativeFinishReason;
     private String role;
     private JSONObject usage;
+    private JSONObject error;
     private final StringBuilder contentBuilder = new StringBuilder();
     private final TreeMap<Integer, ToolCallData> toolCallsByIndex = new TreeMap<>();
 
@@ -45,6 +46,15 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
             // so it is not silently dropped.
             if (json.has("usage") && !json.isNull("usage")) {
                 this.usage = json.getJSONObject("usage");
+            }
+
+            // A mid-generation failure arrives as a regular data: event carrying a
+            // top-level "error" object (and no usable choices) - read it before the
+            // choices check so the failure is not silently swallowed. The chunk is
+            // NOT forwarded as content; the synthetic response of the streaming loop
+            // exposes the error through the hasError()/error()/... accessors.
+            if (json.has("error") && !json.isNull("error")) {
+                this.error = json.getJSONObject("error");
             }
 
             JSONArray choices = json.optJSONArray("choices");
@@ -146,6 +156,17 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         return usage;
     }
 
+    /**
+     * The top-level {@code error} object of a mid-stream failure chunk, or
+     * {@code null} when the stream carried no error. OpenRouter reports
+     * mid-generation failures as regular {@code data:} events with an
+     * {@code error} field inside an otherwise valid HTTP 200 stream; without
+     * capturing it, a failed stream would look like a normal empty one.
+     */
+    JSONObject getError() {
+        return error;
+    }
+
     boolean hasToolCalls() {
         return "tool_calls".equals(finishReason) && !toolCallsByIndex.isEmpty();
     }
@@ -182,6 +203,7 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         finishReason = null;
         nativeFinishReason = null;
         usage = null;
+        error = null;
         toolCallsByIndex.clear();
         role = null;
         contentBuilder.setLength(0);

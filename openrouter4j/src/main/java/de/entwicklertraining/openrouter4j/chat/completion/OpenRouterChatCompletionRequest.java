@@ -34,9 +34,12 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final List<OpenRouterToolDefinition> tools;
     private final String toolChoice; // "auto", "required", "none"
     private final String toolChoiceFunction; // named form: forces this specific tool via {"type":"function","function":{"name":...}}
+    private final String toolChoiceServerTool; // server-tool form: forces this server tool via {"type":"<server-tool-type>"}
     private final Boolean parallelToolCalls;
     private final OpenRouterJsonSchema responseSchema;
     private final String responseMimeType;
+    private final List<OpenRouterServerTool> serverTools; // built-in OpenRouter server tools, mixed into the same tools array
+    private final List<OpenRouterStopCondition> stopServerToolsWhen; // stop conditions for the server-tool agent loop
     private final List<String> providers; // OpenRouter-specific: provider selection
     private final Boolean requireParameters; // OpenRouter-specific: provider.require_parameters
     private final Boolean allowFallbacks; // OpenRouter-specific: provider.allow_fallbacks
@@ -108,9 +111,12 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             List<OpenRouterToolDefinition> tools,
             String toolChoice,
             String toolChoiceFunction,
+            String toolChoiceServerTool,
             Boolean parallelToolCalls,
             OpenRouterJsonSchema responseSchema,
             String responseMimeType,
+            List<OpenRouterServerTool> serverTools,
+            List<OpenRouterStopCondition> stopServerToolsWhen,
             List<String> providers,
             Boolean requireParameters,
             Boolean allowFallbacks,
@@ -163,9 +169,12 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.tools = tools;
         this.toolChoice = toolChoice;
         this.toolChoiceFunction = toolChoiceFunction;
+        this.toolChoiceServerTool = toolChoiceServerTool;
         this.parallelToolCalls = parallelToolCalls;
         this.responseSchema = responseSchema;
         this.responseMimeType = responseMimeType;
+        this.serverTools = serverTools == null ? null : List.copyOf(serverTools);
+        this.stopServerToolsWhen = stopServerToolsWhen == null ? null : List.copyOf(stopServerToolsWhen);
         this.providers = providers;
         this.requireParameters = requireParameters;
         this.allowFallbacks = allowFallbacks;
@@ -254,6 +263,30 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
      */
     public String toolChoiceFunction() {
         return toolChoiceFunction;
+    }
+
+    /**
+     * The server-tool type forced via the server-tool {@code tool_choice} form
+     * ({@code {"type":"<server-tool-type>"}}), or {@code null} when unset.
+     */
+    public String toolChoiceServerTool() {
+        return toolChoiceServerTool;
+    }
+
+    /**
+     * The built-in OpenRouter server tools mixed into the {@code tools} request array
+     * alongside the function tools, empty when unset (never {@code null}).
+     */
+    public List<OpenRouterServerTool> serverTools() {
+        return serverTools == null ? List.of() : serverTools;
+    }
+
+    /**
+     * The stop conditions for the server-tool agent loop ({@code stop_server_tools_when}),
+     * empty when unset (never {@code null}).
+     */
+    public List<OpenRouterStopCondition> stopServerToolsWhen() {
+        return stopServerToolsWhen == null ? List.of() : stopServerToolsWhen;
     }
 
     public Boolean parallelToolCalls() {
@@ -581,9 +614,16 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         b.tools.addAll(tools);
         b.toolChoice = toolChoice;
         b.toolChoiceFunction = toolChoiceFunction;
+        b.toolChoiceServerTool = toolChoiceServerTool;
         b.parallelToolCalls = parallelToolCalls;
         b.responseSchema = responseSchema;
         b.responseMimeType = responseMimeType;
+        if (serverTools != null) {
+            b.serverTools.addAll(serverTools);
+        }
+        if (stopServerToolsWhen != null) {
+            b.stopServerToolsWhen.addAll(stopServerToolsWhen);
+        }
         b.providers.addAll(providers);
         b.requireParameters = requireParameters;
         b.allowFallbacks = allowFallbacks;
@@ -765,15 +805,23 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             root.put("session_id", sessionId);
         }
 
-        // Tools
-        if (!tools.isEmpty()) {
+        // Tools: client-side function tools and built-in OpenRouter server tools
+        // share the same tools array. tool_choice / parallel_tool_calls are emitted
+        // only when the array is non-empty.
+        boolean hasAnyTools = !tools.isEmpty() || (serverTools != null && !serverTools.isEmpty());
+        if (hasAnyTools) {
             JSONArray toolsArr = new JSONArray();
             for (OpenRouterToolDefinition def : tools) {
                 toolsArr.put(def.toJson());
             }
+            if (serverTools != null) {
+                for (OpenRouterServerTool serverTool : serverTools) {
+                    toolsArr.put(serverTool.toJson());
+                }
+            }
             root.put("tools", toolsArr);
 
-            // tool_choice - named object form wins over the plain string form
+            // tool_choice - precedence: named function form > server-tool form > plain string
             if (toolChoiceFunction != null) {
                 JSONObject functionChoice = new JSONObject();
                 functionChoice.put("type", "function");
@@ -781,6 +829,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                 function.put("name", toolChoiceFunction);
                 functionChoice.put("function", function);
                 root.put("tool_choice", functionChoice);
+            } else if (toolChoiceServerTool != null) {
+                JSONObject serverToolChoice = new JSONObject();
+                serverToolChoice.put("type", toolChoiceServerTool);
+                root.put("tool_choice", serverToolChoice);
             } else if (toolChoice != null) {
                 root.put("tool_choice", toolChoice);
             }
@@ -789,6 +841,18 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             if (parallelToolCalls != null) {
                 root.put("parallel_tool_calls", parallelToolCalls);
             }
+        }
+
+        // Stop conditions for the server-tool agent loop (OpenRouter-specific).
+        // Emitted only when at least one condition is set. Per the API, any
+        // condition firing halts the loop (OR logic); when set it overrides
+        // max_tool_calls.
+        if (stopServerToolsWhen != null && !stopServerToolsWhen.isEmpty()) {
+            JSONArray stopArr = new JSONArray();
+            for (OpenRouterStopCondition condition : stopServerToolsWhen) {
+                stopArr.put(condition.toJson());
+            }
+            root.put("stop_server_tools_when", stopArr);
         }
 
         // Response format
@@ -962,8 +1026,11 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private final List<String> stopSequences = new ArrayList<>();
         private final List<JSONObject> messages = new ArrayList<>();
         private final List<OpenRouterToolDefinition> tools = new ArrayList<>();
+        private final List<OpenRouterServerTool> serverTools = new ArrayList<>();
+        private final List<OpenRouterStopCondition> stopServerToolsWhen = new ArrayList<>();
         private String toolChoice;
         private String toolChoiceFunction;
+        private String toolChoiceServerTool;
         private Boolean parallelToolCalls;
         private OpenRouterJsonSchema responseSchema;
         private String responseMimeType;
@@ -1099,6 +1166,105 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         /**
+         * Adds built-in OpenRouter <em>server tools</em> to the {@code tools}
+         * request array, alongside (and freely mixed with) the function tools
+         * registered via {@link #addTool(OpenRouterToolDefinition)}.
+         * <p>
+         * JSON field: {@code tools} (shared array; a server tool is emitted as
+         * {@code {"type":"<server-tool-type>"[, "parameters":{...}]}}). Default:
+         * unset (no server tool is sent).
+         * <p>
+         * Server tools are executed by OpenRouter itself; their results reach the
+         * model as {@code server_tool_calls} and no client-side callback is
+         * needed. {@link OpenRouterWebSearchServerTool}, {@link OpenRouterWebFetchServerTool}
+         * and {@link OpenRouterDatetimeServerTool} are the typed implementations,
+         * {@link OpenRouterServerTool#of(String)} the verbatim escape hatch for
+         * every other (or future) server-tool type.
+         * <p>
+         * Trap: while server tools are present, OpenRouter may run a server-side
+         * agent loop that calls them repeatedly. Cap the loop with
+         * {@link #stopServerToolsWhen(OpenRouterStopCondition...)} where cost
+         * matters.
+         *
+         * @param serverTools the server tools to enable for this request
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/server-tools">OpenRouter server tools</a>
+         */
+        public Builder serverTools(OpenRouterServerTool... serverTools) {
+            this.serverTools.addAll(Arrays.asList(serverTools));
+            return this;
+        }
+
+        /**
+         * List-based variant of {@link #serverTools(OpenRouterServerTool...)}.
+         *
+         * @param serverTools the server tools to enable for this request
+         * @return This builder instance
+         */
+        public Builder serverTools(List<OpenRouterServerTool> serverTools) {
+            this.serverTools.addAll(serverTools);
+            return this;
+        }
+
+        /**
+         * Adds a single server tool to the {@code tools} array
+         * (see {@link #serverTools(OpenRouterServerTool...)}).
+         *
+         * @param serverTool the server tool to enable for this request
+         * @return This builder instance
+         */
+        public Builder addServerTool(OpenRouterServerTool serverTool) {
+            this.serverTools.add(serverTool);
+            return this;
+        }
+
+        /**
+         * Sets the stop conditions for the server-tool agent loop
+         * ({@code stop_server_tools_when}). Any condition firing halts the loop
+         * (OR logic); when set it overrides {@code max_tool_calls}. When a
+         * condition fires while the model is still emitting tool calls, the
+         * pending tool calls are executed and one final turn is made with tool
+         * calls disabled, so the answer ends in natural language.
+         * <p>
+         * JSON field: {@code stop_server_tools_when} (array). Default: unset (the
+         * key is not sent). Build conditions via {@link OpenRouterStopCondition#stepCountIs(int)},
+         * {@link OpenRouterStopCondition#hasToolCall(String)}, {@link OpenRouterStopCondition#maxTokensUsed(long)},
+         * {@link OpenRouterStopCondition#maxCost(double)}, {@link OpenRouterStopCondition#finishReasonIs(String)}
+         * or {@link OpenRouterStopCondition#raw(JSONObject)}.
+         *
+         * @param conditions the stop conditions (at least one for the key to be emitted)
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/server-tools">OpenRouter server tools</a>
+         */
+        public Builder stopServerToolsWhen(OpenRouterStopCondition... conditions) {
+            this.stopServerToolsWhen.addAll(Arrays.asList(conditions));
+            return this;
+        }
+
+        /**
+         * List-based variant of {@link #stopServerToolsWhen(OpenRouterStopCondition...)}.
+         *
+         * @param conditions the stop conditions
+         * @return This builder instance
+         */
+        public Builder stopServerToolsWhen(List<OpenRouterStopCondition> conditions) {
+            this.stopServerToolsWhen.addAll(conditions);
+            return this;
+        }
+
+        /**
+         * Adds a single stop condition to {@code stop_server_tools_when}
+         * (see {@link #stopServerToolsWhen(OpenRouterStopCondition...)}).
+         *
+         * @param condition the stop condition to add
+         * @return This builder instance
+         */
+        public Builder addStopServerToolsWhen(OpenRouterStopCondition condition) {
+            this.stopServerToolsWhen.add(condition);
+            return this;
+        }
+
+        /**
          * Controls how the model uses tools: "auto", "required", "none"
          */
         public Builder toolChoice(String choice) {
@@ -1121,6 +1287,31 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          */
         public Builder toolChoiceFunction(String functionName) {
             this.toolChoiceFunction = functionName;
+            return this;
+        }
+
+        /**
+         * Forces a built-in OpenRouter <em>server tool</em> directly via the
+         * server-tool {@code tool_choice} form {@code {"type":"<server-tool-type>"}} -
+         * e.g. {@code "openrouter:web_search"}, {@code "web_search"} or
+         * {@code "web_search_preview"} - instead of wrapping it in the function
+         * form. The type string is accepted verbatim: the API schema is
+         * free-form here on purpose, so future server-tool types work without a
+         * library update.
+         * <p>
+         * JSON field: {@code tool_choice} (server-tool object form). Default:
+         * unset (the key is not sent). The key is emitted only when tools are
+         * present. Precedence when several forms are set: the named function
+         * form ({@link #toolChoiceFunction(String)}) wins, then this
+         * server-tool form, then the plain string keywords
+         * ({@link #toolChoice(String)}).
+         *
+         * @param serverToolType the server-tool type to force (e.g. {@code "openrouter:web_search"})
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/server-tools">OpenRouter server tools</a>
+         */
+        public Builder toolChoiceServerTool(String serverToolType) {
+            this.toolChoiceServerTool = serverToolType;
             return this;
         }
 
@@ -2105,9 +2296,12 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     List.copyOf(tools),
                     toolChoice,
                     toolChoiceFunction,
+                    toolChoiceServerTool,
                     parallelToolCalls,
                     responseSchema,
                     responseMimeType,
+                    serverTools.isEmpty() ? null : List.copyOf(serverTools),
+                    stopServerToolsWhen.isEmpty() ? null : List.copyOf(stopServerToolsWhen),
                     List.copyOf(providers),
                     requireParameters,
                     allowFallbacks,
