@@ -290,6 +290,16 @@ class StreamingToolCallAccumulatorTest {
     }
 
     @Test
+    void nullErrorChunkIsIgnored() {
+        // {"error": null} must not be treated as a real failure.
+        String chunk = new JSONObject().put("error", JSONObject.NULL).toString();
+        accumulator.onData(chunk);
+
+        assertThat(accumulator.getError()).isNull();
+        assertThat(receivedContent).isEmpty();
+    }
+
+    @Test
     void resetClearsError() {
         accumulator.onData(errorChunk("fail", 500, null, null));
         assertThat(accumulator.getError()).isNotNull();

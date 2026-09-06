@@ -1143,6 +1143,99 @@ class OpenRouterChatCompletionRequestTest {
     }
 
     @Test
+    void webSearchServerToolWithAllSettersIsSerialized() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterWebSearchServerTool.builder()
+                        .engine("parallel")
+                        .maxResults(5)
+                        .maxTotalResults(50)
+                        .maxUses(3)
+                        .maxCharacters(2000)
+                        .mode("advanced")
+                        .searchContextSize("high")
+                        .allowedDomains(List.of("example.com"))
+                        .excludedDomains(List.of("*.ads.example.com"))
+                        .option("future_key", "future_value")
+                        .build()));
+
+        JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
+        assertThat(parameters.getString("engine")).isEqualTo("parallel");
+        assertThat(parameters.getInt("max_results")).isEqualTo(5);
+        assertThat(parameters.getInt("max_total_results")).isEqualTo(50);
+        assertThat(parameters.getInt("max_uses")).isEqualTo(3);
+        assertThat(parameters.getInt("max_characters")).isEqualTo(2000);
+        assertThat(parameters.getString("mode")).isEqualTo("advanced");
+        assertThat(parameters.getString("search_context_size")).isEqualTo("high");
+        assertThat(parameters.getJSONArray("allowed_domains").toList()).containsExactly("example.com");
+        assertThat(parameters.getJSONArray("excluded_domains").toList()).containsExactly("*.ads.example.com");
+        assertThat(parameters.getString("future_key")).isEqualTo("future_value");
+    }
+
+    @Test
+    void webSearchServerToolMaxUsesEmittedWhenSet() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterWebSearchServerTool.builder().maxUses(3).build()));
+
+        JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
+        assertThat(parameters.getInt("max_uses")).isEqualTo(3);
+    }
+
+    @Test
+    void webFetchServerToolWithAllSettersIsSerialized() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterWebFetchServerTool.builder()
+                        .maxUses(10)
+                        .maxContentTokens(100_000)
+                        .allowedDomains(List.of("example.com"))
+                        .blockedDomains(List.of("internal.example.com"))
+                        .engine("exa")
+                        .option("future_key", 42)
+                        .build()));
+
+        JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
+        assertThat(parameters.getInt("max_uses")).isEqualTo(10);
+        assertThat(parameters.getInt("max_content_tokens")).isEqualTo(100_000);
+        assertThat(parameters.getJSONArray("allowed_domains").toList()).containsExactly("example.com");
+        assertThat(parameters.getJSONArray("blocked_domains").toList()).containsExactly("internal.example.com");
+        assertThat(parameters.getString("engine")).isEqualTo("exa");
+        assertThat(parameters.getInt("future_key")).isEqualTo(42);
+    }
+
+    @Test
+    void datetimeServerToolWithTimezoneAndOptionIsSerialized() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterDatetimeServerTool.builder()
+                        .timezone("America/New_York")
+                        .option("future_key", "future_value")
+                        .build()));
+
+        JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
+        assertThat(parameters.getString("timezone")).isEqualTo("America/New_York");
+        assertThat(parameters.getString("future_key")).isEqualTo("future_value");
+    }
+
+    @Test
+    void serverToolListVariantAndAddStopConditionVariantReachTheJson() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .serverTools(List.of(
+                        OpenRouterWebSearchServerTool.builder().maxResults(2).build(),
+                        OpenRouterServerTool.of("openrouter:datetime")))
+                .addStopServerToolsWhen(OpenRouterStopCondition.stepCountIs(2))
+                .build();
+
+        assertThat(request.serverTools()).hasSize(2);
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getJSONArray("tools").length()).isEqualTo(2);
+        assertThat(body.getJSONArray("tools").getJSONObject(0)
+                .getJSONObject("parameters").getInt("max_results")).isEqualTo(2);
+        assertThat(body.getJSONArray("tools").getJSONObject(1).getString("type"))
+                .isEqualTo("openrouter:datetime");
+        assertThat(body.getJSONArray("stop_server_tools_when").getJSONObject(0).getInt("step_count"))
+                .isEqualTo(2);
+    }
+
+    @Test
     void serverToolChoiceEmitsObjectForm() {
         JSONObject body = bodyOf(builderWithTool().toolChoiceServerTool("openrouter:web_search"));
 

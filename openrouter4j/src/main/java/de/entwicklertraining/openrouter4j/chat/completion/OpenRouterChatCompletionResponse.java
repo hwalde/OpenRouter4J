@@ -324,6 +324,9 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      * valid HTTP 200 response. Because the accessors of this class swallow
      * exceptions and return {@code null}, such a response would otherwise look
      * like an empty one instead of a failed one.
+     * <p>
+     * Since 1.7.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when the stream carried a mid-stream error chunk.
      */
     public boolean hasError() {
         return getJson().has("error") && !getJson().isNull("error");
@@ -331,7 +334,9 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
 
     /**
      * Returns the raw top-level {@code error} object, or {@code null} when the
-     * response does not carry one (see {@link #hasError()}).
+     * response does not carry one (see {@link #hasError()}). Since 1.7.0 the
+     * synthetic response of the streaming tool-call loop carries a captured
+     * mid-stream error chunk here as well.
      */
     public JSONObject error() {
         return getJson().optJSONObject("error");
