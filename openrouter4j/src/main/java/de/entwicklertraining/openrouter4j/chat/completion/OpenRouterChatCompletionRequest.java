@@ -2345,7 +2345,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         /**
-         * Array-variants variant of {@link #predictionParts(List)}.
+         * Varargs convenience overload of {@link #predictionParts(List)}.
          *
          * @param parts the predicted output as text parts
          * @return This builder instance

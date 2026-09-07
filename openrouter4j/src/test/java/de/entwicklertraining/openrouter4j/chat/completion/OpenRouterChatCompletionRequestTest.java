@@ -1495,6 +1495,30 @@ class OpenRouterChatCompletionRequestTest {
     }
 
     @Test
+    void predictionPartsArePropagatedToFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .predictionParts("part one", "part two")
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        assertThat(next.predictionParts()).containsExactly("part one", "part two");
+        JSONArray content = new JSONObject(next.getBody()).getJSONObject("prediction").getJSONArray("content");
+        assertThat(content.getJSONObject(0).getString("text")).isEqualTo("part one");
+        assertThat(content.getJSONObject(1).getString("text")).isEqualTo("part two");
+    }
+
+    @Test
+    void emptyPredictionPartsListRemovesPreviouslyRegisteredParts() {
+        JSONObject body = bodyOf(baseBuilder().predictionParts("part one").predictionParts(List.of()));
+
+        assertThat(body.has("prediction")).isFalse();
+    }
+
+    @Test
     void promptCachingControlsAreEmitted() {
         JSONObject body = bodyOf(baseBuilder()
                 .cacheControl("1h")
