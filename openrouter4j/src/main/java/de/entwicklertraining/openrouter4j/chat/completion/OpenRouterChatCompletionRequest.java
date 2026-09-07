@@ -77,6 +77,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final List<OpenRouterPlugin> plugins; // OpenRouter server-side plugins
     private final List<String> modalities; // output modalities ("text", "image", "audio")
     private final OpenRouterImageConfig imageConfig; // provider-specific image generation options
+    private final String serviceTier; // service_tier ("auto", "default", "fast", "flex", "priority", "scale"; "fast" aliases "priority")
+    private final String predictionContent; // prediction.content (string form) - static predicted output to reduce latency
+    private final List<String> predictionParts; // prediction.content (text-parts form) - alternative to predictionContent
+    private final String cacheControlType; // cache_control.type ("ephemeral" = automatic prompt caching)
+    private final String cacheControlTtl; // cache_control.ttl ("5m" default, "1h")
+    private final String promptCacheKey; // prompt_cache_key - sticky-routing key for prompt-cache hits
+    private final String promptCacheOptionsMode; // prompt_cache_options.mode ("explicit" = only marked blocks are cached)
+    private final String promptCacheOptionsTtl; // prompt_cache_options.ttl (e.g. "30m")
+    private final String reasoningSummary; // reasoning.summary ("auto", "concise", "detailed")
     private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
@@ -154,6 +163,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             List<OpenRouterPlugin> plugins,
             List<String> modalities,
             OpenRouterImageConfig imageConfig,
+            String serviceTier,
+            String predictionContent,
+            List<String> predictionParts,
+            String cacheControlType,
+            String cacheControlTtl,
+            String promptCacheKey,
+            String promptCacheOptionsMode,
+            String promptCacheOptionsTtl,
+            String reasoningSummary,
             boolean stream
     ) {
         super(builder);
@@ -212,6 +230,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.plugins = plugins == null ? null : List.copyOf(plugins);
         this.modalities = modalities == null ? null : List.copyOf(modalities);
         this.imageConfig = imageConfig;
+        this.serviceTier = serviceTier;
+        this.predictionContent = predictionContent;
+        this.predictionParts = predictionParts == null ? null : List.copyOf(predictionParts);
+        this.cacheControlType = cacheControlType;
+        this.cacheControlTtl = cacheControlTtl;
+        this.promptCacheKey = promptCacheKey;
+        this.promptCacheOptionsMode = promptCacheOptionsMode;
+        this.promptCacheOptionsTtl = promptCacheOptionsTtl;
+        this.reasoningSummary = reasoningSummary;
         this.stream = stream;
     }
 
@@ -566,6 +593,78 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     }
 
     /**
+     * The requested capacity tier ({@code service_tier}: {@code "auto"}, {@code "default"},
+     * {@code "fast"}, {@code "flex"}, {@code "priority"} or {@code "scale"} - {@code "fast"}
+     * is an alias for {@code "priority"}), or {@code null} when unset.
+     */
+    public String serviceTier() {
+        return serviceTier;
+    }
+
+    /**
+     * The static predicted output ({@code prediction.content}) in its string form,
+     * or {@code null} when unset or when the parts form is used instead.
+     */
+    public String predictionContent() {
+        return predictionContent;
+    }
+
+    /**
+     * The static predicted output ({@code prediction.content}) in its text-parts form,
+     * empty when unset (never {@code null}).
+     */
+    public List<String> predictionParts() {
+        return predictionParts == null ? List.of() : predictionParts;
+    }
+
+    /**
+     * The {@code cache_control.type} value ({@code "ephemeral"} enables automatic
+     * prompt caching), or {@code null} when unset.
+     */
+    public String cacheControlType() {
+        return cacheControlType;
+    }
+
+    /**
+     * The {@code cache_control.ttl} value ({@code "5m"} default, {@code "1h"}),
+     * or {@code null} when unset.
+     */
+    public String cacheControlTtl() {
+        return cacheControlTtl;
+    }
+
+    /**
+     * The {@code prompt_cache_key} sticky-routing key, or {@code null} when unset.
+     */
+    public String promptCacheKey() {
+        return promptCacheKey;
+    }
+
+    /**
+     * The {@code prompt_cache_options.mode} value ({@code "explicit"} disables
+     * OpenAI-managed breakpoints), or {@code null} when unset.
+     */
+    public String promptCacheOptionsMode() {
+        return promptCacheOptionsMode;
+    }
+
+    /**
+     * The {@code prompt_cache_options.ttl} value (e.g. {@code "30m"}),
+     * or {@code null} when unset.
+     */
+    public String promptCacheOptionsTtl() {
+        return promptCacheOptionsTtl;
+    }
+
+    /**
+     * The reasoning summary verbosity ({@code reasoning.summary}: {@code "auto"},
+     * {@code "concise"} or {@code "detailed"}), or {@code null} when unset.
+     */
+    public String reasoningSummary() {
+        return reasoningSummary;
+    }
+
+    /**
      * @deprecated Legacy alias for {@link #reasoningMaxTokens()}. The old
      * {@code "reasoning": {"type": "enabled", "budget": N}} wire format no longer
      * exists in the OpenRouter API; the budget is now sent as {@code reasoning.max_tokens}.
@@ -679,6 +778,17 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             b.modalities.addAll(modalities);
         }
         b.imageConfig = imageConfig;
+        b.serviceTier = serviceTier;
+        b.predictionContent = predictionContent;
+        if (predictionParts != null) {
+            b.predictionParts.addAll(predictionParts);
+        }
+        b.cacheControlType = cacheControlType;
+        b.cacheControlTtl = cacheControlTtl;
+        b.promptCacheKey = promptCacheKey;
+        b.promptCacheOptionsMode = promptCacheOptionsMode;
+        b.promptCacheOptionsTtl = promptCacheOptionsTtl;
+        b.reasoningSummary = reasoningSummary;
         b.streamEnabled = stream;
 
         // Execution settings of the original request
@@ -955,7 +1065,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         // Emitted only when at least one reasoning option is set - an unset
         // reasoning configuration must not appear in the JSON at all.
         if (reasoningEffort != null || reasoningMaxTokens != null
-                || reasoningExclude != null || reasoningEnabled != null) {
+                || reasoningExclude != null || reasoningEnabled != null
+                || reasoningSummary != null) {
             JSONObject reasoning = new JSONObject();
             if (reasoningEffort != null) {
                 reasoning.put("effort", reasoningEffort);
@@ -968,6 +1079,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             }
             if (reasoningEnabled != null) {
                 reasoning.put("enabled", reasoningEnabled);
+            }
+            if (reasoningSummary != null) {
+                reasoning.put("summary", reasoningSummary);
             }
             root.put("reasoning", reasoning);
         }
@@ -996,6 +1110,55 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         // Image generation configuration (OpenRouter-specific, provider-specific keys).
         if (imageConfig != null) {
             root.put("image_config", imageConfig.toJson());
+        }
+
+        // Predicted outputs: static content the supported model can largely reuse,
+        // reducing latency when much of the response is known in advance.
+        // Emitted only when set; the string form wins when both forms are given.
+        if (predictionContent != null) {
+            JSONObject prediction = new JSONObject();
+            prediction.put("type", "content");
+            prediction.put("content", predictionContent);
+            root.put("prediction", prediction);
+        } else if (predictionParts != null && !predictionParts.isEmpty()) {
+            JSONObject prediction = new JSONObject();
+            prediction.put("type", "content");
+            JSONArray contentArr = new JSONArray();
+            for (String part : predictionParts) {
+                JSONObject textPart = new JSONObject();
+                textPart.put("type", "text");
+                textPart.put("text", part);
+                contentArr.put(textPart);
+            }
+            prediction.put("content", contentArr);
+            root.put("prediction", prediction);
+        }
+
+        // Prompt caching (OpenRouter-specific) - each emitted only when explicitly set.
+        if (cacheControlType != null) {
+            JSONObject cacheControl = new JSONObject();
+            cacheControl.put("type", cacheControlType);
+            if (cacheControlTtl != null) {
+                cacheControl.put("ttl", cacheControlTtl);
+            }
+            root.put("cache_control", cacheControl);
+        }
+        if (promptCacheKey != null) {
+            root.put("prompt_cache_key", promptCacheKey);
+        }
+        if (promptCacheOptionsMode != null) {
+            JSONObject promptCacheOptions = new JSONObject();
+            promptCacheOptions.put("mode", promptCacheOptionsMode);
+            if (promptCacheOptionsTtl != null) {
+                promptCacheOptions.put("ttl", promptCacheOptionsTtl);
+            }
+            root.put("prompt_cache_options", promptCacheOptions);
+        }
+
+        // Capacity tier (OpenRouter-specific): the explicit way to pin a capacity
+        // tier, in contrast to the :nitro/:floor model variants.
+        if (serviceTier != null) {
+            root.put("service_tier", serviceTier);
         }
 
         // Streaming
@@ -1071,6 +1234,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private final List<OpenRouterPlugin> plugins = new ArrayList<>();
         private final List<String> modalities = new ArrayList<>();
         private OpenRouterImageConfig imageConfig;
+        private String serviceTier;
+        private String predictionContent;
+        private final List<String> predictionParts = new ArrayList<>();
+        private String cacheControlType;
+        private String cacheControlTtl;
+        private String promptCacheKey;
+        private String promptCacheOptionsMode;
+        private String promptCacheOptionsTtl;
+        private String reasoningSummary;
         private boolean streamEnabled;
 
         public Builder(OpenRouterClient client) {
@@ -1420,6 +1592,27 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          */
         public Builder reasoningEnabled(Boolean enabled) {
             this.reasoningEnabled = enabled;
+            return this;
+        }
+
+        /**
+         * Sets {@code reasoning.summary}: the verbosity of the reasoning summaries
+         * returned in {@code reasoning_details}.
+         * <p>
+         * JSON field: {@code reasoning.summary}. Default: unset (the key is not sent and
+         * the provider default applies). Accepted values: {@code "auto"}, {@code "concise"},
+         * {@code "detailed"}. Coexists with the other reasoning options in one
+         * {@code reasoning} object - each key is emitted only when set.
+         * <p>
+         * Trap: summaries are generated by the provider and are not guaranteed for every
+         * model; check the returned {@code reasoning_details} rather than assuming them.
+         *
+         * @param summary one of {@code "auto"}, {@code "concise"}, {@code "detailed"}
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/reasoning-tokens">Reasoning tokens</a>
+         */
+        public Builder reasoningSummary(String summary) {
+            this.reasoningSummary = summary;
             return this;
         }
 
@@ -2085,6 +2278,171 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             return this;
         }
 
+        /**
+         * Sets {@code service_tier}: pins the request to a capacity tier, the explicit
+         * counterpart to the {@code :nitro}/{@code :floor} model variants.
+         * <p>
+         * JSON field: {@code service_tier}. Default: unset (the key is not sent).
+         * Accepted values: {@code "auto"}, {@code "default"}, {@code "fast"} (alias for
+         * {@code "priority"}), {@code "flex"}, {@code "priority"}, {@code "scale"}.
+         * Per the API semantics, {@code "flex"} never falls back to default-tier
+         * endpoints, and {@code "priority"} is tried first. The tier actually used is
+         * echoed back in the top-level {@code service_tier} response field
+         * (see {@code OpenRouterChatCompletionResponse#serviceTier()}).
+         *
+         * @param tier one of {@code "auto"}, {@code "default"}, {@code "fast"},
+         *             {@code "flex"}, {@code "priority"}, {@code "scale"}
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/service-tiers">Service tiers</a>
+         */
+        public Builder serviceTier(String tier) {
+            this.serviceTier = tier;
+            return this;
+        }
+
+        /**
+         * Sets {@code prediction} (predicted outputs): static content the model can
+         * largely reuse, reducing latency when much of the response is known in
+         * advance - e.g. regenerating an existing file or template with small edits.
+         * <p>
+         * JSON field: {@code prediction} as {@code {"type":"content","content":<string>}}.
+         * Default: unset (the key is not sent). The parts form
+         * ({@link #predictionParts(List)}) emits the same key as an array of text parts;
+         * when both are set the string form wins.
+         * <p>
+         * Trap: only supported models profit from a prediction - on others the API may
+         * reject or ignore it. How much of the prediction was actually used is reported
+         * in {@code usage.completion_tokens_details} as
+         * {@code accepted_prediction_tokens}/{@code rejected_prediction_tokens}
+         * (see {@code OpenRouterChatCompletionResponse#acceptedPredictionTokens()}).
+         *
+         * @param content the predicted output content as a single string
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/api_reference/parameters">API parameters</a>
+         */
+        public Builder prediction(String content) {
+            this.predictionContent = content;
+            return this;
+        }
+
+        /**
+         * Sets {@code prediction} in its text-parts form
+         * ({@code {"type":"content","content":[{"type":"text","text":...}, ...]}}) -
+         * the array alternative to the single-string form
+         * ({@link #prediction(String)}). Default: unset (the key is not sent).
+         * The string form wins when both are set. Passing an empty list removes
+         * previously registered parts and emits nothing.
+         *
+         * @param parts the predicted output as text parts
+         * @return This builder instance
+         */
+        public Builder predictionParts(List<String> parts) {
+            this.predictionParts.clear();
+            if (parts != null) {
+                this.predictionParts.addAll(parts);
+            }
+            return this;
+        }
+
+        /**
+         * Array-variants variant of {@link #predictionParts(List)}.
+         *
+         * @param parts the predicted output as text parts
+         * @return This builder instance
+         */
+        public Builder predictionParts(String... parts) {
+            return predictionParts(Arrays.asList(parts));
+        }
+
+        /**
+         * Enables automatic prompt caching via request-root {@code cache_control}
+         * ({@code {"type":"ephemeral"}}): OpenRouter applies the cache breakpoint to
+         * the last cacheable block and advances it as the conversation grows.
+         * Supported by Anthropic, Google Vertex, Azure and Amazon Bedrock.
+         * <p>
+         * JSON field: {@code cache_control}. Default: unset (the key is not sent).
+         * The TTL defaults to {@code "5m"}; use {@link #cacheControl(String)} for a
+         * longer window.
+         *
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/prompt-caching">Prompt caching</a>
+         */
+        public Builder cacheControl() {
+            this.cacheControlType = "ephemeral";
+            this.cacheControlTtl = null;
+            return this;
+        }
+
+        /**
+         * Enables automatic prompt caching via request-root {@code cache_control}
+         * with an explicit TTL
+         * ({@code {"type":"ephemeral","ttl":<ttl>}}).
+         * <p>
+         * JSON field: {@code cache_control}. Default: unset (the key is not sent).
+         * Documented TTL values: {@code "5m"} (the default) and {@code "1h"}.
+         *
+         * @param ttl the cache time-to-live, e.g. {@code "1h"}
+         * @return This builder instance
+         * @see #cacheControl()
+         */
+        public Builder cacheControl(String ttl) {
+            this.cacheControlType = "ephemeral";
+            this.cacheControlTtl = ttl;
+            return this;
+        }
+
+        /**
+         * Sets {@code prompt_cache_key}: a sticky-routing key that routes related
+         * requests to the same provider to maximise prompt-cache hits.
+         * <p>
+         * JSON field: {@code prompt_cache_key}. Default: unset (the key is not sent).
+         * Precedence: per the docs, {@code prompt_cache_key} is only used as the
+         * sticky-routing key when neither {@code session_id} nor the
+         * {@code x-session-id} header is set - {@link #sessionId(String)} wins.
+         *
+         * @param key the sticky-routing key for prompt-cache hits
+         * @return This builder instance
+         * @see #sessionId(String)
+         */
+        public Builder promptCacheKey(String key) {
+            this.promptCacheKey = key;
+            return this;
+        }
+
+        /**
+         * Sets {@code prompt_cache_options} with an explicit mode
+         * ({@code {"mode":<mode>}}). Documented mode: {@code "explicit"} - disables
+         * OpenAI-managed breakpoints so only blocks marked with
+         * {@code prompt_cache_breakpoint} participate in caching
+         * (OpenAI GPT-5.6+).
+         * <p>
+         * JSON field: {@code prompt_cache_options}. Default: unset (the key is not sent).
+         *
+         * @param mode the caching mode, e.g. {@code "explicit"}
+         * @return This builder instance
+         * @see #promptCacheOptions(String, String)
+         */
+        public Builder promptCacheOptions(String mode) {
+            this.promptCacheOptionsMode = mode;
+            this.promptCacheOptionsTtl = null;
+            return this;
+        }
+
+        /**
+         * Sets {@code prompt_cache_options} with an explicit mode and TTL
+         * ({@code {"mode":<mode>,"ttl":<ttl>}}) - see
+         * {@link #promptCacheOptions(String)} for the mode semantics.
+         *
+         * @param mode the caching mode, e.g. {@code "explicit"}
+         * @param ttl the cache time-to-live, e.g. {@code "30m"}
+         * @return This builder instance
+         */
+        public Builder promptCacheOptions(String mode, String ttl) {
+            this.promptCacheOptionsMode = mode;
+            this.promptCacheOptionsTtl = ttl;
+            return this;
+        }
+
         private static void validateMetadata(Map<String, String> keyValues) {
             if (keyValues == null) {
                 return;
@@ -2339,6 +2697,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     plugins.isEmpty() ? null : List.copyOf(plugins),
                     modalities.isEmpty() ? null : List.copyOf(modalities),
                     imageConfig,
+                    serviceTier,
+                    predictionContent,
+                    predictionParts.isEmpty() ? null : List.copyOf(predictionParts),
+                    cacheControlType,
+                    cacheControlTtl,
+                    promptCacheKey,
+                    promptCacheOptionsMode,
+                    promptCacheOptionsTtl,
+                    reasoningSummary,
                     shouldStream
             );
             applyHeaders(request);

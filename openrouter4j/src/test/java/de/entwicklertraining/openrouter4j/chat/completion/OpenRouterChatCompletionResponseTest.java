@@ -201,6 +201,38 @@ class OpenRouterChatCompletionResponseTest {
         assertThat(response.costDetails()).isNull();
         assertThat(response.cachedPromptTokens()).isNull();
         assertThat(response.reasoningTokens()).isNull();
+        assertThat(response.acceptedPredictionTokens()).isNull();
+        assertThat(response.rejectedPredictionTokens()).isNull();
+        assertThat(response.serviceTier()).isNull();
+    }
+
+    @Test
+    void serviceTierAndPredictionTokenUsageAreSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "service_tier": "flex",
+                  "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Hi"},
+                    "finish_reason": "stop"
+                  }],
+                  "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 15,
+                    "total_tokens": 25,
+                    "completion_tokens_details": {
+                      "reasoning_tokens": 5,
+                      "accepted_prediction_tokens": 20,
+                      "rejected_prediction_tokens": 3
+                    }
+                  }
+                }
+                """);
+
+        assertThat(response.serviceTier()).isEqualTo("flex");
+        assertThat(response.acceptedPredictionTokens()).isEqualTo(20);
+        assertThat(response.rejectedPredictionTokens()).isEqualTo(3);
+        assertThat(response.reasoningTokens()).isEqualTo(5);
     }
 
     @Test

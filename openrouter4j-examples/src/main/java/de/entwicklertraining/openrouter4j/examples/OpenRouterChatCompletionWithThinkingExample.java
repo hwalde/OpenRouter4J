@@ -16,6 +16,7 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  * 2. With a reasoning token budget ({@code reasoning.max_tokens})
  * 3. With an effort hint ({@code reasoning.effort})
  * 4. With reasoning enabled but the output excluded from the response
+ * 5. With a summary verbosity hint ({@code reasoning.summary})
  */
 public class OpenRouterChatCompletionWithThinkingExample {
 
@@ -77,5 +78,22 @@ public class OpenRouterChatCompletionWithThinkingExample {
 
         System.out.println("Response with reasoning excluded:");
         System.out.println(response4.assistantMessage());
+        System.out.println("\n-----------------------------------\n");
+
+        // Example 5: Control the verbosity of the reasoning summaries
+        System.out.println("EXAMPLE 5: REASONING SUMMARY VERBOSITY");
+        OpenRouterChatCompletionResponse response5 = client.chat().completion()
+                .model("google/gemini-2.5-flash")
+                .provider("google-ai-studio")
+                .addMessage("user", question)
+                .reasoningEffort("medium")
+                .reasoningSummary("detailed") // reasoning.summary: "auto", "concise" or "detailed"
+                .execute();
+
+        System.out.println("Response with detailed reasoning summaries:");
+        System.out.println(response5.assistantMessage());
+        if (!response5.reasoningDetails().isEmpty()) {
+            System.out.println("Reasoning details returned: " + response5.reasoningDetails().size());
+        }
     }
 }

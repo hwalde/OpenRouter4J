@@ -433,4 +433,46 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
         }
         return details.optInt("reasoning_tokens");
     }
+
+    /**
+     * Returns the capacity tier that actually served this request from the top-level
+     * {@code service_tier} field ({@code "default"}, {@code "flex"}, {@code "priority"}
+     * or {@code null}), or {@code null} when absent. The request pins the tier via
+     * {@code OpenRouterChatCompletionRequest.Builder#serviceTier(String)}.
+     */
+    public String serviceTier() {
+        return getJson().optString("service_tier", null);
+    }
+
+    /**
+     * Returns the number of prediction tokens the model accepted from
+     * {@code usage.completion_tokens_details.accepted_prediction_tokens}, or
+     * {@code null} when absent. Only meaningful when the request carried a
+     * {@code prediction} (predicted outputs).
+     */
+    public Integer acceptedPredictionTokens() {
+        return predictionTokens("accepted_prediction_tokens");
+    }
+
+    /**
+     * Returns the number of prediction tokens the model rejected from
+     * {@code usage.completion_tokens_details.rejected_prediction_tokens}, or
+     * {@code null} when absent. Only meaningful when the request carried a
+     * {@code prediction} (predicted outputs).
+     */
+    public Integer rejectedPredictionTokens() {
+        return predictionTokens("rejected_prediction_tokens");
+    }
+
+    private Integer predictionTokens(String key) {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("completion_tokens_details");
+        if (details == null || details.isNull(key)) {
+            return null;
+        }
+        return details.optInt(key);
+    }
 }

@@ -233,12 +233,18 @@ class OpenRouterChatCompletionRequestTest {
                 .reasoningEffort("minimal")
                 .reasoningMaxTokens(512)
                 .reasoningExclude(true)
+                .reasoningSummary("concise")
                 .maxCompletionTokens(2048)
                 .toolChoiceFunction("get_weather")
                 .frequencyPenalty(0.5)
                 .seed(42)
                 .requireParameters(true)
                 .allowFallbacks(true)
+                .serviceTier("flex")
+                .prediction("known prefix of the answer")
+                .cacheControl("1h")
+                .promptCacheKey("conversation-42")
+                .promptCacheOptions("explicit")
                 .build();
 
         var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
@@ -264,6 +270,13 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(body.getInt("seed")).isEqualTo(42);
         assertThat(body.getJSONObject("provider").getBoolean("require_parameters")).isTrue();
         assertThat(body.getJSONObject("provider").getBoolean("allow_fallbacks")).isTrue();
+        assertThat(body.getJSONObject("reasoning").getString("summary")).isEqualTo("concise");
+        assertThat(body.getString("service_tier")).isEqualTo("flex");
+        assertThat(body.getJSONObject("prediction").getString("content"))
+                .isEqualTo("known prefix of the answer");
+        assertThat(body.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+        assertThat(body.getString("prompt_cache_key")).isEqualTo("conversation-42");
+        assertThat(body.getJSONObject("prompt_cache_options").getString("mode")).isEqualTo("explicit");
     }
 
     @Test
@@ -1395,5 +1408,203 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(body.getJSONArray("stop_server_tools_when").getJSONObject(0).getDouble("max_cost_in_dollars"))
                 .isEqualTo(1.0);
         assertThat(body.getJSONObject("tool_choice").getString("type")).isEqualTo("openrouter:web_search");
+    }
+
+    @Test
+    void serviceTierIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().serviceTier("flex"));
+
+        assertThat(body.getString("service_tier")).isEqualTo("flex");
+    }
+
+    @Test
+    void serviceTierIsOmittedWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("service_tier")).isFalse();
+    }
+
+    @Test
+    void serviceTierAccessorAndPropagation() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder().serviceTier("priority").build();
+
+        assertThat(initial.serviceTier()).isEqualTo("priority");
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        assertThat(new JSONObject(next.getBody()).getString("service_tier")).isEqualTo("priority");
+    }
+
+    @Test
+    void predictionStringFormIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().prediction("The capital of France is"));
+
+        JSONObject prediction = body.getJSONObject("prediction");
+        assertThat(prediction.getString("type")).isEqualTo("content");
+        assertThat(prediction.getString("content")).isEqualTo("The capital of France is");
+    }
+
+    @Test
+    void predictionPartsFormIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().predictionParts("part one", "part two"));
+
+        JSONObject prediction = body.getJSONObject("prediction");
+        assertThat(prediction.getString("type")).isEqualTo("content");
+        JSONArray content = prediction.getJSONArray("content");
+        assertThat(content.length()).isEqualTo(2);
+        assertThat(content.getJSONObject(0).getString("type")).isEqualTo("text");
+        assertThat(content.getJSONObject(0).getString("text")).isEqualTo("part one");
+        assertThat(content.getJSONObject(1).getString("text")).isEqualTo("part two");
+    }
+
+    @Test
+    void predictionStringFormWinsOverPartsForm() {
+        JSONObject body = bodyOf(baseBuilder()
+                .predictionParts("part one")
+                .prediction("single string"));
+
+        assertThat(body.getJSONObject("prediction").getString("content")).isEqualTo("single string");
+    }
+
+    @Test
+    void predictionIsOmittedWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("prediction")).isFalse();
+    }
+
+    @Test
+    void predictionAccessorAndPropagation() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .prediction("The capital of France is")
+                .build();
+
+        assertThat(initial.predictionContent()).isEqualTo("The capital of France is");
+        assertThat(initial.predictionParts()).isEmpty();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        assertThat(new JSONObject(next.getBody()).getJSONObject("prediction").getString("content"))
+                .isEqualTo("The capital of France is");
+    }
+
+    @Test
+    void promptCachingControlsAreEmitted() {
+        JSONObject body = bodyOf(baseBuilder()
+                .cacheControl("1h")
+                .promptCacheKey("conversation-42")
+                .promptCacheOptions("explicit", "30m"));
+
+        assertThat(body.getJSONObject("cache_control").getString("type")).isEqualTo("ephemeral");
+        assertThat(body.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+        assertThat(body.getString("prompt_cache_key")).isEqualTo("conversation-42");
+        assertThat(body.getJSONObject("prompt_cache_options").getString("mode")).isEqualTo("explicit");
+        assertThat(body.getJSONObject("prompt_cache_options").getString("ttl")).isEqualTo("30m");
+    }
+
+    @Test
+    void cacheControlWithoutTtlOmitsTtlKey() {
+        JSONObject body = bodyOf(baseBuilder().cacheControl());
+
+        JSONObject cacheControl = body.getJSONObject("cache_control");
+        assertThat(cacheControl.getString("type")).isEqualTo("ephemeral");
+        assertThat(cacheControl.has("ttl")).isFalse();
+    }
+
+    @Test
+    void promptCacheOptionsWithoutTtlOmitsTtlKey() {
+        JSONObject body = bodyOf(baseBuilder().promptCacheOptions("explicit"));
+
+        JSONObject options = body.getJSONObject("prompt_cache_options");
+        assertThat(options.getString("mode")).isEqualTo("explicit");
+        assertThat(options.has("ttl")).isFalse();
+    }
+
+    @Test
+    void promptCachingControlsAreOmittedWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("cache_control")).isFalse();
+        assertThat(body.has("prompt_cache_key")).isFalse();
+        assertThat(body.has("prompt_cache_options")).isFalse();
+    }
+
+    @Test
+    void promptCachingAccessorsAndPropagation() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .cacheControl("1h")
+                .promptCacheKey("conversation-42")
+                .promptCacheOptions("explicit")
+                .build();
+
+        assertThat(initial.cacheControlType()).isEqualTo("ephemeral");
+        assertThat(initial.cacheControlTtl()).isEqualTo("1h");
+        assertThat(initial.promptCacheKey()).isEqualTo("conversation-42");
+        assertThat(initial.promptCacheOptionsMode()).isEqualTo("explicit");
+        assertThat(initial.promptCacheOptionsTtl()).isNull();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONObject body = new JSONObject(next.getBody());
+        assertThat(body.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+        assertThat(body.getString("prompt_cache_key")).isEqualTo("conversation-42");
+        assertThat(body.getJSONObject("prompt_cache_options").getString("mode")).isEqualTo("explicit");
+    }
+
+    @Test
+    void reasoningSummaryIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().reasoningSummary("detailed"));
+
+        JSONObject reasoning = body.getJSONObject("reasoning");
+        assertThat(reasoning.getString("summary")).isEqualTo("detailed");
+        // a lone summary must still produce exactly one reasoning object with no other keys
+        assertThat(reasoning.length()).isEqualTo(1);
+    }
+
+    @Test
+    void reasoningSummaryCoexistsWithOtherReasoningOptions() {
+        JSONObject body = bodyOf(baseBuilder()
+                .reasoningEffort("high")
+                .reasoningSummary("concise"));
+
+        JSONObject reasoning = body.getJSONObject("reasoning");
+        assertThat(reasoning.getString("effort")).isEqualTo("high");
+        assertThat(reasoning.getString("summary")).isEqualTo("concise");
+        assertThat(reasoning.length()).isEqualTo(2);
+    }
+
+    @Test
+    void reasoningSummaryIsOmittedWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("reasoning")).isFalse();
+    }
+
+    @Test
+    void reasoningSummaryAccessorAndPropagation() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .reasoningEffort("high")
+                .reasoningSummary("detailed")
+                .build();
+
+        assertThat(initial.reasoningSummary()).isEqualTo("detailed");
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONObject reasoning = new JSONObject(next.getBody()).getJSONObject("reasoning");
+        assertThat(reasoning.getString("summary")).isEqualTo("detailed");
+        assertThat(reasoning.getString("effort")).isEqualTo("high");
     }
     }

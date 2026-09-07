@@ -1,0 +1,39 @@
+package de.entwicklertraining.openrouter4j.examples;
+
+import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionResponse;
+
+/**
+ * Demonstrates the prompt-caching controls at request root:
+ *
+ * - {@code cacheControl()} / {@code cacheControl(String ttl)}: request-root
+ *   {@code cache_control} with {@code {"type":"ephemeral"}} enables *automatic*
+ *   caching - OpenRouter applies the cache breakpoint to the last cacheable block
+ *   and advances it as the conversation grows (supported by Anthropic, Google
+ *   Vertex, Azure and Amazon Bedrock). Optional TTL: {@code "5m"} (default) or {@code "1h"}.
+ * - {@code promptCacheKey(String)}: sticky-routing key so related requests land on
+ *   the same provider and hit the prompt cache. Only used when {@code session_id}
+ *   is not set (see the observability example).
+ * - {@code promptCacheOptions(String mode[, String ttl])}: e.g. {@code "explicit"}
+ *   disables OpenAI-managed breakpoints so only blocks marked with
+ *   {@code prompt_cache_breakpoint} participate in caching.
+ */
+public class OpenRouterChatCompletionWithPromptCachingExample {
+
+    public static void main(String[] args) {
+        OpenRouterClient client = new OpenRouterClient();
+
+        OpenRouterChatCompletionResponse response = client.chat().completion()
+                .model("anthropic/claude-sonnet-4.5")
+                // Automatic caching with a one-hour time-to-live
+                .cacheControl("1h")
+                // Keep the whole conversation on one provider to hit the cache
+                .promptCacheKey("support-agent-conversation-42")
+                .addMessage("system", "You are a support agent. Here is the full knowledge base: ...(long text)...")
+                .addMessage("user", "How do I reset my password?")
+                .execute();
+
+        System.out.println("Answer: " + response.assistantMessage());
+        System.out.println("Cache hits are visible in the usage details of the response JSON.");
+    }
+}
