@@ -88,6 +88,9 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
     /**
      * Checks if the message contains a refusal.
      * OpenRouter supports refusals in choices[0].message.refusal
+     * <p>
+     * Since 1.9.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when the stream carried refusal deltas.
      */
     public boolean hasRefusal() {
         try {
@@ -102,6 +105,9 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
 
     /**
      * Returns the refusal text if present.
+     * <p>
+     * Since 1.9.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when the stream carried refusal deltas.
      */
     public String refusal() {
         try {
@@ -246,6 +252,9 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      * Returns the chain-of-thought output of reasoning models from
      * choices[0].message.reasoning, or {@code null} when the model did not
      * reason or reasoning was excluded from the response.
+     * <p>
+     * Since 1.9.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when the stream carried reasoning deltas.
      */
     public String reasoning() {
         try {
@@ -262,6 +271,9 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      * Returns the reasoning detail objects from choices[0].message.reasoning_details,
      * empty when absent (never {@code null}). The objects carry provider-specific
      * chain-of-thought details (e.g. encrypted or plain text summaries).
+     * <p>
+     * Since 1.9.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when the stream carried reasoning_details deltas.
      */
     public List<JSONObject> reasoningDetails() {
         try {
@@ -313,6 +325,10 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      * {@code null} when absent. It is only present when the request opted in via
      * the {@code X-OpenRouter-Metadata: enabled} header
      * ({@code OpenRouterChatCompletionRequest.Builder#metadataInResponse(boolean)}).
+     * <p>
+     * Since 1.9.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when a stream chunk carried
+     * {@code openrouter_metadata}.
      */
     public JSONObject openrouterMetadata() {
         return getJson().optJSONObject("openrouter_metadata");
@@ -451,10 +467,10 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      * Returns the raw {@code choices[0].logprobs} object (the {@code content}
      * and {@code refusal} arrays of per-token log probabilities: {@code token},
      * {@code logprob}, {@code bytes}, {@code top_logprobs}), or {@code null}
-     * when the response does not carry it. It is only present when the request
-     * opted in via {@code OpenRouterChatCompletionRequest.Builder#logprobs(Boolean)}
-     * (and {@code topLogprobs(n)}); otherwise users pay for nothing - this
-     * accessor makes the paid data inspectable.
+     * when the response does not carry it. The data only arrives when the
+     * request opted in via {@code OpenRouterChatCompletionRequest.Builder#logprobs(Boolean)}
+     * (and {@code topLogprobs(n)}); this accessor makes that paid-for data
+     * inspectable.
      */
     public JSONObject logprobs() {
         try {

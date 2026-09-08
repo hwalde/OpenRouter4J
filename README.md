@@ -21,7 +21,7 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 * OpenRouter-specific response details: reasoning output, provider, native finish reason, routing metadata, cost, logprobs, system fingerprint and a loud error path for mid-request failures
 * Access to 200+ AI models through a single unified API
 * Provider selection for routing requests to specific providers
-* Vision capabilities for image understanding and analysis
+* Vision capabilities for image understanding and analysis (optional per-image resolution tier `detail`: auto/low/high/original)
 * Fluent builder APIs for all requests
 * Examples demonstrating each feature
 
@@ -81,7 +81,7 @@ OpenRouterChatCompletionResponse response = client.chat().completion()
 System.out.println(response.assistantMessage());
 ```
 
-See the `openrouter4j-examples` module for more demonstrations including base64 images, structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort), server-side plugins (web search), built-in server tools and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, loud error handling).
+See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort), server-side plugins (web search), built-in server tools and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images`/`audio` response accessors), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, loud error handling).
 
 ### Provider Selection
 
