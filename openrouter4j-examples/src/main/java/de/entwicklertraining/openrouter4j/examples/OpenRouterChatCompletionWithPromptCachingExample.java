@@ -18,11 +18,14 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  *   disables OpenAI-managed breakpoints so only blocks marked with
  *   {@code prompt_cache_breakpoint} participate in caching.
  *
- * <p>Note on the model used here: {@code google/gemini-3.5-flash-lite} is served by
- * Google AI Studio, which is <em>not</em> in the automatic-caching provider list
- * above - Gemini caches implicitly there. The request-root {@code cacheControl(...)}
- * shown is honoured by Anthropic, Google Vertex, Azure and Amazon Bedrock; on
- * Google AI Studio the request still succeeds, caching just stays implicit.
+ * <p>Note on the model used here: {@code deepseek/deepseek-v4-flash-0731} caches
+ * prompts implicitly - DeepSeek's context caching reuses long shared prefixes
+ * automatically, and the official DeepSeek endpoint on OpenRouter advertises
+ * implicit caching. {@code promptCacheKey(...)} is provider-agnostic (OpenRouter
+ * sticky routing) and keeps the conversation on one endpoint so the cache is hit.
+ * The request-root {@code cacheControl(...)} shown is honoured by Anthropic,
+ * Google Vertex, Azure and Amazon Bedrock; on DeepSeek the request still
+ * succeeds, caching just stays implicit.
  */
 public class OpenRouterChatCompletionWithPromptCachingExample {
 
@@ -30,7 +33,7 @@ public class OpenRouterChatCompletionWithPromptCachingExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-3.5-flash-lite")
+                .model("deepseek/deepseek-v4-flash-0731")
                 // Automatic caching with a one-hour time-to-live
                 .cacheControl("1h")
                 // Keep the whole conversation on one provider to hit the cache
