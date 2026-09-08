@@ -39,7 +39,8 @@ public class OpenRouterChatCompletionWithPromptCachingExample {
                 // Keep the whole conversation on one provider to hit the cache
                 .promptCacheKey("support-agent-conversation-42")
                 // Alternative mode: only blocks marked with prompt_cache_breakpoint are
-                // cached (comment this line out for OpenAI-managed breakpoints)
+                // cached (comment this line out for OpenAI-managed breakpoints).
+                // This option only affects OpenAI models; on DeepSeek it is ignored.
                 .promptCacheOptions("explicit")
                 .addMessage("system", "You are a support agent. Here is the full knowledge base: ...(long text)...")
                 .addMessage("user", "How do I reset my password?")
