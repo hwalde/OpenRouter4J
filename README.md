@@ -33,7 +33,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>2.0.0</version>
+    <version>1.10.0</version>
 </dependency>
 ```
 

@@ -6,7 +6,7 @@
     <parent>
         <groupId>de.entwicklertraining</groupId>
         <artifactId>openrouter4j-project</artifactId>
-        <version>2.0.0</version>
+        <version>1.10.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
