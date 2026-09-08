@@ -12,7 +12,7 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  * provider-specific image options (image count, aspect ratio, resolution).
  *
  * The generated images arrive in choices[0].message.images - accessible
- * via the raw JSON of the response.
+ * via imageUrls() (the URL/base64 payloads) or the raw images() array.
  */
 public class OpenRouterChatCompletionWithImageOutputExample {
 
@@ -31,10 +31,10 @@ public class OpenRouterChatCompletionWithImageOutputExample {
 
         System.out.println("Text part: " + response.assistantMessage());
 
-        var images = response.message() != null ? response.message().optJSONArray("images") : null;
-        if (images != null && !images.isEmpty()) {
-            System.out.println("The response carries " + images.length() + " generated image(s);");
-            System.out.println("inspect choices[0].message.images for the image payload objects.");
+        var urls = response.imageUrls();
+        if (!urls.isEmpty()) {
+            System.out.println("The response carries " + urls.size() + " generated image(s):");
+            urls.forEach(url -> System.out.println("- " + url));
         }
     }
 }

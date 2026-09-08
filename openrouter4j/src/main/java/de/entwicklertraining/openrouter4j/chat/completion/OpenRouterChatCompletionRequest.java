@@ -2545,6 +2545,26 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * OpenRouter supports multimodal inputs similar to OpenAI.
          */
         public Builder addImageByUrl(String url) {
+            return addImageByUrl(url, null);
+        }
+
+        /**
+         * Adds an image via external URL with an explicit resolution tier
+         * ({@code detail}), telling the vision model which fidelity to use when
+         * processing the image.
+         * <p>
+         * JSON field: {@code content[].image_url.detail}. Default: unset (the
+         * key is not sent and the provider default applies). The {@code original}
+         * tier is an OpenRouter extension not present in the OpenAI Chat
+         * Completions spec - it is downgraded to {@code high} on providers
+         * without an original-resolution tier.
+         *
+         * @param url the image URL (supported extensions: jpg, jpeg, png, webp, heic, heif)
+         * @param detail the resolution tier, or {@code null} to leave it unset
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/image-understanding">Image understanding</a>
+         */
+        public Builder addImageByUrl(String url, OpenRouterImageDetail detail) {
             Objects.requireNonNull(url, "url must not be null");
 
             String fileExt = extractExtension(url).toLowerCase(Locale.ROOT);
@@ -2563,6 +2583,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             imageContent.put("type", "image_url");
             JSONObject imageUrl = new JSONObject();
             imageUrl.put("url", url);
+            if (detail != null) {
+                imageUrl.put("detail", detail.wireName());
+            }
             imageContent.put("image_url", imageUrl);
             contentArr.put(imageContent);
 
@@ -2576,6 +2599,26 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * Reads a local image file, base64-encodes it, and adds it as a user message.
          */
         public Builder addImageByBase64(Path filePath) {
+            return addImageByBase64(filePath, null);
+        }
+
+        /**
+         * Reads a local image file, base64-encodes it, and adds it as a user
+         * message with an explicit resolution tier ({@code detail}) - the
+         * base64 variant of {@link #addImageByUrl(String, OpenRouterImageDetail)}.
+         * <p>
+         * JSON field: {@code content[].image_url.detail}. Default: unset (the
+         * key is not sent and the provider default applies). The {@code original}
+         * tier is an OpenRouter extension not present in the OpenAI Chat
+         * Completions spec - it is downgraded to {@code high} on providers
+         * without an original-resolution tier.
+         *
+         * @param filePath the local image file (supported extensions: jpg, jpeg, png, webp, heic, heif)
+         * @param detail the resolution tier, or {@code null} to leave it unset
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/image-understanding">Image understanding</a>
+         */
+        public Builder addImageByBase64(Path filePath, OpenRouterImageDetail detail) {
             Objects.requireNonNull(filePath, "filePath must not be null");
 
             String fileName = filePath.getFileName().toString().toLowerCase(Locale.ROOT);
@@ -2605,6 +2648,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             imageContent.put("type", "image_url");
             JSONObject imageUrl = new JSONObject();
             imageUrl.put("url", "data:" + mimeType + ";base64," + base64Data);
+            if (detail != null) {
+                imageUrl.put("detail", detail.wireName());
+            }
             imageContent.put("image_url", imageUrl);
             contentArr.put(imageContent);
 

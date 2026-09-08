@@ -308,6 +308,182 @@ class StreamingToolCallAccumulatorTest {
         assertThat(accumulator.getError()).isNull();
     }
 
+    @Test
+    void reasoningDeltasAreAccumulated() {
+        accumulator.onData(reasoningChunk("Let me think."));
+        accumulator.onData(reasoningChunk(" 2+2 is 4."));
+        accumulator.onData(finishChunk("stop"));
+
+        assertThat(accumulator.getReasoning()).isEqualTo("Let me think. 2+2 is 4.");
+        assertThat(accumulator.getRefusal()).isNull();
+        assertThat(accumulator.getAudio()).isNull();
+    }
+
+    @Test
+    void reasoningDetailsAreMergedInArrivalOrder() {
+        accumulator.onData(reasoningDetailsChunk(
+                new JSONObject().put("type", "text").put("text", "step 1")));
+        accumulator.onData(reasoningDetailsChunk(
+                new JSONObject().put("type", "reasoning.encrypted").put("data", "enc")));
+
+        assertThat(accumulator.getReasoningDetails()).hasSize(2);
+        assertThat(accumulator.getReasoningDetails().get(0).getString("type")).isEqualTo("text");
+        assertThat(accumulator.getReasoningDetails().get(1).getString("type")).isEqualTo("reasoning.encrypted");
+    }
+
+    @Test
+    void refusalDeltasAreAccumulated() {
+        accumulator.onData(refusalChunk("I cannot"));
+        accumulator.onData(refusalChunk(" help with that."));
+        accumulator.onData(finishChunk("stop"));
+
+        assertThat(accumulator.getRefusal()).isEqualTo("I cannot help with that.");
+        assertThat(accumulator.getReasoning()).isNull();
+    }
+
+    @Test
+    void audioDeltasAreMerged() {
+        accumulator.onData(audioChunk("audio_1", "AAAA", 1700000000L, "Hello"));
+        accumulator.onData(audioChunk(null, "BBBB", null, " world"));
+
+        JSONObject audio = accumulator.getAudio();
+        assertThat(audio.getString("id")).isEqualTo("audio_1");
+        assertThat(audio.getString("data")).isEqualTo("AAAABBBB");
+        assertThat(audio.getLong("expires_at")).isEqualTo(1700000000L);
+        assertThat(audio.getString("transcript")).isEqualTo("Hello world");
+    }
+
+    @Test
+    void assistantMessageCarriesReasoningRefusalAndAudio() {
+        accumulator.onData(reasoningChunk("thinking..."));
+        accumulator.onData(contentChunk("Answer"));
+        accumulator.onData(refusalChunk("nope"));
+        accumulator.onData(audioChunk("audio_1", "AAAA", 1700000000L, "Answer"));
+        accumulator.onData(reasoningDetailsChunk(new JSONObject().put("type", "text").put("text", "s")));
+        accumulator.onData(finishChunk("stop"));
+
+        JSONObject msg = accumulator.buildAssistantMessage();
+        assertThat(msg.getString("reasoning")).isEqualTo("thinking...");
+        assertThat(msg.getJSONArray("reasoning_details").length()).isEqualTo(1);
+        assertThat(msg.getString("refusal")).isEqualTo("nope");
+        assertThat(msg.getJSONObject("audio").getString("data")).isEqualTo("AAAA");
+        assertThat(msg.getString("content")).isEqualTo("Answer");
+    }
+
+    @Test
+    void assistantMessageWithoutReasoningRefusalAudioHasNoKeys() {
+        accumulator.onData(contentChunk("Answer"));
+        accumulator.onData(finishChunk("stop"));
+
+        JSONObject msg = accumulator.buildAssistantMessage();
+        assertThat(msg.has("reasoning")).isFalse();
+        assertThat(msg.has("reasoning_details")).isFalse();
+        assertThat(msg.has("refusal")).isFalse();
+        assertThat(msg.has("audio")).isFalse();
+    }
+
+    @Test
+    void chunkLevelFieldsAreCaptured() {
+        String chunk = new JSONObject()
+                .put("service_tier", "priority")
+                .put("system_fingerprint", "fp_abc123")
+                .put("openrouter_metadata", new JSONObject().put("provider", "Anthropic"))
+                .put("choices", new JSONArray().put(new JSONObject()
+                        .put("index", 0)
+                        .put("delta", new JSONObject().put("content", "Hi"))
+                        .put("finish_reason", JSONObject.NULL)))
+                .toString();
+        accumulator.onData(chunk);
+
+        assertThat(accumulator.getServiceTier()).isEqualTo("priority");
+        assertThat(accumulator.getSystemFingerprint()).isEqualTo("fp_abc123");
+        assertThat(accumulator.getOpenrouterMetadata().getString("provider")).isEqualTo("Anthropic");
+    }
+
+    @Test
+    void nullChunkLevelFieldsAreIgnored() {
+        String chunk = new JSONObject()
+                .put("service_tier", JSONObject.NULL)
+                .put("system_fingerprint", JSONObject.NULL)
+                .put("openrouter_metadata", JSONObject.NULL)
+                .put("choices", new JSONArray())
+                .toString();
+        accumulator.onData(chunk);
+
+        assertThat(accumulator.getServiceTier()).isNull();
+        assertThat(accumulator.getSystemFingerprint()).isNull();
+        assertThat(accumulator.getOpenrouterMetadata()).isNull();
+    }
+
+    @Test
+    void syntheticResponseExposesReasoningRefusalAudioTierMetadataAndFingerprint() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(reasoningChunk("thinking..."));
+        accumulator.onData(contentChunk("Answer"));
+        accumulator.onData(refusalChunk("nope"));
+        accumulator.onData(audioChunk("audio_1", "AAAA", 1700000000L, "Answer"));
+        accumulator.onData(reasoningDetailsChunk(new JSONObject().put("type", "text").put("text", "s")));
+        accumulator.onData(tierChunk("priority", "fp_abc123"));
+        accumulator.onData(finishChunk("stop"));
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        // Sync/streaming symmetry: the same accessors must behave identically
+        // on the synthetic response as they do on the synchronous one.
+        assertThat(response.reasoning()).isEqualTo("thinking...");
+        assertThat(response.reasoningDetails()).hasSize(1);
+        assertThat(response.reasoningDetails().get(0).getString("text")).isEqualTo("s");
+        assertThat(response.refusal()).isEqualTo("nope");
+        assertThat(response.hasRefusal()).isTrue();
+        assertThat(response.audio().getString("data")).isEqualTo("AAAA");
+        assertThat(response.audioId()).isEqualTo("audio_1");
+        assertThat(response.audioExpiresAt()).isEqualTo(1700000000L);
+        assertThat(response.audioTranscript()).isEqualTo("Answer");
+        assertThat(response.serviceTier()).isEqualTo("priority");
+        assertThat(response.systemFingerprint()).isEqualTo("fp_abc123");
+    }
+
+    @Test
+    void syntheticResponseWithoutTierCarriesNoTierKeys() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(finishChunk("stop"));
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        assertThat(response.serviceTier()).isNull();
+        assertThat(response.systemFingerprint()).isNull();
+        assertThat(response.openrouterMetadata()).isNull();
+        assertThat(response.hasRefusal()).isFalse();
+        assertThat(response.refusal()).isNull();
+        assertThat(response.reasoning()).isNull();
+        assertThat(response.audio()).isNull();
+        assertThat(response.imageUrls()).isEmpty();
+    }
+
+    @Test
+    void resetClearsReasoningRefusalAudioAndChunkLevelFields() {
+        accumulator.onData(reasoningChunk("r"));
+        accumulator.onData(refusalChunk("f"));
+        accumulator.onData(audioChunk("a", "AA", 1L, "t"));
+        accumulator.onData(reasoningDetailsChunk(new JSONObject().put("type", "text")));
+        accumulator.onData(tierChunk("flex", "fp_x"));
+
+        accumulator.reset();
+
+        assertThat(accumulator.getReasoning()).isNull();
+        assertThat(accumulator.getReasoningDetails()).isEmpty();
+        assertThat(accumulator.getRefusal()).isNull();
+        assertThat(accumulator.getAudio()).isNull();
+        assertThat(accumulator.getServiceTier()).isNull();
+        assertThat(accumulator.getSystemFingerprint()).isNull();
+        assertThat(accumulator.getOpenrouterMetadata()).isNull();
+    }
+
     // --- Helpers ---
 
     private String errorChunk(String message, Integer code, String errorType, String providerCode) {
@@ -339,6 +515,66 @@ class StreamingToolCallAccumulatorTest {
             .put("choices", new JSONArray().put(new JSONObject()
                 .put("index", 0)
                 .put("delta", new JSONObject().put("role", role))
+                .put("finish_reason", JSONObject.NULL)))
+            .toString();
+    }
+
+    private String reasoningChunk(String text) {
+        return new JSONObject()
+            .put("choices", new JSONArray().put(new JSONObject()
+                .put("index", 0)
+                .put("delta", new JSONObject().put("reasoning", text))
+                .put("finish_reason", JSONObject.NULL)))
+            .toString();
+    }
+
+    private String reasoningDetailsChunk(JSONObject detail) {
+        return new JSONObject()
+            .put("choices", new JSONArray().put(new JSONObject()
+                .put("index", 0)
+                .put("delta", new JSONObject().put("reasoning_details", new JSONArray().put(detail)))
+                .put("finish_reason", JSONObject.NULL)))
+            .toString();
+    }
+
+    private String refusalChunk(String text) {
+        return new JSONObject()
+            .put("choices", new JSONArray().put(new JSONObject()
+                .put("index", 0)
+                .put("delta", new JSONObject().put("refusal", text))
+                .put("finish_reason", JSONObject.NULL)))
+            .toString();
+    }
+
+    private String audioChunk(String id, String data, Long expiresAt, String transcript) {
+        JSONObject audio = new JSONObject();
+        if (id != null) {
+            audio.put("id", id);
+        }
+        if (data != null) {
+            audio.put("data", data);
+        }
+        if (expiresAt != null) {
+            audio.put("expires_at", expiresAt);
+        }
+        if (transcript != null) {
+            audio.put("transcript", transcript);
+        }
+        return new JSONObject()
+            .put("choices", new JSONArray().put(new JSONObject()
+                .put("index", 0)
+                .put("delta", new JSONObject().put("audio", audio))
+                .put("finish_reason", JSONObject.NULL)))
+            .toString();
+    }
+
+    private String tierChunk(String serviceTier, String systemFingerprint) {
+        return new JSONObject()
+            .put("service_tier", serviceTier)
+            .put("system_fingerprint", systemFingerprint)
+            .put("choices", new JSONArray().put(new JSONObject()
+                .put("index", 0)
+                .put("delta", new JSONObject())
                 .put("finish_reason", JSONObject.NULL)))
             .toString();
     }

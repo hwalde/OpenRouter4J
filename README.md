@@ -15,10 +15,10 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 ## Features
 
 * Chat Completions including tool calling (including forcing a specific tool), structured outputs, vision inputs and reasoning configuration (effort / max_tokens / exclude / enabled / summary)
-* **Streaming support** for real-time token generation using Server-Sent Events (SSE)
-* Server-side plugins (web search), built-in server tools (`openrouter:web_search`, `openrouter:web_fetch`, `openrouter:datetime`, generic escape hatch) and multimodal output (`modalities` / `image_config`)
+* **Streaming support** for real-time token generation using Server-Sent Events (SSE) - the synthetic response of the streaming loop carries reasoning, reasoning details, refusal and the chunk-level `service_tier` / `openrouter_metadata` / `system_fingerprint` fields, so both execution paths behave identically
+* Server-side plugins (web search), built-in server tools (`openrouter:web_search`, `openrouter:web_fetch`, `openrouter:datetime`, generic escape hatch) and multimodal output (`modalities` / `image_config`, with `images`/`audio` response accessors)
 * Predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`) and capacity tiers (`service_tier`, echoed back on the response)
-* OpenRouter-specific response details: reasoning output, provider, native finish reason, routing metadata, cost and a loud error path for mid-request failures
+* OpenRouter-specific response details: reasoning output, provider, native finish reason, routing metadata, cost, logprobs, system fingerprint and a loud error path for mid-request failures
 * Access to 200+ AI models through a single unified API
 * Provider selection for routing requests to specific providers
 * Vision capabilities for image understanding and analysis
@@ -33,7 +33,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.8.0</version>
+    <version>1.9.0</version>
 </dependency>
 ```
 

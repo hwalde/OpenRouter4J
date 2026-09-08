@@ -439,9 +439,152 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      * {@code service_tier} field ({@code "default"}, {@code "flex"}, {@code "priority"}
      * or {@code null}), or {@code null} when absent. The request pins the tier via
      * {@code OpenRouterChatCompletionRequest.Builder#serviceTier(String)}.
+     * <p>
+     * Since 1.9.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when a stream chunk carried {@code service_tier}.
      */
     public String serviceTier() {
         return getJson().optString("service_tier", null);
+    }
+
+    /**
+     * Returns the raw {@code choices[0].logprobs} object (the {@code content}
+     * and {@code refusal} arrays of per-token log probabilities: {@code token},
+     * {@code logprob}, {@code bytes}, {@code top_logprobs}), or {@code null}
+     * when the response does not carry it. It is only present when the request
+     * opted in via {@code OpenRouterChatCompletionRequest.Builder#logprobs(Boolean)}
+     * (and {@code topLogprobs(n)}); otherwise users pay for nothing - this
+     * accessor makes the paid data inspectable.
+     */
+    public JSONObject logprobs() {
+        try {
+            JSONArray choices = getJson().getJSONArray("choices");
+            JSONObject firstChoice = choices.getJSONObject(0);
+            return firstChoice.optJSONObject("logprobs");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the top-level {@code system_fingerprint} - the provider-side model
+     * snapshot that served this request - or {@code null} when absent.
+     * <p>
+     * Since 1.9.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when a stream chunk carried
+     * {@code system_fingerprint}.
+     */
+    public String systemFingerprint() {
+        return getJson().optString("system_fingerprint", null);
+    }
+
+    /**
+     * Returns the raw {@code choices[0].message.images} array produced by
+     * image-generation models - each entry shaped as
+     * {@code {"image_url": {"url": <URL or base64 data>}}} - or {@code null}
+     * when the response carries none.
+     * <p>
+     * Trap: image output is only produced when the request opted in via
+     * {@code OpenRouterChatCompletionRequest.Builder#modalities(String...)}
+     * containing {@code "image"}; check {@link #imageUrls()} for the typed
+     * variant.
+     */
+    public JSONArray images() {
+        try {
+            JSONArray choices = getJson().getJSONArray("choices");
+            JSONObject firstChoice = choices.getJSONObject(0);
+            JSONObject message = firstChoice.getJSONObject("message");
+            return message.optJSONArray("images");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the URLs (or base64 data URLs) of the images produced by
+     * image-generation models from {@code choices[0].message.images}, empty
+     * when the response carries none (never {@code null}).
+     * <p>
+     * Trap: image output is only produced when the request opted in via
+     * {@code OpenRouterChatCompletionRequest.Builder#modalities(String...)}
+     * containing {@code "image"}.
+     */
+    public List<String> imageUrls() {
+        JSONArray images = images();
+        List<String> result = new ArrayList<>();
+        if (images != null) {
+            for (int i = 0; i < images.length(); i++) {
+                JSONObject image = images.optJSONObject(i);
+                JSONObject imageUrl = image != null ? image.optJSONObject("image_url") : null;
+                if (imageUrl != null) {
+                    String url = imageUrl.optString("url", null);
+                    if (url != null) {
+                        result.add(url);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns the raw {@code choices[0].message.audio} object produced by
+     * audio-output models ({@code id}, {@code data} (base64), {@code expires_at},
+     * {@code transcript}), or {@code null} when the response carries none.
+     * <p>
+     * Trap: audio output is only produced when the request opted in via
+     * {@code OpenRouterChatCompletionRequest.Builder#modalities(String...)}
+     * containing {@code "audio"}.
+     */
+    public JSONObject audio() {
+        try {
+            JSONArray choices = getJson().getJSONArray("choices");
+            JSONObject firstChoice = choices.getJSONObject(0);
+            JSONObject message = firstChoice.getJSONObject("message");
+            return message.optJSONObject("audio");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the {@code id} of the audio output (usable as a follow-up input
+     * reference on the OpenAI Realtime/Audio API surface), or {@code null} when
+     * the response carries no audio.
+     */
+    public String audioId() {
+        JSONObject audio = audio();
+        return audio != null ? audio.optString("id", null) : null;
+    }
+
+    /**
+     * Returns the base64-encoded audio data of the audio output, or {@code null}
+     * when the response carries no audio.
+     */
+    public String audioData() {
+        JSONObject audio = audio();
+        return audio != null ? audio.optString("data", null) : null;
+    }
+
+    /**
+     * Returns the {@code expires_at} timestamp (epoch seconds) of the audio
+     * output, or {@code null} when the response carries no audio or no expiry.
+     */
+    public Long audioExpiresAt() {
+        JSONObject audio = audio();
+        if (audio == null || audio.isNull("expires_at")) {
+            return null;
+        }
+        return audio.optLong("expires_at");
+    }
+
+    /**
+     * Returns the provider-generated transcript of the audio output, or
+     * {@code null} when the response carries no audio or no transcript.
+     */
+    public String audioTranscript() {
+        JSONObject audio = audio();
+        return audio != null ? audio.optString("transcript", null) : null;
     }
 
     /**

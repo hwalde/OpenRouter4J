@@ -245,4 +245,119 @@ class OpenRouterChatCompletionResponseTest {
         assertThat(response.hasError()).isFalse();
         assertThat(response.reasoningDetails()).isEmpty();
     }
+
+    @Test
+    void logprobsAndSystemFingerprintAreSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "system_fingerprint": "fp_64829e98a1",
+                  "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Hi"},
+                    "finish_reason": "stop",
+                    "logprobs": {
+                      "content": [
+                        {"token": "Hi", "logprob": -0.02, "bytes": [72, 105],
+                         "top_logprobs": [{"token": "Hi", "logprob": -0.02}]}
+                      ],
+                      "refusal": []
+                    }
+                  }]
+                }
+                """);
+
+        assertThat(response.systemFingerprint()).isEqualTo("fp_64829e98a1");
+        assertThat(response.logprobs()).isNotNull();
+        assertThat(response.logprobs().getJSONArray("content").getJSONObject(0)
+                .getString("token")).isEqualTo("Hi");
+        assertThat(response.logprobs().getJSONArray("content").getJSONObject(0)
+                .getDouble("logprob")).isEqualTo(-0.02);
+    }
+
+    @Test
+    void logprobsAndSystemFingerprintReturnNullWhenAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+
+        assertThat(response.logprobs()).isNull();
+        assertThat(response.systemFingerprint()).isNull();
+    }
+
+    @Test
+    void imagesAndImageUrlsAreSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{
+                    "index": 0,
+                    "message": {
+                      "role": "assistant",
+                      "content": "",
+                      "images": [
+                        {"image_url": {"url": "https://cdn.example.com/img0.png"}},
+                        {"image_url": {"url": "data:image/png;base64,AAAA"}}
+                      ]
+                    },
+                    "finish_reason": "stop"
+                  }]
+                }
+                """);
+
+        assertThat(response.images()).isNotNull();
+        assertThat(response.images().length()).isEqualTo(2);
+        assertThat(response.imageUrls()).containsExactly(
+                "https://cdn.example.com/img0.png",
+                "data:image/png;base64,AAAA");
+    }
+
+    @Test
+    void imageAccessorsReturnEmptyOrNullWhenAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+
+        assertThat(response.images()).isNull();
+        assertThat(response.imageUrls()).isEmpty();
+    }
+
+    @Test
+    void audioOutputIsSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{
+                    "index": 0,
+                    "message": {
+                      "role": "assistant",
+                      "content": null,
+                      "audio": {
+                        "id": "audio_abc123",
+                        "data": "SGVsbG8=",
+                        "expires_at": 1700000000,
+                        "transcript": "Hello"
+                      }
+                    },
+                    "finish_reason": "stop"
+                  }]
+                }
+                """);
+
+        assertThat(response.audio()).isNotNull();
+        assertThat(response.audioId()).isEqualTo("audio_abc123");
+        assertThat(response.audioData()).isEqualTo("SGVsbG8=");
+        assertThat(response.audioExpiresAt()).isEqualTo(1700000000L);
+        assertThat(response.audioTranscript()).isEqualTo("Hello");
+    }
+
+    @Test
+    void audioAccessorsReturnNullWhenAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+
+        assertThat(response.audio()).isNull();
+        assertThat(response.audioId()).isNull();
+        assertThat(response.audioData()).isNull();
+        assertThat(response.audioExpiresAt()).isNull();
+        assertThat(response.audioTranscript()).isNull();
+    }
 }

@@ -274,6 +274,21 @@ public final class OpenRouterChatCompletionCallHandler {
             // work on the streaming path too, matching the synchronous path.
             root.put("error", accumulator.getError());
         }
+        if (accumulator.getServiceTier() != null) {
+            // Chunk-level capacity tier - exposed so serviceTier() works on the
+            // streaming path too, matching the synchronous path.
+            root.put("service_tier", accumulator.getServiceTier());
+        }
+        if (accumulator.getOpenrouterMetadata() != null) {
+            // Chunk-level routing metadata (opt-in via X-OpenRouter-Metadata) -
+            // exposed so openrouterMetadata() works on the streaming path too.
+            root.put("openrouter_metadata", accumulator.getOpenrouterMetadata());
+        }
+        if (accumulator.getSystemFingerprint() != null) {
+            // Chunk-level provider snapshot - exposed so systemFingerprint()
+            // works on the streaming path too.
+            root.put("system_fingerprint", accumulator.getSystemFingerprint());
+        }
         return root;
     }
 

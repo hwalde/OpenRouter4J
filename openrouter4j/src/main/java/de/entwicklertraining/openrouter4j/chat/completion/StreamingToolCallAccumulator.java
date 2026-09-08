@@ -6,6 +6,8 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -13,6 +15,13 @@ import java.util.TreeMap;
  * Internal wrapper handler that receives raw SSE JSON chunks (via RAW_JSON
  * extractor) and splits them into content (forwarded to user handler) and
  * tool_calls (accumulated internally for the CallHandler to process).
+ * <p>
+ * Besides content and tool calls it also accumulates the remaining delta
+ * fields OpenRouter can stream ({@code reasoning}, {@code reasoning_details},
+ * {@code refusal}, {@code audio}) and the chunk-level fields
+ * {@code service_tier}, {@code openrouter_metadata} and
+ * {@code system_fingerprint}, so the synthetic response of the streaming loop
+ * reports the same state as the synchronous response.
  */
 final class StreamingToolCallAccumulator implements StreamingResponseHandler<String> {
 
@@ -24,7 +33,17 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
     private String role;
     private JSONObject usage;
     private JSONObject error;
+    private String serviceTier;
+    private JSONObject openrouterMetadata;
+    private String systemFingerprint;
+    private String audioId;
+    private Long audioExpiresAt;
     private final StringBuilder contentBuilder = new StringBuilder();
+    private final StringBuilder reasoningBuilder = new StringBuilder();
+    private final StringBuilder refusalBuilder = new StringBuilder();
+    private final List<JSONObject> reasoningDetails = new ArrayList<>();
+    private final StringBuilder audioDataBuilder = new StringBuilder();
+    private final StringBuilder audioTranscriptBuilder = new StringBuilder();
     private final TreeMap<Integer, ToolCallData> toolCallsByIndex = new TreeMap<>();
 
     StreamingToolCallAccumulator(StreamingResponseHandler<String> userHandler) {
@@ -57,6 +76,18 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
                 this.error = json.getJSONObject("error");
             }
 
+            // Chunk-level fields carried by regular chunks (and echoed by the
+            // synthetic response so streaming behaves like the synchronous path).
+            if (json.has("service_tier") && !json.isNull("service_tier")) {
+                this.serviceTier = json.getString("service_tier");
+            }
+            if (json.has("openrouter_metadata") && !json.isNull("openrouter_metadata")) {
+                this.openrouterMetadata = json.getJSONObject("openrouter_metadata");
+            }
+            if (json.has("system_fingerprint") && !json.isNull("system_fingerprint")) {
+                this.systemFingerprint = json.getString("system_fingerprint");
+            }
+
             JSONArray choices = json.optJSONArray("choices");
             if (choices == null || choices.isEmpty()) return;
 
@@ -81,6 +112,28 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
                 String content = delta.getString("content");
                 contentBuilder.append(content);
                 userHandler.onData(content);
+            }
+
+            if (delta.has("reasoning") && !delta.isNull("reasoning")) {
+                reasoningBuilder.append(delta.getString("reasoning"));
+            }
+
+            if (delta.has("reasoning_details") && !delta.isNull("reasoning_details")) {
+                JSONArray details = delta.getJSONArray("reasoning_details");
+                for (int i = 0; i < details.length(); i++) {
+                    JSONObject detail = details.optJSONObject(i);
+                    if (detail != null) {
+                        reasoningDetails.add(detail);
+                    }
+                }
+            }
+
+            if (delta.has("refusal") && !delta.isNull("refusal")) {
+                refusalBuilder.append(delta.getString("refusal"));
+            }
+
+            if (delta.has("audio") && !delta.isNull("audio")) {
+                mergeAudioDelta(delta.getJSONObject("audio"));
             }
 
             if (delta.has("tool_calls")) {
@@ -167,6 +220,98 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         return error;
     }
 
+    /**
+     * The accumulated {@code reasoning} text of the streamed deltas, or
+     * {@code null} when the stream carried none.
+     */
+    String getReasoning() {
+        return reasoningBuilder.length() > 0 ? reasoningBuilder.toString() : null;
+    }
+
+    /**
+     * The accumulated {@code reasoning_details} objects of the streamed deltas,
+     * appended in arrival order, empty when the stream carried none.
+     */
+    List<JSONObject> getReasoningDetails() {
+        return List.copyOf(reasoningDetails);
+    }
+
+    /**
+     * The accumulated {@code refusal} text of the streamed deltas, or
+     * {@code null} when the stream carried none.
+     */
+    String getRefusal() {
+        return refusalBuilder.length() > 0 ? refusalBuilder.toString() : null;
+    }
+
+    /**
+     * The merged {@code audio} output object of the streamed deltas
+     * ({@code id}, {@code data}, {@code expires_at}, {@code transcript}),
+     * or {@code null} when the stream carried none. The base64 {@code data}
+     * and the {@code transcript} fragments are concatenated in arrival order;
+     * {@code id} and {@code expires_at} keep the first value seen.
+     */
+    JSONObject getAudio() {
+        if (audioId == null && audioExpiresAt == null
+                && audioDataBuilder.length() == 0 && audioTranscriptBuilder.length() == 0) {
+            return null;
+        }
+        JSONObject audio = new JSONObject();
+        if (audioId != null) {
+            audio.put("id", audioId);
+        }
+        if (audioDataBuilder.length() > 0) {
+            audio.put("data", audioDataBuilder.toString());
+        }
+        if (audioExpiresAt != null) {
+            audio.put("expires_at", audioExpiresAt);
+        }
+        if (audioTranscriptBuilder.length() > 0) {
+            audio.put("transcript", audioTranscriptBuilder.toString());
+        }
+        return audio;
+    }
+
+    /**
+     * The chunk-level {@code service_tier} value, or {@code null} when no chunk
+     * carried one.
+     */
+    String getServiceTier() {
+        return serviceTier;
+    }
+
+    /**
+     * The chunk-level {@code openrouter_metadata} object, or {@code null} when
+     * no chunk carried one (it is opt-in via the {@code X-OpenRouter-Metadata}
+     * header).
+     */
+    JSONObject getOpenrouterMetadata() {
+        return openrouterMetadata;
+    }
+
+    /**
+     * The chunk-level {@code system_fingerprint} value, or {@code null} when no
+     * chunk carried one.
+     */
+    String getSystemFingerprint() {
+        return systemFingerprint;
+    }
+
+    private void mergeAudioDelta(JSONObject audio) {
+        if (audioId == null && audio.has("id") && !audio.isNull("id")) {
+            audioId = audio.getString("id");
+        }
+        if (audio.has("data") && !audio.isNull("data")) {
+            audioDataBuilder.append(audio.getString("data"));
+        }
+        if (audioExpiresAt == null && audio.has("expires_at") && !audio.isNull("expires_at")) {
+            audioExpiresAt = audio.getLong("expires_at");
+        }
+        if (audio.has("transcript") && !audio.isNull("transcript")) {
+            audioTranscriptBuilder.append(audio.getString("transcript"));
+        }
+    }
+
     boolean hasToolCalls() {
         return "tool_calls".equals(finishReason) && !toolCallsByIndex.isEmpty();
     }
@@ -196,6 +341,23 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         } else {
             msg.put("content", contentBuilder.toString());
         }
+        if (reasoningBuilder.length() > 0) {
+            msg.put("reasoning", reasoningBuilder.toString());
+        }
+        if (!reasoningDetails.isEmpty()) {
+            JSONArray details = new JSONArray();
+            for (JSONObject detail : reasoningDetails) {
+                details.put(detail);
+            }
+            msg.put("reasoning_details", details);
+        }
+        if (refusalBuilder.length() > 0) {
+            msg.put("refusal", refusalBuilder.toString());
+        }
+        JSONObject audio = getAudio();
+        if (audio != null) {
+            msg.put("audio", audio);
+        }
         return msg;
     }
 
@@ -204,9 +366,19 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         nativeFinishReason = null;
         usage = null;
         error = null;
+        serviceTier = null;
+        openrouterMetadata = null;
+        systemFingerprint = null;
+        audioId = null;
+        audioExpiresAt = null;
         toolCallsByIndex.clear();
         role = null;
         contentBuilder.setLength(0);
+        reasoningBuilder.setLength(0);
+        refusalBuilder.setLength(0);
+        reasoningDetails.clear();
+        audioDataBuilder.setLength(0);
+        audioTranscriptBuilder.setLength(0);
     }
 
     static final class ToolCallData {

@@ -7,6 +7,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterDatetimeServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
+import de.entwicklertraining.openrouter4j.OpenRouterImageDetail;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
@@ -19,9 +20,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -1630,5 +1634,67 @@ class OpenRouterChatCompletionRequestTest {
         JSONObject reasoning = new JSONObject(next.getBody()).getJSONObject("reasoning");
         assertThat(reasoning.getString("summary")).isEqualTo("detailed");
         assertThat(reasoning.getString("effort")).isEqualTo("high");
+    }
+
+    private JSONArray imageContentOf(JSONObject body) {
+        JSONArray messages = body.getJSONArray("messages");
+        for (int i = 0; i < messages.length(); i++) {
+            JSONObject msg = messages.getJSONObject(i);
+            if (msg.opt("content") instanceof JSONArray content && !content.isEmpty()) {
+                return content;
+            }
+        }
+        throw new AssertionError("no content-array message found");
+    }
+
+    @Test
+    void imageDetailIsOmittedWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder().addImageByUrl("https://example.com/photo.png"));
+
+        JSONArray content = imageContentOf(body);
+        assertThat(content.getJSONObject(0).getJSONObject("image_url").has("detail")).isFalse();
+    }
+
+    @Test
+    void imageDetailIsEmittedForUrlImages() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addImageByUrl("https://example.com/photo.png", OpenRouterImageDetail.ORIGINAL));
+
+        JSONObject imageUrl = imageContentOf(body).getJSONObject(0).getJSONObject("image_url");
+        assertThat(imageUrl.getString("detail")).isEqualTo("original");
+        assertThat(imageUrl.getString("url")).isEqualTo("https://example.com/photo.png");
+    }
+
+    @Test
+    void imageDetailIsEmittedForBase64Images() throws Exception {
+        Path image = Files.createTempFile("detail-test", ".png");
+        Files.write(image, new byte[]{1, 2, 3, 4});
+        try {
+            JSONObject body = bodyOf(baseBuilder()
+                    .addImageByBase64(image, OpenRouterImageDetail.LOW));
+
+            JSONObject imageUrl = imageContentOf(body).getJSONObject(0).getJSONObject("image_url");
+            assertThat(imageUrl.getString("detail")).isEqualTo("low");
+            assertThat(imageUrl.getString("url")).startsWith("data:image/png;base64,");
+        } finally {
+            Files.deleteIfExists(image);
+        }
+    }
+
+    @Test
+    void imageDetailSurvivesToolLoopFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .addImageByUrl("https://example.com/photo.png", OpenRouterImageDetail.HIGH)
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        // The real tool-call loop keeps the original messages and appends to them.
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                new ArrayList<>(initial.messages()));
+
+        JSONArray content = imageContentOf(new JSONObject(next.getBody()));
+        assertThat(content.getJSONObject(0).getJSONObject("image_url").getString("detail"))
+                .isEqualTo("high");
     }
     }
