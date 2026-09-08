@@ -59,8 +59,8 @@ class OpenRouterChatCompletionResponseTest {
     void nativeFinishReasonAndProviderAreSurfaced() {
         OpenRouterChatCompletionResponse response = responseOf("""
                 {
-                  "model": "anthropic/claude-sonnet-4",
-                  "provider": "Anthropic",
+                  "model": "z-ai/glm-5.3-flash",
+                  "provider": "Z.AI",
                   "choices": [{
                     "index": 0,
                     "message": {"role": "assistant", "content": "Hi"},
@@ -72,7 +72,7 @@ class OpenRouterChatCompletionResponseTest {
 
         assertThat(response.nativeFinishReason()).isEqualTo("end_turn");
         assertThat(response.finishReason()).isEqualTo("stop");
-        assertThat(response.provider()).isEqualTo("Anthropic");
+        assertThat(response.provider()).isEqualTo("Z.AI");
     }
 
     @Test

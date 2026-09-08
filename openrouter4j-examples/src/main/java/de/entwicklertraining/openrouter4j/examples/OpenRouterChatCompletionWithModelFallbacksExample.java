@@ -17,10 +17,10 @@ public class OpenRouterChatCompletionWithModelFallbacksExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")        // primary model
+                .model("deepseek/deepseek-v4-flash-0731")        // primary model
                 .models(                             // tried in order when the primary is unavailable
-                        "anthropic/claude-3.5-haiku",
-                        "google/gemini-2.0-flash-001")
+                        "z-ai/glm-5.3-flash",
+                        "google/gemini-3.5-flash-lite")
                 .addMessage("user", "Name three programming languages, comma-separated.")
                 .execute();
 

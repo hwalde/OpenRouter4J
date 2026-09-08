@@ -27,7 +27,7 @@ public class OpenRouterChatCompletionWithPredictionExample {
                 """;
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("mistralai/codestral-2508") // only non-OpenAI model supporting prediction (documented exception)
                 .addMessage("user", """
                         Rewrite this Java class so it greets in German instead of English.
                         Keep the structure identical:

@@ -17,8 +17,8 @@ import java.util.Objects;
  * OpenRouter Response Format:
  * {
  *   "id": "gen-xxx",
- *   "model": "google/gemini-2.5-flash",
- *   "provider": "Google AI Studio",
+ *   "model": "deepseek/deepseek-v4-flash-0731",
+ *   "provider": "DeepSeek",
  *   "choices": [{
  *     "index": 0,
  *     "message": {

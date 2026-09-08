@@ -92,8 +92,7 @@ public class OpenRouterChatCompletionStreamingWithFunctionCallingExample {
         System.out.println("=== Streaming + Function Calling Example ===\n");
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .systemInstruction("You are a helpful weather assistant. Be concise.")
                 .addMessage("user", "What's the weather like in Berlin right now?")
                 .addTool(weatherTool)

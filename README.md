@@ -16,7 +16,7 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 
 * Chat Completions including tool calling (including forcing a specific tool), structured outputs, vision inputs and reasoning configuration (effort / max_tokens / exclude / enabled / summary)
 * **Streaming support** for real-time token generation using Server-Sent Events (SSE) - the synthetic response of the streaming loop carries reasoning, reasoning details, refusal and the chunk-level `service_tier` / `openrouter_metadata` / `system_fingerprint` fields, so both execution paths behave identically
-* Server-side plugins (web search), built-in server tools (`openrouter:web_search`, `openrouter:web_fetch`, `openrouter:datetime`, generic escape hatch) and multimodal output (`modalities` / `image_config`, with `images`/`audio` response accessors)
+* Server-side plugins (web search), built-in server tools (`openrouter:web_search`, `openrouter:web_fetch`, `openrouter:datetime`, generic escape hatch) and multimodal output (`modalities` / `image_config`, with `images`/`audio` response accessors; note that the audio output path currently has no runnable example because only OpenAI models serve it)
 * Predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`) and capacity tiers (`service_tier`, echoed back on the response)
 * OpenRouter-specific response details: reasoning output, provider, native finish reason, routing metadata, cost, logprobs, system fingerprint and a loud error path for mid-request failures
 * Access to 200+ AI models through a single unified API
@@ -33,7 +33,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.9.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -56,8 +56,7 @@ OpenRouterToolDefinition weatherFunction = OpenRouterToolDefinition.builder("get
 OpenRouterClient client = new OpenRouterClient(); // reads the API key from OPENROUTER_API_KEY
 
 OpenRouterChatCompletionResponse resp = client.chat().completion()
-        .model("google/gemini-2.5-flash")
-        .provider("google-ai-studio")  // optional: specify the provider
+        .model("deepseek/deepseek-v4-flash-0731")
         .systemInstruction("You are a helpful assistant.")
         .addMessage("user", "What's the weather in Berlin?")
         .addTool(weatherFunction)
@@ -73,15 +72,14 @@ demonstrates image analysis capabilities:
 ```java
 OpenRouterClient client = new OpenRouterClient();
 OpenRouterChatCompletionResponse response = client.chat().completion()
-        .model("google/gemini-2.5-flash")
-        .provider("google-ai-studio")
+        .model("z-ai/glm-5.3-flash")
         .addMessage("user", "What's in this image?")
         .addImageByUrl("https://example.com/image.jpg")
         .execute();
 System.out.println(response.assistantMessage());
 ```
 
-See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort), server-side plugins (web search), built-in server tools and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images`/`audio` response accessors), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, loud error handling).
+See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort), server-side plugins (web search), built-in server tools and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images` response accessor), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, loud error handling).
 
 ### Provider Selection
 
@@ -89,15 +87,15 @@ OpenRouter allows you to route requests to specific providers. This is useful wh
 
 ```java
 client.chat().completion()
-        .model("google/gemini-2.5-flash")
-        .provider("google-ai-studio")  // Use Google's AI Studio
+        .model("deepseek/deepseek-v4-flash-0731")
+        .provider("deepseek")  // Use DeepSeek's official endpoint
         .addMessage("user", "Hello!")
         .execute();
 
-// Or use OpenAI's infrastructure
+// Or route to another provider serving the same model
 client.chat().completion()
-        .model("openai/gpt-4o-mini")
-        .provider("openai")
+        .model("z-ai/glm-5.3-flash")
+        .provider("z-ai")
         .addMessage("user", "Hello!")
         .execute();
 ```
@@ -111,7 +109,7 @@ Two additional routing options control how strictly OpenRouter follows your requ
 // OpenRouter responds with HTTP 404 ("No endpoints found that can handle the
 // requested parameters").
 client.chat().completion()
-        .model("deepseek/deepseek-v4-flash")
+        .model("deepseek/deepseek-v4-flash-0731")
         .requireParameters(true)
         .responseSchema(mySchema)
         .addMessage("user", "Hello!")
@@ -120,7 +118,7 @@ client.chat().completion()
 // allow_fallbacks=false: pin the request strictly to the providers in the order
 // list - no silent fallback to other providers if they are unavailable.
 client.chat().completion()
-        .model("deepseek/deepseek-v4-flash")
+        .model("deepseek/deepseek-v4-flash-0731")
         .provider("alibaba")
         .allowFallbacks(false)
         .addMessage("user", "Hello!")
@@ -167,7 +165,7 @@ StreamingResponseHandler<String> handler = new StreamingResponseHandler<>() {
 };
 
 client.chat().completion()
-        .model("google/gemini-2.5-flash")
+        .model("deepseek/deepseek-v4-flash-0731")
         .addMessage("user", "Explain streaming APIs in 3-4 sentences.")
         .stream(handler)  // Enable streaming with handler
         .executeAsync()
@@ -201,7 +199,7 @@ StreamingToolCallHandler handler = new StreamingToolCallHandler() {
 };
 
 client.chat().completion()
-        .model("google/gemini-2.5-flash")
+        .model("deepseek/deepseek-v4-flash-0731")
         .addTool(weatherTool)
         .stream(handler)
         .addMessage("user", "What's the weather in Berlin?")

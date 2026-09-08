@@ -56,7 +56,7 @@ public class OpenRouterChatCompletionStreamingReasoningExample {
         };
 
         OpenRouterChatCompletionRequest request = client.chat().completion()
-                .model("google/gemini-2.5-flash")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .reasoningEffort("low")
                 .addMessage("user", "What is 17 * 23?")
                 .stream(handler)

@@ -29,7 +29,7 @@ public class OpenRouterChatCompletionWithObservabilityExample {
         metadata.put("tenant", "acme-corp");
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .metadata(metadata)            // attached to the generation
                 .user("end-user-42")           // per-end-user identifier
                 .sessionId("onboarding-flow")  // sticky routing for cache hits

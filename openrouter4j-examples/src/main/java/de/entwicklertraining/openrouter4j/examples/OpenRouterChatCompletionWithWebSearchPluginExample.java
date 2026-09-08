@@ -18,7 +18,7 @@ public class OpenRouterChatCompletionWithWebSearchPluginExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addPlugin(OpenRouterWebSearchPlugin.builder()
                         .maxResults(5)                                   // plugins[].max_results
                         .engine("exa")                                   // plugins[].engine

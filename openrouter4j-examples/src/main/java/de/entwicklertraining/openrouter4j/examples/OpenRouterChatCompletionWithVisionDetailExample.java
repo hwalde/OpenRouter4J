@@ -20,7 +20,7 @@ public class OpenRouterChatCompletionWithVisionDetailExample {
         String url = "https://software-quality-services.de/wp-content/uploads/2024/09/Walde_0141.jpg";
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash")
+                .model("z-ai/glm-5.3-flash")
                 .addMessage("user", "Read the small text in this image as precisely as possible.")
                 // the URL overload with an explicit tier:
                 .addImageByUrl(url, OpenRouterImageDetail.HIGH)

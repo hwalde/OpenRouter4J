@@ -1124,12 +1124,12 @@ class OpenRouterChatCompletionRequestTest {
     void genericServerToolEmitsVerbatim() {
         JSONObject body = bodyOf(baseBuilder()
                 .addServerTool(OpenRouterServerTool.of("openrouter:subagent")
-                        .withOption("model", "openai/gpt-4o-mini")
+                        .withOption("model", "z-ai/glm-5.3-flash")
                         .withOption("description", "delegate")));
 
         JSONObject tool = body.getJSONArray("tools").getJSONObject(0);
         assertThat(tool.getString("type")).isEqualTo("openrouter:subagent");
-        assertThat(tool.getString("model")).isEqualTo("openai/gpt-4o-mini");
+        assertThat(tool.getString("model")).isEqualTo("z-ai/glm-5.3-flash");
         assertThat(tool.getString("description")).isEqualTo("delegate");
     }
 

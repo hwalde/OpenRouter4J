@@ -17,6 +17,12 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  * - {@code promptCacheOptions(String mode[, String ttl])}: e.g. {@code "explicit"}
  *   disables OpenAI-managed breakpoints so only blocks marked with
  *   {@code prompt_cache_breakpoint} participate in caching.
+ *
+ * <p>Note on the model used here: {@code google/gemini-3.5-flash-lite} is served by
+ * Google AI Studio, which is <em>not</em> in the automatic-caching provider list
+ * above - Gemini caches implicitly there. The request-root {@code cacheControl(...)}
+ * shown is honoured by Anthropic, Google Vertex, Azure and Amazon Bedrock; on
+ * Google AI Studio the request still succeeds, caching just stays implicit.
  */
 public class OpenRouterChatCompletionWithPromptCachingExample {
 
@@ -24,7 +30,7 @@ public class OpenRouterChatCompletionWithPromptCachingExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("anthropic/claude-sonnet-4.5")
+                .model("google/gemini-3.5-flash-lite")
                 // Automatic caching with a one-hour time-to-live
                 .cacheControl("1h")
                 // Keep the whole conversation on one provider to hit the cache

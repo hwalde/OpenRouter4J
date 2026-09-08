@@ -14,7 +14,7 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  * and the model answers with free-form text (often markdown-fenced JSON).
  *
  * Two cases are shown:
- *   1. deepseek/deepseek-v4-flash with requireParameters(true): only schema-capable
+ *   1. deepseek/deepseek-v4-flash-0731 with requireParameters(true): only schema-capable
  *      endpoints are eligible, so the response is guaranteed schema-conformant JSON.
  *   2. minimax/minimax-m3 with requireParameters(true): NO endpoint of this model
  *      supports structured_outputs, so OpenRouter answers with HTTP 404
@@ -33,9 +33,9 @@ public class OpenRouterChatCompletionWithRequireParametersExample {
         OpenRouterClient client = new OpenRouterClient();
 
         // Case 1: model with schema-capable endpoints -> clean structured output
-        System.out.println("=== Case 1: deepseek/deepseek-v4-flash + requireParameters(true) ===");
+        System.out.println("=== Case 1: deepseek/deepseek-v4-flash-0731 + requireParameters(true) ===");
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("deepseek/deepseek-v4-flash")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .provider("alibaba")           // preferred provider (supports structured_outputs)
                 .requireParameters(true)       // never route to endpoints without schema support
                 .responseSchema(recipeSchema)

@@ -23,8 +23,7 @@ public class OpenRouterChatCompletionAllSettingsNoFunctionNoStructureExample {
 
         // Build a request that uses (almost) all features except structured outputs & function calling
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash") // or other OpenRouter models
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731") // or other OpenRouter models
                 .temperature(1.0)
                 .topK(64)
                 .topP(0.8)

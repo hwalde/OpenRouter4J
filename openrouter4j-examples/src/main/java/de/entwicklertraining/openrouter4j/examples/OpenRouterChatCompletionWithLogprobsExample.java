@@ -16,7 +16,7 @@ public class OpenRouterChatCompletionWithLogprobsExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .logprobs(true)
                 .topLogprobs(3)
                 .addMessage("user", "Name the capital of France in one word.")

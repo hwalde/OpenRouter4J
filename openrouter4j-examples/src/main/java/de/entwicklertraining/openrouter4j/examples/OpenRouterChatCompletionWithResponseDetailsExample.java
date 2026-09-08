@@ -21,7 +21,7 @@ public class OpenRouterChatCompletionWithResponseDetailsExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .metadataInResponse(true) // opt in to openrouter_metadata
                 .addMessage("user", "What is 17 * 23? Think step by step.")
                 .execute();

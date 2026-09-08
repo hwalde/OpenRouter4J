@@ -1180,7 +1180,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public static final class Builder extends ApiRequestBuilderBase<Builder, OpenRouterChatCompletionRequest> {
         private final OpenRouterClient client;
-        private String model = "google/gemini-2.5-flash";
+        private String model = "deepseek/deepseek-v4-flash-0731";
         private Double temperature;
         private Integer topK;
         private Double topP;
@@ -2491,7 +2491,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         /**
          * Sets provider preference order (OpenRouter-specific).
-         * Example: provider("google-ai-studio", "openai")
+         * Example: provider("deepseek", "deepinfra")
          */
         public Builder provider(String... providerNames) {
             this.providers.clear();

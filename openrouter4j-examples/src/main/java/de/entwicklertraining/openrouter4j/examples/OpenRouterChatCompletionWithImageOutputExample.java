@@ -20,7 +20,7 @@ public class OpenRouterChatCompletionWithImageOutputExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash-image-preview")
+                .model("google/gemini-3.1-flash-lite-image")
                 .modalities("text", "image")                       // required for image output
                 .imageConfig(OpenRouterImageConfig.builder()
                         .numImages(1)                              // image_config.num_images

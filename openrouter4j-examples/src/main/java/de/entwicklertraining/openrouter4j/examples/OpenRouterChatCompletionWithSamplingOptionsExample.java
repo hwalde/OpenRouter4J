@@ -23,8 +23,7 @@ public class OpenRouterChatCompletionWithSamplingOptionsExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", "Write one creative sentence about the sea.")
                 // Standard penalties
                 .frequencyPenalty(0.5)

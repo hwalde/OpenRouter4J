@@ -38,8 +38,7 @@ public class OpenRouterChatCompletionWithNamedToolChoiceExample {
 
         // Build request - the model MUST call get_weather, it cannot answer directly
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", "What's the weather in Paris?")
                 .addTool(weatherTool)
                 .toolChoiceFunction("get_weather") // named tool_choice form

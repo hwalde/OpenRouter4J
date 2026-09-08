@@ -72,8 +72,7 @@ public class OpenRouterChatCompletionStreamingExample {
         // Build the request with streaming enabled
         // The stream() method enables SSE format with OpenAI-style parsing (choices[0].delta.content)
         OpenRouterChatCompletionRequest request = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .systemInstruction("You are a helpful assistant. Respond concisely.")
                 .addMessage("user", "Explain what streaming APIs are in 3-4 sentences.")
                 // Enable streaming with our handler - uses SSE format with OpenAI-style parsing

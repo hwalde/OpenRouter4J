@@ -30,14 +30,14 @@ public class OpenRouterChatCompletionWithAppAttributionExample {
                 .build());
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", "Say hello in one short sentence.")
                 .execute();
         System.out.println("Client-level attribution: " + response.assistantMessage());
 
         // Level 2: override per request - wins for this request only
         OpenRouterChatCompletionResponse override = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .httpReferer("https://github.com/my-org/my-other-app")
                 .appTitle("My Other App")
                 .appCategories("tools")

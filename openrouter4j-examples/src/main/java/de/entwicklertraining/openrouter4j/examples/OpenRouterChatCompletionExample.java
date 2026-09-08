@@ -14,8 +14,7 @@ public class OpenRouterChatCompletionExample {
 
         // Minimal usage:
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", "Hello, how are you?")
                 .execute();
 

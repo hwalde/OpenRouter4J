@@ -24,8 +24,7 @@ public class OpenRouterChatCompletionWithStructuredOutputExample {
 
         // We'll request JSON output
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .responseSchema(recipeSchema)
                 .responseMimeType("application/json")
                 .addMessage("user", "I want to eat 3 portions of smashed potatoes.")

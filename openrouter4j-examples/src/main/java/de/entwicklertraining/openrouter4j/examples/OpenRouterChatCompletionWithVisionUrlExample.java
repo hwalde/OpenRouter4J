@@ -17,8 +17,7 @@ public class OpenRouterChatCompletionWithVisionUrlExample {
         String url = "https://software-quality-services.de/wp-content/uploads/2024/09/Walde_0141.jpg";
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash") // or any OpenRouter model that supports vision
-                .provider("google-ai-studio")
+                .model("z-ai/glm-5.3-flash") // or any OpenRouter model that supports vision
                 .addMessage("user", "What do you see in this image?")
                 // Using the newly created method addImageByUrl
                 .addImageByUrl(url)

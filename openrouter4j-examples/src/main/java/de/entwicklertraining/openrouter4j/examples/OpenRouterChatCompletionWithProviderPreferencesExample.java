@@ -25,12 +25,12 @@ public class OpenRouterChatCompletionWithProviderPreferencesExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
-                .provider("openai")                    // preferred provider (order list)
+                .model("deepseek/deepseek-v4-flash-0731")
+                .provider("deepseek")                    // preferred provider (order list)
                 .dataCollection("deny")                // no providers that train on data
                 .ignoreProviders("provider1")          // skip a specific provider
                 .maxPrice("0.5", "1.5")                // USD per million tokens
-                .quantizations("fp16", "bf16")         // accepted quantization levels
+                .quantizations("fp8", "fp4")         // accepted quantization levels
                 .sort("latency")                       // prefer the fastest eligible endpoint
                 .addMessage("user", "Say hello in one short sentence.")
                 .execute();

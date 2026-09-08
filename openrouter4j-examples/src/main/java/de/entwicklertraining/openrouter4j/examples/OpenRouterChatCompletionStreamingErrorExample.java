@@ -57,7 +57,7 @@ public class OpenRouterChatCompletionStreamingErrorExample {
         };
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", "Echo the word 'hello' back to me.")
                 .addTool(echoTool)
                 .stream(handler)

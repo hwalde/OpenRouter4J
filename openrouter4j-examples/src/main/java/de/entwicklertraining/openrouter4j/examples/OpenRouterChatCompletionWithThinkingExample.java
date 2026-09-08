@@ -29,8 +29,7 @@ public class OpenRouterChatCompletionWithThinkingExample {
         // Example 1: Without reasoning (disabled by default)
         System.out.println("EXAMPLE 1: WITHOUT REASONING (DISABLED)");
         OpenRouterChatCompletionResponse response1 = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", question)
                 // No reasoning method call means no reasoning key is sent at all
                 .execute();
@@ -42,8 +41,7 @@ public class OpenRouterChatCompletionWithThinkingExample {
         // Example 2: With an explicit reasoning token budget
         System.out.println("EXAMPLE 2: WITH REASONING TOKEN BUDGET");
         OpenRouterChatCompletionResponse response2 = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", question)
                 .reasoningMaxTokens(1000) // reasoning.max_tokens
                 .execute();
@@ -55,8 +53,7 @@ public class OpenRouterChatCompletionWithThinkingExample {
         // Example 3: With an effort hint instead of a token budget
         System.out.println("EXAMPLE 3: WITH REASONING EFFORT HINT");
         OpenRouterChatCompletionResponse response3 = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", question)
                 .reasoningEffort("high") // reasoning.effort
                 .execute();
@@ -68,8 +65,7 @@ public class OpenRouterChatCompletionWithThinkingExample {
         // Example 4: Reason, but keep the reasoning output out of the response
         System.out.println("EXAMPLE 4: REASONING EXCLUDED FROM RESPONSE");
         OpenRouterChatCompletionResponse response4 = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", question)
                 .reasoningEffort("low")
                 .reasoningEnabled(true) // reasoning.enabled - explicit on-switch (provider default otherwise)
@@ -83,8 +79,7 @@ public class OpenRouterChatCompletionWithThinkingExample {
         // Example 5: Control the verbosity of the reasoning summaries
         System.out.println("EXAMPLE 5: REASONING SUMMARY VERBOSITY");
         OpenRouterChatCompletionResponse response5 = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", question)
                 .reasoningEffort("medium")
                 .reasoningSummary("detailed") // reasoning.summary: "auto", "concise" or "detailed"

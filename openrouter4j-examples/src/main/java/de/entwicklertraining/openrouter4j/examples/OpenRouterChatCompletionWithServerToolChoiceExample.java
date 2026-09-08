@@ -21,7 +21,7 @@ public class OpenRouterChatCompletionWithServerToolChoiceExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", "What is the latest release on the OpenRouter changelog?")
                 // Force the web_search server tool for this request:
                 .toolChoiceServerTool("openrouter:web_search")

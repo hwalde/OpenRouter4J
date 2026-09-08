@@ -21,7 +21,7 @@ public class OpenRouterChatCompletionWithServiceTierExample {
         OpenRouterClient client = new OpenRouterClient();
 
         OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("openai/gpt-4o-mini")
+                .model("google/gemini-3.5-flash-lite")
                 // "flex" is the cheap tier; it never falls back to default-tier endpoints
                 .serviceTier("flex")
                 .addMessage("user", "Say hello in one short sentence.")

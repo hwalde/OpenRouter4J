@@ -23,7 +23,7 @@ public class OpenRouterChatCompletionWithAllowFallbacksExample {
         // Case 1: hard pinning to a provider that serves the model -> works
         System.out.println("=== Case 1: provider(\"alibaba\") + allowFallbacks(false) ===");
         OpenRouterChatCompletionResponse pinned = client.chat().completion()
-                .model("deepseek/deepseek-v4-flash")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .provider("alibaba")        // pin to Alibaba
                 .allowFallbacks(false)      // never route to any other provider
                 .addMessage("user", "Reply with one short sentence: where are you running?")
@@ -35,7 +35,7 @@ public class OpenRouterChatCompletionWithAllowFallbacksExample {
         System.out.println("=== Case 2: provider(\"openai\") + allowFallbacks(false) (expected failure) ===");
         try {
             client.chat().completion()
-                    .model("deepseek/deepseek-v4-flash")
+                    .model("deepseek/deepseek-v4-flash-0731")
                     .provider("openai")     // OpenAI does not serve deepseek models
                     .allowFallbacks(false)
                     .addMessage("user", "This should never reach a model.")
@@ -51,7 +51,7 @@ public class OpenRouterChatCompletionWithAllowFallbacksExample {
         System.out.println();
         System.out.println("=== Case 3: provider(\"openai\") with default fallbacks ===");
         OpenRouterChatCompletionResponse fallback = client.chat().completion()
-                .model("deepseek/deepseek-v4-flash")
+                .model("deepseek/deepseek-v4-flash-0731")
                 .provider("openai")         // not served by OpenAI -> falls back to another provider
                 .addMessage("user", "Reply with one short sentence: where are you running?")
                 .execute();

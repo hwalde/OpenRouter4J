@@ -11,10 +11,10 @@ public class OpenRouterApiTest {
         try {
             OpenRouterClient client = new OpenRouterClient();
 
-            System.out.println("\n=== Test 1: Simple Chat with google/gemini-2.5-flash ===");
+            System.out.println("\n=== Test 1: Simple Chat with deepseek/deepseek-v4-flash-0731 ===");
             OpenRouterChatCompletionResponse response = client.chat().completion()
-                .model("google/gemini-2.5-flash")
-                .provider("google-ai-studio")
+                .model("deepseek/deepseek-v4-flash-0731")
+                .provider("deepseek")
                 .addMessage("user", "What is 2+2? Answer with just the number.")
                 .execute();
 
@@ -22,10 +22,10 @@ public class OpenRouterApiTest {
             System.out.println("Finish Reason: " + response.finishReason());
             System.out.println("Model: " + response.model());
 
-            System.out.println("\n=== Test 2: Chat with openai/gpt-4o-mini ===");
+            System.out.println("\n=== Test 2: Chat with z-ai/glm-5.3-flash ===");
             OpenRouterChatCompletionResponse response2 = client.chat().completion()
-                .model("openai/gpt-4o-mini")
-                .provider("openai")
+                .model("z-ai/glm-5.3-flash")
+                .provider("z-ai")
                 .addMessage("user", "Say 'Hello OpenRouter4J!' in exactly those words.")
                 .execute();
 
