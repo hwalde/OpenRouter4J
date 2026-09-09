@@ -706,7 +706,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     /**
      * The {@code by} criterion of the {@code provider.sort} object form, or
-     * {@code null} when unset (the plain string form or the object form applies).
+     * {@code null} when the object form is unset (the plain string form from
+     * {@code sort(String)} or nothing applies then).
      */
     public String sortBy() {
         return sortBy;
@@ -2312,7 +2313,12 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * When both forms are set, the object form wins.
          * <p>
          * Trap: the API requires {@code partition} on the object form - a null
-         * or blank partition is rejected here, loudly.
+         * or blank partition is rejected here, loudly. {@code criterion} itself
+         * is not validated: a {@code null} criterion makes the whole object
+         * form a silent no-op - no {@code sort} key is emitted at all (even
+         * though {@code partition} was set), and the plain string form applies
+         * if it was set. Pass a real criterion such as {@code "price"},
+         * {@code "throughput"} or {@code "latency"}.
          *
          * @param criterion the sort criterion (e.g. {@code "price"},
          *        {@code "throughput"}, {@code "latency"}; passed through verbatim)
@@ -2713,9 +2719,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * JSON field: {@code debug.echo_upstream_body}. Default: unset (the key
          * is not sent).
          * <p>
-         * Trap: this option is streaming-only - without {@link #stream(boolean)
-         * stream(true)} it has no effect on the request. Per the API docs it
-         * also applies to the Responses API.
+         * Trap: this option is streaming-only - the key is still sent on the
+         * wire when set, but without {@link #stream(boolean) stream(true)}
+         * OpenRouter ignores it. Per the API docs it also applies to the
+         * Responses API.
          *
          * @param echo true to echo the transformed upstream request body
          * @return This builder instance

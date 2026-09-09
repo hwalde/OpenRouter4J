@@ -15,6 +15,11 @@ import java.util.Map;
  * the schema allows arbitrary additional properties.
  * <p>
  * JSON field: {@code trace}. Default: unset (the key is not sent).
+ * <p>
+ * Trap: passing {@code null} to one of the typed setters - or to the verbatim
+ * {@code option(key, value)} escape hatch - emits that key with an explicit
+ * JSON {@code null} on the wire rather than omitting it; to leave a key out,
+ * simply do not call its setter.
  *
  * @see <a href="https://openrouter.ai/docs/guides/features/broadcast">Broadcast</a>
  */

@@ -1749,9 +1749,13 @@ class OpenRouterChatCompletionRequestTest {
 
     @Test
     void traceRejectsKnownKeysAsCustomMetadata() {
-        assertThatThrownBy(() -> OpenRouterTraceConfig.builder().option("trace_id", "x"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("trace_id");
+        for (String knownKey : new String[] {
+                "trace_id", "trace_name", "span_name", "generation_name", "parent_span_id"}) {
+            assertThatThrownBy(() -> OpenRouterTraceConfig.builder().option(knownKey, "x"))
+                    .as("known key %s must be rejected as custom metadata", knownKey)
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining(knownKey);
+        }
     }
 
     @Test
@@ -1803,6 +1807,15 @@ class OpenRouterChatCompletionRequestTest {
 
         assertThat(sort.getString("by")).isEqualTo("latency");
         assertThat(sort.getString("partition")).isEqualTo("model");
+    }
+
+    @Test
+    void sortObjectFormWinsOverPlainStringFormIndependentOfCallOrder() {
+        JSONObject sort = bodyOf(baseBuilder().sortBy("latency", "none").sort("price"))
+                .getJSONObject("provider").getJSONObject("sort");
+
+        assertThat(sort.getString("by")).isEqualTo("latency");
+        assertThat(sort.getString("partition")).isEqualTo("none");
     }
 
     @Test
@@ -1861,6 +1874,31 @@ class OpenRouterChatCompletionRequestTest {
                 .preferredMinThroughput(30.0))
                 .getJSONObject("provider");
         assertThat(minThroughputProvider.getDouble("preferred_min_throughput")).isEqualTo(30.0);
+    }
+
+    @Test
+    void plainNumberThresholdsWinOverCutoffsFormIndependentOfCallOrder() {
+        JSONObject maxLatencyProvider = bodyOf(baseBuilder()
+                .preferredMaxLatency(2.5)
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(9.0).build()))
+                .getJSONObject("provider");
+        assertThat(maxLatencyProvider.getDouble("preferred_max_latency")).isEqualTo(2.5);
+
+        JSONObject minThroughputProvider = bodyOf(baseBuilder()
+                .preferredMinThroughput(30.0)
+                .preferredMinThroughput(OpenRouterPercentileCutoffs.builder().p50(1.0).build()))
+                .getJSONObject("provider");
+        assertThat(minThroughputProvider.getDouble("preferred_min_throughput")).isEqualTo(30.0);
+    }
+
+    @Test
+    void sortAndThresholdKeysAbsentWhenProviderObjectExistsForAnotherReason() {
+        JSONObject provider = bodyOf(baseBuilder().requireParameters(true))
+                .getJSONObject("provider");
+
+        assertThat(provider.has("sort")).isFalse();
+        assertThat(provider.has("preferred_max_latency")).isFalse();
+        assertThat(provider.has("preferred_min_throughput")).isFalse();
     }
 
     @Test

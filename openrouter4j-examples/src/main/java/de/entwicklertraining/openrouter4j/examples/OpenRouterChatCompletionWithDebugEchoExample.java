@@ -15,8 +15,8 @@ import java.util.Map;
  * debugging provider-specific silent parameter drops (the
  * {@code responseSchema}-dropped-without-error class of problems).
  *
- * <p>Trap 1: the option is streaming-only - without {@code stream(true)} it
- * has no effect on the request.
+ * <p>Trap 1: the option is streaming-only - the key is still sent on the wire
+ * when set, but without {@code stream(true)} OpenRouter ignores it.
  *
  * <p>Trap 2: the debug chunk is a raw SSE {@code data:} event with no
  * {@code choices} array, so the standard content extractor does not forward it
@@ -60,8 +60,8 @@ public class OpenRouterChatCompletionWithDebugEchoExample {
         };
 
         // Build the request with streaming enabled and the debug option set.
-        // debugEchoUpstreamBody is streaming-only - without .stream(handler)
-        // OpenRouter ignores it.
+        // debugEchoUpstreamBody is streaming-only - the key is sent on the
+        // wire, but without .stream(handler) OpenRouter ignores it.
         var request = client.chat().completion()
                 .model("deepseek/deepseek-v4-flash-0731")
                 .addMessage("user", "Say hello in one short sentence.")
