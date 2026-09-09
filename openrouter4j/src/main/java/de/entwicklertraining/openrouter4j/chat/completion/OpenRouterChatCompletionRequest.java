@@ -86,6 +86,14 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final String promptCacheOptionsMode; // prompt_cache_options.mode ("explicit" = only marked blocks are cached)
     private final String promptCacheOptionsTtl; // prompt_cache_options.ttl (e.g. "30m")
     private final String reasoningSummary; // reasoning.summary ("auto", "concise", "detailed")
+    private final Boolean debugEchoUpstreamBody; // debug.echo_upstream_body (streaming-only)
+    private final OpenRouterTraceConfig trace; // trace - observability metadata for broadcast destinations
+    private final String sortBy; // provider.sort object form: {"by": ..., "partition": ...}
+    private final String sortPartition; // provider.sort.partition ("model" default, "none")
+    private final Double preferredMaxLatency; // provider.preferred_max_latency (seconds, p50)
+    private final OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs; // provider.preferred_max_latency object form
+    private final Double preferredMinThroughput; // provider.preferred_min_throughput (tokens/s, p50)
+    private final OpenRouterPercentileCutoffs preferredMinThroughputCutoffs; // provider.preferred_min_throughput object form
     private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
@@ -172,6 +180,14 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             String promptCacheOptionsMode,
             String promptCacheOptionsTtl,
             String reasoningSummary,
+            Boolean debugEchoUpstreamBody,
+            OpenRouterTraceConfig trace,
+            String sortBy,
+            String sortPartition,
+            Double preferredMaxLatency,
+            OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs,
+            Double preferredMinThroughput,
+            OpenRouterPercentileCutoffs preferredMinThroughputCutoffs,
             boolean stream
     ) {
         super(builder);
@@ -239,6 +255,14 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.promptCacheOptionsMode = promptCacheOptionsMode;
         this.promptCacheOptionsTtl = promptCacheOptionsTtl;
         this.reasoningSummary = reasoningSummary;
+        this.debugEchoUpstreamBody = debugEchoUpstreamBody;
+        this.trace = trace;
+        this.sortBy = sortBy;
+        this.sortPartition = sortPartition;
+        this.preferredMaxLatency = preferredMaxLatency;
+        this.preferredMaxLatencyCutoffs = preferredMaxLatencyCutoffs;
+        this.preferredMinThroughput = preferredMinThroughput;
+        this.preferredMinThroughputCutoffs = preferredMinThroughputCutoffs;
         this.stream = stream;
     }
 
@@ -665,6 +689,72 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     }
 
     /**
+     * Whether the streaming-only {@code debug.echo_upstream_body} option is set,
+     * or {@code null} when unset (the key is not sent).
+     */
+    public Boolean debugEchoUpstreamBody() {
+        return debugEchoUpstreamBody;
+    }
+
+    /**
+     * The {@code trace} observability configuration, or {@code null} when unset
+     * (the key is not sent).
+     */
+    public OpenRouterTraceConfig trace() {
+        return trace;
+    }
+
+    /**
+     * The {@code by} criterion of the {@code provider.sort} object form, or
+     * {@code null} when unset (the plain string form or the object form applies).
+     */
+    public String sortBy() {
+        return sortBy;
+    }
+
+    /**
+     * The {@code partition} grouping of the {@code provider.sort} object form
+     * ({@code "model"} or {@code "none"}), or {@code null} when unset.
+     */
+    public String sortPartition() {
+        return sortPartition;
+    }
+
+    /**
+     * The plain-number form of {@code provider.preferred_max_latency} (seconds,
+     * applies to p50), or {@code null} when unset or set in the percentile
+     * cutoffs form.
+     */
+    public Double preferredMaxLatency() {
+        return preferredMaxLatency;
+    }
+
+    /**
+     * The percentile cutoffs form of {@code provider.preferred_max_latency}, or
+     * {@code null} when unset or set in the plain-number form.
+     */
+    public OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs() {
+        return preferredMaxLatencyCutoffs;
+    }
+
+    /**
+     * The plain-number form of {@code provider.preferred_min_throughput}
+     * (tokens/s, applies to p50), or {@code null} when unset or set in the
+     * percentile cutoffs form.
+     */
+    public Double preferredMinThroughput() {
+        return preferredMinThroughput;
+    }
+
+    /**
+     * The percentile cutoffs form of {@code provider.preferred_min_throughput},
+     * or {@code null} when unset or set in the plain-number form.
+     */
+    public OpenRouterPercentileCutoffs preferredMinThroughputCutoffs() {
+        return preferredMinThroughputCutoffs;
+    }
+
+    /**
      * @deprecated Legacy alias for {@link #reasoningMaxTokens()}. The old
      * {@code "reasoning": {"type": "enabled", "budget": N}} wire format no longer
      * exists in the OpenRouter API; the budget is now sent as {@code reasoning.max_tokens}.
@@ -789,6 +879,14 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         b.promptCacheOptionsMode = promptCacheOptionsMode;
         b.promptCacheOptionsTtl = promptCacheOptionsTtl;
         b.reasoningSummary = reasoningSummary;
+        b.debugEchoUpstreamBody = debugEchoUpstreamBody;
+        b.trace = trace;
+        b.sortBy = sortBy;
+        b.sortPartition = sortPartition;
+        b.preferredMaxLatency = preferredMaxLatency;
+        b.preferredMaxLatencyCutoffs = preferredMaxLatencyCutoffs;
+        b.preferredMinThroughput = preferredMinThroughput;
+        b.preferredMinThroughputCutoffs = preferredMinThroughputCutoffs;
         b.streamEnabled = stream;
 
         // Execution settings of the original request
@@ -996,7 +1094,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                 || maxPricePrompt != null || maxPriceCompletion != null
                 || maxPriceImage != null || maxPriceAudio != null
                 || (quantizations != null && !quantizations.isEmpty())
-                || sort != null || enforceDistillableText != null) {
+                || sort != null || sortBy != null || enforceDistillableText != null
+                || preferredMaxLatency != null || preferredMaxLatencyCutoffs != null
+                || preferredMinThroughput != null || preferredMinThroughputCutoffs != null) {
             JSONObject providerObj = new JSONObject();
             if (hasProviderOrder) {
                 JSONArray orderArr = new JSONArray();
@@ -1052,11 +1152,31 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                 }
                 providerObj.put("quantizations", quantArr);
             }
-            if (sort != null) {
+            // sort - the object form (with partition) wins over the plain string
+            // form when both are set.
+            if (sortBy != null) {
+                JSONObject sortObj = new JSONObject();
+                sortObj.put("by", sortBy);
+                sortObj.put("partition", sortPartition);
+                providerObj.put("sort", sortObj);
+            } else if (sort != null) {
                 providerObj.put("sort", sort);
             }
             if (enforceDistillableText != null) {
                 providerObj.put("enforce_distillable_text", enforceDistillableText);
+            }
+            // Performance thresholds - endpoints beyond them stay usable but are
+            // deprioritized. The plain number form wins over the percentile
+            // cutoffs form when both are set.
+            if (preferredMaxLatency != null) {
+                providerObj.put("preferred_max_latency", preferredMaxLatency);
+            } else if (preferredMaxLatencyCutoffs != null) {
+                providerObj.put("preferred_max_latency", preferredMaxLatencyCutoffs.toJson());
+            }
+            if (preferredMinThroughput != null) {
+                providerObj.put("preferred_min_throughput", preferredMinThroughput);
+            } else if (preferredMinThroughputCutoffs != null) {
+                providerObj.put("preferred_min_throughput", preferredMinThroughputCutoffs.toJson());
             }
             root.put("provider", providerObj);
         }
@@ -1161,6 +1281,22 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             root.put("service_tier", serviceTier);
         }
 
+        // Debug options (OpenRouter-specific, streaming-only): the first chunk of
+        // the stream then contains the transformed upstream request body, i.e.
+        // exactly what OpenRouter sent to the provider after its own request
+        // transformations. Emitted only when explicitly set.
+        if (debugEchoUpstreamBody != null) {
+            JSONObject debug = new JSONObject();
+            debug.put("echo_upstream_body", debugEchoUpstreamBody);
+            root.put("debug", debug);
+        }
+
+        // Trace metadata (OpenRouter-specific) for observability and broadcast
+        // destinations. Emitted only when a trace configuration is present.
+        if (trace != null) {
+            root.put("trace", trace.toJson());
+        }
+
         // Streaming
         if (stream) {
             root.put("stream", true);
@@ -1243,6 +1379,14 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private String promptCacheOptionsMode;
         private String promptCacheOptionsTtl;
         private String reasoningSummary;
+        private Boolean debugEchoUpstreamBody;
+        private OpenRouterTraceConfig trace;
+        private String sortBy;
+        private String sortPartition;
+        private Double preferredMaxLatency;
+        private OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs;
+        private Double preferredMinThroughput;
+        private OpenRouterPercentileCutoffs preferredMinThroughputCutoffs;
         private boolean streamEnabled;
 
         public Builder(OpenRouterClient client) {
@@ -2153,6 +2297,121 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             return this;
         }
 
+        /**
+         * Sets the object form of {@code provider.sort}:
+         * {@code {"by": <criterion>, "partition": <partition>}}. The
+         * {@code partition} key controls how endpoints are grouped before
+         * sorting: {@code "model"} (the API default) groups endpoints by model
+         * before sorting, so fallback models remain fallbacks after re-sorting;
+         * {@code "none"} sorts all endpoints together regardless of model -
+         * the documented way to get "whichever model is fastest right now"
+         * behaviour with a {@code models(...)} fallback list.
+         * <p>
+         * JSON field: {@code provider.sort} (object form). Default: unset (the
+         * plain string form from {@link #sort(String)} applies, or nothing).
+         * When both forms are set, the object form wins.
+         * <p>
+         * Trap: the API requires {@code partition} on the object form - a null
+         * or blank partition is rejected here, loudly.
+         *
+         * @param criterion the sort criterion (e.g. {@code "price"},
+         *        {@code "throughput"}, {@code "latency"}; passed through verbatim)
+         * @param partition {@code "model"} or {@code "none"}
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder sortBy(String criterion, String partition) {
+            if (partition == null || partition.isBlank()) {
+                throw new IllegalArgumentException(
+                        "partition is required on the provider.sort object form (\"model\" or \"none\")");
+            }
+            this.sortBy = criterion;
+            this.sortPartition = partition;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.preferred_max_latency} in the plain number form:
+         * the maximum acceptable median (p50) end-to-end latency in seconds.
+         * Endpoints beyond the threshold are still usable but deprioritized -
+         * unlike {@code max_price}, this never prevents execution, and with a
+         * fallback model list a better-performing fallback may be chosen over
+         * the primary model.
+         * <p>
+         * JSON field: {@code provider.preferred_max_latency}. Default: unset
+         * (the key is not sent). The plain number form wins over the percentile
+         * cutoffs form ({@link #preferredMaxLatency(OpenRouterPercentileCutoffs)})
+         * when both are set.
+         *
+         * @param seconds maximum median latency in seconds
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder preferredMaxLatency(Double seconds) {
+            this.preferredMaxLatency = seconds;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.preferred_max_latency} in the percentile
+         * cutoffs form (p50/p75/p90/p99), for routing decisions that must hold
+         * beyond the median. See {@link #preferredMaxLatency(Double)} for the
+         * deprioritize-not-exclude semantics.
+         * <p>
+         * JSON field: {@code provider.preferred_max_latency} (object form).
+         * Default: unset (the key is not sent). The plain number form wins when
+         * both are set. Only percentiles explicitly configured on
+         * {@link OpenRouterPercentileCutoffs} are emitted.
+         *
+         * @param cutoffs the percentile-specific latency cutoffs
+         * @return This builder instance
+         */
+        public Builder preferredMaxLatency(OpenRouterPercentileCutoffs cutoffs) {
+            this.preferredMaxLatencyCutoffs = cutoffs;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.preferred_min_throughput} in the plain number
+         * form: the minimum acceptable median (p50) throughput in tokens per
+         * second. Endpoints beyond the threshold are still usable but
+         * deprioritized - unlike {@code max_price}, this never prevents
+         * execution, and with a fallback model list a better-performing
+         * fallback may be chosen over the primary model.
+         * <p>
+         * JSON field: {@code provider.preferred_min_throughput}. Default: unset
+         * (the key is not sent). The plain number form wins over the percentile
+         * cutoffs form ({@link #preferredMinThroughput(OpenRouterPercentileCutoffs)})
+         * when both are set.
+         *
+         * @param tokensPerSecond minimum median throughput in tokens/s
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/routing/provider-selection">Provider selection</a>
+         */
+        public Builder preferredMinThroughput(Double tokensPerSecond) {
+            this.preferredMinThroughput = tokensPerSecond;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.preferred_min_throughput} in the percentile
+         * cutoffs form (p50/p75/p90/p99). See
+         * {@link #preferredMinThroughput(Double)} for the
+         * deprioritize-not-exclude semantics.
+         * <p>
+         * JSON field: {@code provider.preferred_min_throughput} (object form).
+         * Default: unset (the key is not sent). The plain number form wins when
+         * both are set. Only percentiles explicitly configured on
+         * {@link OpenRouterPercentileCutoffs} are emitted.
+         *
+         * @param cutoffs the percentile-specific throughput cutoffs
+         * @return This builder instance
+         */
+        public Builder preferredMinThroughput(OpenRouterPercentileCutoffs cutoffs) {
+            this.preferredMinThroughputCutoffs = cutoffs;
+            return this;
+        }
+
         private static String truncateForMessage(String value) {
             return value.length() <= 20 ? value : value.substring(0, 20) + "...";
         }
@@ -2440,6 +2699,53 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         public Builder promptCacheOptions(String mode, String ttl) {
             this.promptCacheOptionsMode = mode;
             this.promptCacheOptionsTtl = ttl;
+            return this;
+        }
+
+        /**
+         * Sets {@code debug.echo_upstream_body}: when {@code true}, OpenRouter
+         * emits a debug chunk at the start of the stream containing the
+         * transformed upstream request body - exactly what OpenRouter sent to
+         * the provider after applying its own request transformations. Invaluable
+         * when debugging provider-specific silent parameter drops (e.g. a
+         * {@code responseSchema} that is dropped without an error).
+         * <p>
+         * JSON field: {@code debug.echo_upstream_body}. Default: unset (the key
+         * is not sent).
+         * <p>
+         * Trap: this option is streaming-only - without {@link #stream(boolean)
+         * stream(true)} it has no effect on the request. Per the API docs it
+         * also applies to the Responses API.
+         *
+         * @param echo true to echo the transformed upstream request body
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/api_reference/errors-and-debugging">Errors and debugging</a>
+         */
+        public Builder debugEchoUpstreamBody(Boolean echo) {
+            this.debugEchoUpstreamBody = echo;
+            return this;
+        }
+
+        /**
+         * Sets the {@code trace} request object: metadata for observability and
+         * tracing, forwarded by OpenRouter to configured broadcast destinations
+         * (Langfuse, Datadog, Weave, ...). The schema names five keys with
+         * special handling - {@code trace_id}, {@code trace_name},
+         * {@code span_name}, {@code generation_name}, {@code parent_span_id}
+         * (grouping, root trace display name, span naming, per-generation naming
+         * and span linking) - plus arbitrary additional properties passed
+         * through as custom metadata; configure both on
+         * {@link OpenRouterTraceConfig}. This is a separate mechanism from the
+         * {@code metadata} request field added in 1.5.0.
+         * <p>
+         * JSON field: {@code trace}. Default: unset (the key is not sent).
+         *
+         * @param trace the trace configuration, or {@code null} to unset
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/broadcast">Broadcast</a>
+         */
+        public Builder trace(OpenRouterTraceConfig trace) {
+            this.trace = trace;
             return this;
         }
 
@@ -2752,6 +3058,14 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     promptCacheOptionsMode,
                     promptCacheOptionsTtl,
                     reasoningSummary,
+                    debugEchoUpstreamBody,
+                    trace,
+                    sortBy,
+                    sortPartition,
+                    preferredMaxLatency,
+                    preferredMaxLatencyCutoffs,
+                    preferredMinThroughput,
+                    preferredMinThroughputCutoffs,
                     shouldStream
             );
             applyHeaders(request);

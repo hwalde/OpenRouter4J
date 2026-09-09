@@ -33,7 +33,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.10.0</version>
+    <version>1.11.0</version>
 </dependency>
 ```
 
@@ -79,7 +79,7 @@ OpenRouterChatCompletionResponse response = client.chat().completion()
 System.out.println(response.assistantMessage());
 ```
 
-See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort), server-side plugins (web search), built-in server tools and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images` response accessor), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, loud error handling).
+See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), trace metadata for broadcast destinations (`OpenRouterChatCompletionWithTraceExample`), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort with partition, performance thresholds), streaming-only debug echo of the transformed upstream request body (`OpenRouterChatCompletionWithDebugEchoExample`), server-side plugins (web search), built-in server tools and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images` response accessor), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, loud error handling).
 
 ### Provider Selection
 
@@ -131,7 +131,12 @@ See `OpenRouterChatCompletionWithRequireParametersExample` and
 Further routing controls are available on the same builder and all emitted inside the
 same `provider` object: `dataCollection` (`"allow"`/`"deny"`), `ignoreProviders`/`onlyProviders`,
 `maxPrice` (per-million-token price caps), `quantizations`, `sort` (`"price"`, `"throughput"`,
-`"latency"`) and `enforceDistillableText`; see
+`"latency"`) and `enforceDistillableText`. The performance thresholds
+`preferredMaxLatency`/`preferredMinThroughput` (plain number or percentile cutoffs p50/p75/p90/p99)
+deprioritize endpoints beyond the threshold instead of excluding them, and
+`sortBy(criterion, partition)` is the sort-object form whose `partition: "none"` sorts all
+endpoints together regardless of model - the documented way to let a `models(...)` fallback
+list pick whichever model is fastest right now. See
 `OpenRouterChatCompletionWithProviderPreferencesExample`.
 
 ### Streaming Example

@@ -8,11 +8,13 @@ import de.entwicklertraining.openrouter4j.OpenRouterGenericPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterImageDetail;
+import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolDefinition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolResult;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterWebFetchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
@@ -1696,5 +1698,256 @@ class OpenRouterChatCompletionRequestTest {
         JSONArray content = imageContentOf(new JSONObject(next.getBody()));
         assertThat(content.getJSONObject(0).getJSONObject("image_url").getString("detail"))
                 .isEqualTo("high");
+    }
+
+    // ------------------------------------------------------------------
+    // debug.echo_upstream_body, trace, provider.sort object form, performance thresholds
+
+    @Test
+    void debugEchoUpstreamBodyIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().stream(true).debugEchoUpstreamBody(true));
+
+        assertThat(body.getJSONObject("debug").getBoolean("echo_upstream_body")).isTrue();
+        assertThat(body.getBoolean("stream")).isTrue();
+    }
+
+    @Test
+    void explicitFalseDebugEchoUpstreamBodyIsSerialized() {
+        JSONObject body = bodyOf(baseBuilder().debugEchoUpstreamBody(false));
+
+        assertThat(body.getJSONObject("debug").getBoolean("echo_upstream_body")).isFalse();
+    }
+
+    @Test
+    void noDebugKeyWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("debug")).isFalse();
+    }
+
+    @Test
+    void traceIsEmittedWithKnownKeysAndCustomMetadata() {
+        JSONObject body = bodyOf(baseBuilder().trace(OpenRouterTraceConfig.builder()
+                .traceId("trace-123")
+                .traceName("Order processing")
+                .spanName("classify")
+                .generationName("step-1")
+                .parentSpanId("span-abc")
+                .option("customer_segment", "enterprise")
+                .option("attempt", 2)
+                .build()));
+
+        JSONObject trace = body.getJSONObject("trace");
+        assertThat(trace.getString("trace_id")).isEqualTo("trace-123");
+        assertThat(trace.getString("trace_name")).isEqualTo("Order processing");
+        assertThat(trace.getString("span_name")).isEqualTo("classify");
+        assertThat(trace.getString("generation_name")).isEqualTo("step-1");
+        assertThat(trace.getString("parent_span_id")).isEqualTo("span-abc");
+        assertThat(trace.getString("customer_segment")).isEqualTo("enterprise");
+        assertThat(trace.getInt("attempt")).isEqualTo(2);
+    }
+
+    @Test
+    void traceRejectsKnownKeysAsCustomMetadata() {
+        assertThatThrownBy(() -> OpenRouterTraceConfig.builder().option("trace_id", "x"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("trace_id");
+    }
+
+    @Test
+    void noTraceKeyWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("trace")).isFalse();
+    }
+
+    @Test
+    void traceAccessorsExposeOptions() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .trace(OpenRouterTraceConfig.builder()
+                        .traceId("t1")
+                        .traceName("n1")
+                        .spanName("s1")
+                        .generationName("g1")
+                        .parentSpanId("p1")
+                        .option("custom", "meta")
+                        .build())
+                .build();
+
+        assertThat(request.trace().traceId()).isEqualTo("t1");
+        assertThat(request.trace().traceName()).isEqualTo("n1");
+        assertThat(request.trace().spanName()).isEqualTo("s1");
+        assertThat(request.trace().generationName()).isEqualTo("g1");
+        assertThat(request.trace().parentSpanId()).isEqualTo("p1");
+        assertThat(request.trace().option("custom")).isEqualTo("meta");
+    }
+
+    @Test
+    void unsetTraceIsNull() {
+        assertThat(baseBuilder().build().trace()).isNull();
+    }
+
+    @Test
+    void sortObjectFormIsEmitted() {
+        JSONObject sort = bodyOf(baseBuilder().sortBy("throughput", "none"))
+                .getJSONObject("provider").getJSONObject("sort");
+
+        assertThat(sort.getString("by")).isEqualTo("throughput");
+        assertThat(sort.getString("partition")).isEqualTo("none");
+    }
+
+    @Test
+    void sortObjectFormWinsOverPlainStringForm() {
+        JSONObject sort = bodyOf(baseBuilder().sort("price").sortBy("latency", "model"))
+                .getJSONObject("provider").getJSONObject("sort");
+
+        assertThat(sort.getString("by")).isEqualTo("latency");
+        assertThat(sort.getString("partition")).isEqualTo("model");
+    }
+
+    @Test
+    void plainStringSortFormStillEmitted() {
+        assertThat(bodyOf(baseBuilder().sort("price")).getJSONObject("provider")
+                .getString("sort")).isEqualTo("price");
+    }
+
+    @Test
+    void sortObjectFormRequiresPartition() {
+        assertThatThrownBy(() -> baseBuilder().sortBy("throughput", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("partition");
+        assertThatThrownBy(() -> baseBuilder().sortBy("throughput", "  "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void providerObjectEmittedWhenOnlySortObjectFormOrThresholdsSet() {
+        assertThat(bodyOf(baseBuilder().sortBy("latency", "none")).has("provider")).isTrue();
+        assertThat(bodyOf(baseBuilder().preferredMaxLatency(2.0)).getJSONObject("provider")
+                .getDouble("preferred_max_latency")).isEqualTo(2.0);
+        assertThat(bodyOf(baseBuilder().preferredMinThroughput(40.0)).getJSONObject("provider")
+                .getDouble("preferred_min_throughput")).isEqualTo(40.0);
+    }
+
+    @Test
+    void performanceThresholdCutoffsAreEmitted() {
+        JSONObject provider = bodyOf(baseBuilder()
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(1.0).p90(3.5).build())
+                .preferredMinThroughput(OpenRouterPercentileCutoffs.builder().p50(20.0).p99(10.0).build()))
+                .getJSONObject("provider");
+
+        JSONObject latency = provider.getJSONObject("preferred_max_latency");
+        assertThat(latency.getDouble("p50")).isEqualTo(1.0);
+        assertThat(latency.has("p75")).isFalse();
+        assertThat(latency.getDouble("p90")).isEqualTo(3.5);
+        assertThat(latency.has("p99")).isFalse();
+        JSONObject throughput = provider.getJSONObject("preferred_min_throughput");
+        assertThat(throughput.getDouble("p50")).isEqualTo(20.0);
+        assertThat(throughput.getDouble("p99")).isEqualTo(10.0);
+        assertThat(throughput.has("p75")).isFalse();
+        assertThat(throughput.has("p90")).isFalse();
+    }
+
+    @Test
+    void plainNumberThresholdsWinOverCutoffsForm() {
+        JSONObject maxLatencyProvider = bodyOf(baseBuilder()
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(9.0).build())
+                .preferredMaxLatency(2.5))
+                .getJSONObject("provider");
+        assertThat(maxLatencyProvider.getDouble("preferred_max_latency")).isEqualTo(2.5);
+
+        JSONObject minThroughputProvider = bodyOf(baseBuilder()
+                .preferredMinThroughput(OpenRouterPercentileCutoffs.builder().p50(1.0).build())
+                .preferredMinThroughput(30.0))
+                .getJSONObject("provider");
+        assertThat(minThroughputProvider.getDouble("preferred_min_throughput")).isEqualTo(30.0);
+    }
+
+    @Test
+    void newOptionsAccessorsExposeOptions() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .debugEchoUpstreamBody(true)
+                .sortBy("latency", "none")
+                .preferredMaxLatency(2.0)
+                .preferredMinThroughput(50.0)
+                .build();
+
+        assertThat(request.debugEchoUpstreamBody()).isTrue();
+        assertThat(request.sortBy()).isEqualTo("latency");
+        assertThat(request.sortPartition()).isEqualTo("none");
+        assertThat(request.preferredMaxLatency()).isEqualTo(2.0);
+        assertThat(request.preferredMinThroughput()).isEqualTo(50.0);
+    }
+
+    @Test
+    void unsetNewOptionsAreNull() {
+        OpenRouterChatCompletionRequest request = baseBuilder().build();
+
+        assertThat(request.debugEchoUpstreamBody()).isNull();
+        assertThat(request.trace()).isNull();
+        assertThat(request.sortBy()).isNull();
+        assertThat(request.sortPartition()).isNull();
+        assertThat(request.preferredMaxLatency()).isNull();
+        assertThat(request.preferredMaxLatencyCutoffs()).isNull();
+        assertThat(request.preferredMinThroughput()).isNull();
+        assertThat(request.preferredMinThroughputCutoffs()).isNull();
+    }
+
+    @Test
+    void debugTraceSortObjectAndThresholdsArePropagatedToFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .debugEchoUpstreamBody(true)
+                .trace(OpenRouterTraceConfig.builder()
+                        .traceId("t-1")
+                        .traceName("workflow")
+                        .spanName("classify")
+                        .generationName("step-1")
+                        .parentSpanId("p-9")
+                        .option("stage", "tool-loop")
+                        .build())
+                .sortBy("throughput", "none")
+                .preferredMaxLatency(3.0)
+                .preferredMinThroughput(OpenRouterPercentileCutoffs.builder().p50(20.0).p99(10.0).build())
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        OpenRouterChatCompletionRequest nextSync = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+        JSONObject syncBody = new JSONObject(nextSync.getBody());
+        assertThat(syncBody.getJSONObject("debug").getBoolean("echo_upstream_body")).isTrue();
+        JSONObject trace = syncBody.getJSONObject("trace");
+        assertThat(trace.getString("trace_id")).isEqualTo("t-1");
+        assertThat(trace.getString("trace_name")).isEqualTo("workflow");
+        assertThat(trace.getString("span_name")).isEqualTo("classify");
+        assertThat(trace.getString("generation_name")).isEqualTo("step-1");
+        assertThat(trace.getString("parent_span_id")).isEqualTo("p-9");
+        assertThat(trace.getString("stage")).isEqualTo("tool-loop");
+        JSONObject sort = syncBody.getJSONObject("provider").getJSONObject("sort");
+        assertThat(sort.getString("by")).isEqualTo("throughput");
+        assertThat(sort.getString("partition")).isEqualTo("none");
+        assertThat(syncBody.getJSONObject("provider").getDouble("preferred_max_latency")).isEqualTo(3.0);
+        JSONObject throughput = syncBody.getJSONObject("provider").getJSONObject("preferred_min_throughput");
+        assertThat(throughput.getDouble("p50")).isEqualTo(20.0);
+        assertThat(throughput.getDouble("p99")).isEqualTo(10.0);
+
+        OpenRouterChatCompletionRequest nextStream = handler.buildStreamingRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")),
+                new StreamingToolCallAccumulator(new StreamingResponseHandler<String>() {
+                    @Override public void onData(String chunk) { }
+                    @Override public void onComplete() { }
+                    @Override public void onError(Throwable error) { }
+                }));
+        assertThat(nextStream.stream()).isTrue();
+        JSONObject streamBody = new JSONObject(nextStream.getBody());
+        assertThat(streamBody.getJSONObject("debug").getBoolean("echo_upstream_body")).isTrue();
+        assertThat(streamBody.getJSONObject("trace").getString("stage")).isEqualTo("tool-loop");
+        assertThat(streamBody.getJSONObject("provider").getJSONObject("sort").getString("partition"))
+                .isEqualTo("none");
+        assertThat(streamBody.getJSONObject("provider").getDouble("preferred_max_latency")).isEqualTo(3.0);
+        assertThat(streamBody.getJSONObject("provider").getJSONObject("preferred_min_throughput").getDouble("p50"))
+                .isEqualTo(20.0);
     }
     }
