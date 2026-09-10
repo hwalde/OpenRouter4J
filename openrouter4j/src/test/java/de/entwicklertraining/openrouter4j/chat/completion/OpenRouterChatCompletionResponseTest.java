@@ -411,4 +411,30 @@ class OpenRouterChatCompletionResponseTest {
         assertThat(response.completionAudioTokens()).isNull();
         assertThat(response.serverToolCost()).isNull();
     }
+
+    @Test
+    void tokenDetailAndServerToolCostAccessorsTreatExplicitNullsAsAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}],
+                  "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                    "prompt_tokens_details": {"cached_tokens": 2, "audio_tokens": null, "video_tokens": null, "cache_write_tokens": null},
+                    "completion_tokens_details": {"reasoning_tokens": 5, "audio_tokens": null},
+                    "cost_details": {"upstream_inference_cost": null, "server_tool_cost": null}
+                  }
+                }
+                """);
+
+        assertThat(response.promptAudioTokens()).isNull();
+        assertThat(response.promptVideoTokens()).isNull();
+        assertThat(response.promptCacheWriteTokens()).isNull();
+        assertThat(response.completionAudioTokens()).isNull();
+        assertThat(response.serverToolCost()).isNull();
+        // Sanity: the neighbouring non-null details keep working.
+        assertThat(response.cachedPromptTokens()).isEqualTo(2);
+        assertThat(response.reasoningTokens()).isEqualTo(5);
+    }
 }

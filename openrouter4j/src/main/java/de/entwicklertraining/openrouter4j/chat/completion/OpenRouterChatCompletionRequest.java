@@ -1743,7 +1743,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         /**
          * Sets {@code response_format.json_schema.description}: a description of the
          * expected output handed to the model alongside the schema. The key is
-         * omitted from the request when unset (there is no default).
+         * omitted from the request when unset or blank (there is no default);
+         * {@link #responseSchemaDescription()} still reports the configured value.
          *
          * @param description the schema description to send
          * @return This builder instance

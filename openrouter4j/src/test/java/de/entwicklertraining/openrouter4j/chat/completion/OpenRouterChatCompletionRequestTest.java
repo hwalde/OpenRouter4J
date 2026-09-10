@@ -2061,6 +2061,46 @@ class OpenRouterChatCompletionRequestTest {
     }
 
     @Test
+    void blankSchemaDescriptionIsNotEmitted() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .responseSchema(sampleSchema())
+                .responseSchemaDescription("   ")
+                .build();
+        JSONObject jsonSchema = new JSONObject(request.getBody())
+                .getJSONObject("response_format").getJSONObject("json_schema");
+
+        // The wire format drops blanks; the accessor still reports what was configured.
+        assertThat(jsonSchema.has("description")).isFalse();
+        assertThat(request.responseSchemaDescription()).isEqualTo("   ");
+    }
+
+    @Test
+    void jsonSchemaAndZdrArePropagatedToStreamingFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .responseSchema(sampleSchema())
+                .responseSchemaName("quiz_answer")
+                .responseSchemaStrict(false)
+                .zdr(true)
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildStreamingRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")),
+                new StreamingToolCallAccumulator(new StreamingResponseHandler<String>() {
+                    @Override public void onData(String chunk) { }
+                    @Override public void onComplete() { }
+                    @Override public void onError(Throwable error) { }
+                }));
+
+        JSONObject body = new JSONObject(next.getBody());
+        JSONObject jsonSchema = body.getJSONObject("response_format").getJSONObject("json_schema");
+        assertThat(jsonSchema.getString("name")).isEqualTo("quiz_answer");
+        assertThat(jsonSchema.getBoolean("strict")).isFalse();
+        assertThat(body.getJSONObject("provider").getBoolean("zdr")).isTrue();
+    }
+
+    @Test
     void zdrIsEmittedInProviderObject() {
         JSONObject body = bodyOf(baseBuilder().zdr(true));
 
