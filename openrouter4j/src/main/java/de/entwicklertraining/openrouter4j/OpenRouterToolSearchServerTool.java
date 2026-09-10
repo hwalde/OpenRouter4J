@@ -33,7 +33,8 @@ import java.util.Map;
  * <p>API constraint of the tool-search flow: at least one tool must remain
  * non-deferred. Also note {@code tool_choice} conflicts with deferral - it must
  * be omitted or left at the default {@code "auto"}, otherwise the request fails
- * with a 400.
+ * with a 400 (the docs also accept the {@code allowed_tools} form there, which
+ * this library does not offer).
  *
  * @see <a href="https://openrouter.ai/docs/guides/features/server-tools/tool-search">Tool search server tool</a>
  */

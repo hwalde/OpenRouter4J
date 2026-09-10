@@ -208,7 +208,9 @@ public final class OpenRouterToolDefinition {
          * endpoint this library implements. Constraint in either case: at least
          * one tool must remain non-deferred. Also note {@code tool_choice}
          * conflicts with deferral on the tool-search path (omit it or leave the
-         * default {@code "auto"}, otherwise the request fails with a 400).
+         * default {@code "auto"}, otherwise the request fails with a 400; the
+         * docs also accept the {@code allowed_tools} form there, which this
+         * library does not offer).
          *
          * @param deferLoading {@code Boolean.TRUE} to withhold the tool until revealed by tool search
          * @return this builder

@@ -2527,4 +2527,25 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(body.getJSONObject("response_format").getString("type")).isEqualTo("grammar");
         assertThat(body.getJSONObject("response_format").getString("grammar")).isEqualTo("root ::= \"yes\" | \"no\"");
     }
+
+    @Test
+    void responsePythonAloneIsPropagatedToFollowUpRequests() throws Exception {
+        // Python alone - a combined builder would let the grammar win on the
+        // propagated request, which would not falsify a dropped copy of the flag.
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .responsePython()
+                .build();
+
+        assertThat(initial.responseGrammar()).isNull();
+        assertThat(initial.responsePython()).isTrue();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONObject responseFormat = new JSONObject(next.getBody()).getJSONObject("response_format");
+        assertThat(responseFormat.getString("type")).isEqualTo("python");
+        assertThat(responseFormat.keySet()).containsExactly("type");
+    }
     }

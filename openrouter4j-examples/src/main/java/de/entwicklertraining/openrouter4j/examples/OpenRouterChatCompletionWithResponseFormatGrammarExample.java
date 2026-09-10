@@ -30,9 +30,18 @@ public class OpenRouterChatCompletionWithResponseFormatGrammarExample {
                 .addMessage("user", "Is the Eiffel Tower taller than the Brandenburg Gate? Answer yes or no.")
                 // Constrain the answer to a strict yes/no grammar
                 .responseGrammar("root ::= \"yes\" | \"no\"")
-                // Alternative without a payload: .responsePython() requests Python code
                 .execute();
 
         System.out.println("Answer: " + response.assistantMessage());
+
+        // Python-code output - a separate request, because the precedence chain
+        // (schema > grammar > python > mime) would let the grammar win on one builder
+        OpenRouterChatCompletionResponse pythonResponse = client.chat().completion()
+                .model("deepseek/deepseek-v4-flash-0731")
+                .addMessage("user", "Write a short Python function that adds two numbers.")
+                .responsePython()
+                .execute();
+
+        System.out.println("Python: " + pythonResponse.assistantMessage());
     }
 }
