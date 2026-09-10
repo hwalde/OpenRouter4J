@@ -8,6 +8,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterGenericPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterImageDetail;
+import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterServerTool;
@@ -1987,5 +1988,171 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(streamBody.getJSONObject("provider").getDouble("preferred_max_latency")).isEqualTo(3.0);
         assertThat(streamBody.getJSONObject("provider").getJSONObject("preferred_min_throughput").getDouble("p50"))
                 .isEqualTo(20.0);
+    }
+
+    private OpenRouterJsonSchema sampleSchema() {
+        return OpenRouterJsonSchema.objectSchema()
+                .property("answer", OpenRouterJsonSchema.stringSchema("the answer"), true);
+    }
+
+    @Test
+    void jsonSchemaKeepsHistoricalDefaultsWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder().responseSchema(sampleSchema()));
+
+        JSONObject jsonSchema = body.getJSONObject("response_format").getJSONObject("json_schema");
+        assertThat(jsonSchema.getString("name")).isEqualTo("response_schema");
+        assertThat(jsonSchema.getBoolean("strict")).isTrue();
+        assertThat(jsonSchema.has("description")).isFalse();
+        assertThat(jsonSchema.has("schema")).isTrue();
+    }
+
+    @Test
+    void jsonSchemaNameStrictDescriptionAreEmittedWhenConfigured() {
+        JSONObject body = bodyOf(baseBuilder()
+                .responseSchema(sampleSchema())
+                .responseSchemaName("quiz_answer")
+                .responseSchemaStrict(false)
+                .responseSchemaDescription("Answer object for the quiz"));
+
+        JSONObject jsonSchema = body.getJSONObject("response_format").getJSONObject("json_schema");
+        assertThat(jsonSchema.getString("name")).isEqualTo("quiz_answer");
+        assertThat(jsonSchema.getBoolean("strict")).isFalse();
+        assertThat(jsonSchema.getString("description")).isEqualTo("Answer object for the quiz");
+    }
+
+    @Test
+    void jsonSchemaAccessorsExposeConfiguredValues() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .responseSchema(sampleSchema())
+                .responseSchemaName("quiz_answer")
+                .responseSchemaStrict(false)
+                .responseSchemaDescription("Answer object")
+                .build();
+
+        assertThat(request.responseSchemaName()).isEqualTo("quiz_answer");
+        assertThat(request.responseSchemaStrict()).isFalse();
+        assertThat(request.responseSchemaDescription()).isEqualTo("Answer object");
+
+        OpenRouterChatCompletionRequest unset = baseBuilder().responseSchema(sampleSchema()).build();
+        assertThat(unset.responseSchemaName()).isNull();
+        assertThat(unset.responseSchemaStrict()).isNull();
+        assertThat(unset.responseSchemaDescription()).isNull();
+    }
+
+    @Test
+    void jsonSchemaOptionsArePropagatedToFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .responseSchema(sampleSchema())
+                .responseSchemaName("quiz_answer")
+                .responseSchemaStrict(false)
+                .responseSchemaDescription("Answer object")
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONObject jsonSchema = new JSONObject(next.getBody())
+                .getJSONObject("response_format").getJSONObject("json_schema");
+        assertThat(jsonSchema.getString("name")).isEqualTo("quiz_answer");
+        assertThat(jsonSchema.getBoolean("strict")).isFalse();
+        assertThat(jsonSchema.getString("description")).isEqualTo("Answer object");
+    }
+
+    @Test
+    void zdrIsEmittedInProviderObject() {
+        JSONObject body = bodyOf(baseBuilder().zdr(true));
+
+        assertThat(body.has("provider")).isTrue();
+        assertThat(body.getJSONObject("provider").getBoolean("zdr")).isTrue();
+    }
+
+    @Test
+    void noProviderObjectWhenZdrUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("provider")).isFalse();
+    }
+
+    @Test
+    void zdrExplicitFalseIsSerialized() {
+        JSONObject body = bodyOf(baseBuilder().zdr(false));
+
+        assertThat(body.getJSONObject("provider").getBoolean("zdr")).isFalse();
+    }
+
+    @Test
+    void zdrCoexistsWithOtherProviderOptions() {
+        JSONObject body = bodyOf(baseBuilder()
+                .zdr(true)
+                .dataCollection("deny"));
+
+        JSONObject provider = body.getJSONObject("provider");
+        assertThat(provider.getBoolean("zdr")).isTrue();
+        assertThat(provider.getString("data_collection")).isEqualTo("deny");
+    }
+
+    @Test
+    void zdrIsPropagatedToFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = builderWithTool().zdr(true).build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        assertThat(new JSONObject(next.getBody()).getJSONObject("provider").getBoolean("zdr")).isTrue();
+    }
+
+    @Test
+    void toolStrictIsEmittedOnToolFunction() {
+        OpenRouterToolDefinition strictTool = OpenRouterToolDefinition.builder("get_weather")
+                .description("Get the current weather")
+                .strict(true)
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")))
+                .build();
+
+        JSONObject tool = strictTool.toJson();
+        assertThat(tool.getJSONObject("function").getBoolean("strict")).isTrue();
+        assertThat(strictTool.strict()).isTrue();
+
+        OpenRouterToolDefinition nonStrictTool = OpenRouterToolDefinition.builder("get_weather")
+                .description("Get the current weather")
+                .strict(false)
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")))
+                .build();
+        assertThat(nonStrictTool.toJson().getJSONObject("function").getBoolean("strict")).isFalse();
+    }
+
+    @Test
+    void toolStrictIsOmittedWhenUnset() {
+        OpenRouterToolDefinition plainTool = OpenRouterToolDefinition.builder("get_weather")
+                .description("Get the current weather")
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")))
+                .build();
+
+        JSONObject function = plainTool.toJson().getJSONObject("function");
+        assertThat(function.has("strict")).isFalse();
+        assertThat(plainTool.strict()).isNull();
+    }
+
+    @Test
+    void toolStrictSurvivesTheToolCallLoop() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .addTool(OpenRouterToolDefinition.builder("get_weather")
+                        .description("Get the current weather")
+                        .strict(true)
+                        .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")))
+                        .build())
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONArray tools = new JSONObject(next.getBody()).getJSONArray("tools");
+        assertThat(tools.getJSONObject(0).getJSONObject("function").getBoolean("strict")).isTrue();
     }
     }

@@ -12,6 +12,10 @@ public class OpenRouterChatCompletionWithFunctionCallingExample {
         OpenRouterToolDefinition weatherTool = OpenRouterToolDefinition.builder("get_weather")
                 .description("Get current weather in a given location")
                 .parameter("location", OpenRouterJsonSchema.stringSchema("City name"), true)
+                // strict: true makes the model's tool arguments adhere exactly to the
+                // declared parameters schema (protection against malformed JSON
+                // arguments on providers that support it; API default is false).
+                .strict(true)
                 .callback(ctx -> {
                     // Fake weather data
                     String loc = ctx.arguments().getString("location");

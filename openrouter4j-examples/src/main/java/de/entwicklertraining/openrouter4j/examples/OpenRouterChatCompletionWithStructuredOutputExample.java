@@ -33,5 +33,25 @@ public class OpenRouterChatCompletionWithStructuredOutputExample {
         // If we trust the model obeyed:
         MyRecipe recipe = response.convertTo(MyRecipe.class);
         System.out.println("Recipe => name: " + recipe.name() + ", servings: " + recipe.servings());
+
+        // The json_schema envelope is configurable too. By default the library sends
+        // name "response_schema" and strict: true; here we choose our own name, turn
+        // strict mode off (API default) and give the model a description of the output.
+        OpenRouterChatCompletionResponse namedResponse = client.chat().completion()
+                .model("deepseek/deepseek-v4-flash-0731")
+                .responseSchema(recipeSchema)
+                .responseSchemaName("recipe_extraction")
+                .responseSchemaStrict(false)
+                .responseSchemaDescription("A recipe with its name and the number of servings")
+                // Trap: the schema can still be silently dropped on endpoints without
+                // structured-outputs support - requireParameters routes only to
+                // endpoints that support all request parameters.
+                .requireParameters(true)
+                .addMessage("user", "I want to eat 3 portions of smashed potatoes.")
+                .execute();
+
+        MyRecipe namedRecipe = namedResponse.convertTo(MyRecipe.class);
+        System.out.println("Recipe (custom schema name) => name: " + namedRecipe.name()
+                + ", servings: " + namedRecipe.servings());
     }
 }

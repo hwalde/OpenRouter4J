@@ -33,7 +33,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.11.0</version>
+    <version>1.12.0</version>
 </dependency>
 ```
 
@@ -79,7 +79,7 @@ OpenRouterChatCompletionResponse response = client.chat().completion()
 System.out.println(response.assistantMessage());
 ```
 
-See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs, reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), trace metadata for broadcast destinations (`OpenRouterChatCompletionWithTraceExample`), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort with partition, performance thresholds), streaming-only debug echo of the transformed upstream request body (`OpenRouterChatCompletionWithDebugEchoExample`), server-side plugins (web search), built-in server tools and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images` response accessor), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, loud error handling).
+See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs (with a configurable `json_schema` envelope: name, `strict` and description), reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), trace metadata for broadcast destinations (`OpenRouterChatCompletionWithTraceExample`), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort with partition, performance thresholds, Zero Data Retention via `zdr(true)`), streaming-only debug echo of the transformed upstream request body (`OpenRouterChatCompletionWithDebugEchoExample`), server-side plugins (web search), built-in server tools (with `strict` schema adherence on function tools) and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images` response accessor), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, full usage token details, server-tool cost, loud error handling).
 
 ### Provider Selection
 

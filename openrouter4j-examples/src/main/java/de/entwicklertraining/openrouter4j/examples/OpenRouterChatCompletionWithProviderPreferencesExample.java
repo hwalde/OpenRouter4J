@@ -20,7 +20,10 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  *   sorts ALL endpoints together regardless of model, the documented way to
  *   get "whichever model is fastest right now" behaviour with a models(...)
  *   fallback list ("model", the default, keeps fallbacks fallbacks)
- * - enforceDistillableText(true): only endpoints with distillable text output
+ *  - enforceDistillableText(true): only endpoints with distillable text output
+ * - zdr(true): restrict routing to Zero Data Retention endpoints - only
+ *   providers that do not retain prompts serve the request (stronger than
+ *   dataCollection("deny"); compliance-sensitive workloads)
  * - preferredMaxLatency(seconds): deprioritize endpoints slower than this
  *   median (p50) latency - still usable, never excluded (unlike max_price);
  *   a percentile form (p50/p75/p90/p99) exists via
@@ -68,6 +71,17 @@ public class OpenRouterChatCompletionWithProviderPreferencesExample {
                 .execute();
 
         System.out.println("Fastest answer: " + fastest.assistantMessage());
+
+        // ZDR routing: only providers that do not retain prompts serve the
+        // request. Stronger than dataCollection("deny") and combinable with it.
+        OpenRouterChatCompletionResponse zdrResponse = client.chat().completion()
+                .model("deepseek/deepseek-v4-flash-0731")
+                .zdr(true)
+                .dataCollection("deny")
+                .addMessage("user", "Say hello in one short sentence.")
+                .execute();
+
+        System.out.println("ZDR answer: " + zdrResponse.assistantMessage());
     }
 }
 

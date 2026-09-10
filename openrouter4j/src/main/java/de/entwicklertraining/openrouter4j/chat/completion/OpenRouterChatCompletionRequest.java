@@ -38,6 +38,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final Boolean parallelToolCalls;
     private final OpenRouterJsonSchema responseSchema;
     private final String responseMimeType;
+    private final String responseSchemaName; // response_format.json_schema.name (default "response_schema")
+    private final Boolean responseSchemaStrict; // response_format.json_schema.strict (default true)
+    private final String responseSchemaDescription; // response_format.json_schema.description (omitted when unset)
     private final List<OpenRouterServerTool> serverTools; // built-in OpenRouter server tools, mixed into the same tools array
     private final List<OpenRouterStopCondition> stopServerToolsWhen; // stop conditions for the server-tool agent loop
     private final List<String> providers; // OpenRouter-specific: provider selection
@@ -94,6 +97,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs; // provider.preferred_max_latency object form
     private final Double preferredMinThroughput; // provider.preferred_min_throughput (tokens/s, p50)
     private final OpenRouterPercentileCutoffs preferredMinThroughputCutoffs; // provider.preferred_min_throughput object form
+    private final Boolean zdr; // provider.zdr (Zero Data Retention routing)
     private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
@@ -132,6 +136,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             Boolean parallelToolCalls,
             OpenRouterJsonSchema responseSchema,
             String responseMimeType,
+            String responseSchemaName,
+            Boolean responseSchemaStrict,
+            String responseSchemaDescription,
             List<OpenRouterServerTool> serverTools,
             List<OpenRouterStopCondition> stopServerToolsWhen,
             List<String> providers,
@@ -188,6 +195,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs,
             Double preferredMinThroughput,
             OpenRouterPercentileCutoffs preferredMinThroughputCutoffs,
+            Boolean zdr,
             boolean stream
     ) {
         super(builder);
@@ -207,6 +215,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.parallelToolCalls = parallelToolCalls;
         this.responseSchema = responseSchema;
         this.responseMimeType = responseMimeType;
+        this.responseSchemaName = responseSchemaName;
+        this.responseSchemaStrict = responseSchemaStrict;
+        this.responseSchemaDescription = responseSchemaDescription;
         this.serverTools = serverTools == null ? null : List.copyOf(serverTools);
         this.stopServerToolsWhen = stopServerToolsWhen == null ? null : List.copyOf(stopServerToolsWhen);
         this.providers = providers;
@@ -263,6 +274,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.preferredMaxLatencyCutoffs = preferredMaxLatencyCutoffs;
         this.preferredMinThroughput = preferredMinThroughput;
         this.preferredMinThroughputCutoffs = preferredMinThroughputCutoffs;
+        this.zdr = zdr;
         this.stream = stream;
     }
 
@@ -350,6 +362,37 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public String responseMimeType() {
         return responseMimeType;
+    }
+
+    /**
+     * The {@code response_format.json_schema.name} sent with the structured output,
+     * or {@code null} when the default {@code "response_schema"} is used.
+     */
+    public String responseSchemaName() {
+        return responseSchemaName;
+    }
+
+    /**
+     * The {@code response_format.json_schema.strict} flag sent with the structured
+     * output, or {@code null} when the default {@code true} is used.
+     */
+    public Boolean responseSchemaStrict() {
+        return responseSchemaStrict;
+    }
+
+    /**
+     * The {@code response_format.json_schema.description} sent with the structured
+     * output, or {@code null} when unset (the key is omitted from the request).
+     */
+    public String responseSchemaDescription() {
+        return responseSchemaDescription;
+    }
+
+    /**
+     * The {@code provider.zdr} flag (Zero Data Retention routing), or {@code null} when unset.
+     */
+    public Boolean zdr() {
+        return zdr;
     }
 
     public List<String> providers() {
@@ -808,6 +851,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         b.parallelToolCalls = parallelToolCalls;
         b.responseSchema = responseSchema;
         b.responseMimeType = responseMimeType;
+        b.responseSchemaName = responseSchemaName;
+        b.responseSchemaStrict = responseSchemaStrict;
+        b.responseSchemaDescription = responseSchemaDescription;
         if (serverTools != null) {
             b.serverTools.addAll(serverTools);
         }
@@ -888,6 +934,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         b.preferredMaxLatencyCutoffs = preferredMaxLatencyCutoffs;
         b.preferredMinThroughput = preferredMinThroughput;
         b.preferredMinThroughputCutoffs = preferredMinThroughputCutoffs;
+        b.zdr = zdr;
         b.streamEnabled = stream;
 
         // Execution settings of the original request
@@ -1069,8 +1116,13 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             JSONObject responseFormat = new JSONObject();
             responseFormat.put("type", "json_schema");
             JSONObject jsonSchema = new JSONObject();
-            jsonSchema.put("name", "response_schema");
-            jsonSchema.put("strict", true);
+            // Name and strict keep their historical defaults ("response_schema" /
+            // true) when not explicitly configured via the builder methods.
+            jsonSchema.put("name", responseSchemaName != null ? responseSchemaName : "response_schema");
+            jsonSchema.put("strict", responseSchemaStrict != null ? responseSchemaStrict : Boolean.TRUE);
+            if (responseSchemaDescription != null && !responseSchemaDescription.isBlank()) {
+                jsonSchema.put("description", responseSchemaDescription);
+            }
             jsonSchema.put("schema", responseSchema.toJson());
             responseFormat.put("json_schema", jsonSchema);
             root.put("response_format", responseFormat);
@@ -1096,6 +1148,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                 || maxPriceImage != null || maxPriceAudio != null
                 || (quantizations != null && !quantizations.isEmpty())
                 || sort != null || sortBy != null || enforceDistillableText != null
+                || zdr != null
                 || preferredMaxLatency != null || preferredMaxLatencyCutoffs != null
                 || preferredMinThroughput != null || preferredMinThroughputCutoffs != null) {
             JSONObject providerObj = new JSONObject();
@@ -1165,6 +1218,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             }
             if (enforceDistillableText != null) {
                 providerObj.put("enforce_distillable_text", enforceDistillableText);
+            }
+            if (zdr != null) {
+                providerObj.put("zdr", zdr);
             }
             // Performance thresholds - endpoints beyond them stay usable but are
             // deprioritized. The plain number form wins over the percentile
@@ -1334,6 +1390,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private Boolean parallelToolCalls;
         private OpenRouterJsonSchema responseSchema;
         private String responseMimeType;
+        private String responseSchemaName;
+        private Boolean responseSchemaStrict;
+        private String responseSchemaDescription;
         private final List<String> providers = new ArrayList<>();
         private Boolean requireParameters;
         private Boolean allowFallbacks;
@@ -1388,6 +1447,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs;
         private Double preferredMinThroughput;
         private OpenRouterPercentileCutoffs preferredMinThroughputCutoffs;
+        private Boolean zdr;
         private boolean streamEnabled;
 
         public Builder(OpenRouterClient client) {
@@ -1639,6 +1699,57 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         public Builder responseSchema(OpenRouterJsonSchema schema) {
             this.responseSchema = schema;
+            return this;
+        }
+
+        /**
+         * Sets {@code response_format.json_schema.name}: the schema name OpenRouter
+         * and the provider see for this structured output (some providers surface the
+         * name to the model and use it for logging/validation). Constraints per the
+         * API: {@code a-z}, {@code A-Z}, {@code 0-9}, underscore and dash, max 64 chars.
+         * <p>
+         * Default when unset: {@code "response_schema"} (the historical library
+         * default, kept for wire-format compatibility).
+         *
+         * @param name the schema name to send
+         * @return This builder instance
+         */
+        public Builder responseSchemaName(String name) {
+            this.responseSchemaName = name;
+            return this;
+        }
+
+        /**
+         * Sets {@code response_format.json_schema.strict}: whether the model's output
+         * must adhere exactly to the declared schema (API default {@code false}).
+         * <p>
+         * Default when unset: {@code true} - the historical library default, kept for
+         * wire-format compatibility. Pass {@code false} to request non-strict
+         * behaviour (relevant on providers that behave differently under strict mode,
+         * e.g. rejecting schemas with unsupported keywords).
+         * <p>
+         * Trap: a structured output can still be silently dropped on endpoints
+         * without {@code structured_outputs} support - combine with
+         * {@link #requireParameters(boolean)} to route only to supporting endpoints.
+         *
+         * @param strict {@code Boolean.TRUE} to force strict adherence, {@code Boolean.FALSE} to disable it
+         * @return This builder instance
+         */
+        public Builder responseSchemaStrict(Boolean strict) {
+            this.responseSchemaStrict = strict;
+            return this;
+        }
+
+        /**
+         * Sets {@code response_format.json_schema.description}: a description of the
+         * expected output handed to the model alongside the schema. The key is
+         * omitted from the request when unset (there is no default).
+         *
+         * @param description the schema description to send
+         * @return This builder instance
+         */
+        public Builder responseSchemaDescription(String description) {
+            this.responseSchemaDescription = description;
             return this;
         }
 
@@ -2418,6 +2529,26 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             return this;
         }
 
+        /**
+         * Sets {@code provider.zdr}: when {@code true}, routing is restricted to
+         * Zero Data Retention endpoints - only providers that do not retain
+         * prompts will serve the request. This is a stronger guarantee than
+         * {@code dataCollection("deny")} (transient-data routing); the two can be
+         * combined.
+         * <p>
+         * JSON field: {@code provider.zdr}. Default: unset (the key is not sent,
+         * routing is not restricted). Like every routing option, setting it
+         * triggers the {@code provider} object emission.
+         *
+         * @param zdr {@code Boolean.TRUE} to restrict routing to ZDR endpoints
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/zdr">OpenRouter ZDR routing</a>
+         */
+        public Builder zdr(Boolean zdr) {
+            this.zdr = zdr;
+            return this;
+        }
+
         private static String truncateForMessage(String value) {
             return value.length() <= 20 ? value : value.substring(0, 20) + "...";
         }
@@ -3017,6 +3148,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     parallelToolCalls,
                     responseSchema,
                     responseMimeType,
+                    responseSchemaName,
+                    responseSchemaStrict,
+                    responseSchemaDescription,
                     serverTools.isEmpty() ? null : List.copyOf(serverTools),
                     stopServerToolsWhen.isEmpty() ? null : List.copyOf(stopServerToolsWhen),
                     List.copyOf(providers),
@@ -3073,6 +3207,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     preferredMaxLatencyCutoffs,
                     preferredMinThroughput,
                     preferredMinThroughputCutoffs,
+                    zdr,
                     shouldStream
             );
             applyHeaders(request);

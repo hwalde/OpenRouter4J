@@ -451,6 +451,94 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
     }
 
     /**
+     * Returns the number of audio input tokens from
+     * {@code usage.prompt_tokens_details.audio_tokens}, or {@code null} when absent.
+     */
+    public Integer promptAudioTokens() {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("prompt_tokens_details");
+        if (details == null || details.isNull("audio_tokens")) {
+            return null;
+        }
+        return details.optInt("audio_tokens");
+    }
+
+    /**
+     * Returns the number of video input tokens from
+     * {@code usage.prompt_tokens_details.video_tokens}, or {@code null} when absent.
+     */
+    public Integer promptVideoTokens() {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("prompt_tokens_details");
+        if (details == null || details.isNull("video_tokens")) {
+            return null;
+        }
+        return details.optInt("video_tokens");
+    }
+
+    /**
+     * Returns the number of tokens written to the cache from
+     * {@code usage.prompt_tokens_details.cache_write_tokens}, or {@code null}
+     * when absent. Only returned for models with explicit caching and cache
+     * write pricing - the write side of an explicit-cache setup configured via
+     * {@code OpenRouterChatCompletionRequest.Builder#cacheControl()} /
+     * {@code promptCacheOptions(...)}.
+     */
+    public Integer promptCacheWriteTokens() {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("prompt_tokens_details");
+        if (details == null || details.isNull("cache_write_tokens")) {
+            return null;
+        }
+        return details.optInt("cache_write_tokens");
+    }
+
+    /**
+     * Returns the number of audio output tokens from
+     * {@code usage.completion_tokens_details.audio_tokens}, or {@code null} when absent.
+     */
+    public Integer completionAudioTokens() {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("completion_tokens_details");
+        if (details == null || details.isNull("audio_tokens")) {
+            return null;
+        }
+        return details.optInt("audio_tokens");
+    }
+
+    /**
+     * Returns the metered server-tool execution cost from
+     * {@code usage.cost_details.server_tool_cost} (USD; for example shell
+     * sandbox time billed for this request), or {@code null} when absent.
+     * <p>
+     * Per the API: {@code 0.0} when a metered server tool ran but settled at
+     * zero dollars; absent when no metered server tool ran.
+     */
+    public Double serverToolCost() {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("cost_details");
+        if (details == null || details.isNull("server_tool_cost")) {
+            return null;
+        }
+        return details.optDouble("server_tool_cost");
+    }
+
+    /**
      * Returns the capacity tier that actually served this request from the top-level
      * {@code service_tier} field ({@code "default"}, {@code "flex"}, {@code "priority"}
      * or {@code null}), or {@code null} when absent. The request pins the tier via

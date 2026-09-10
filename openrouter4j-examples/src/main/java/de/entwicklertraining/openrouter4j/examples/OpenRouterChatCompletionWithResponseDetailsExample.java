@@ -11,6 +11,9 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  * - nativeFinishReason(): the provider-native finish reason next to the normalised one
  * - openrouterMetadata(): routing metadata (requires metadataInResponse(true))
  * - cost() / cachedPromptTokens() / reasoningTokens(): usage extras
+ * - promptAudioTokens() / promptVideoTokens() / promptCacheWriteTokens() /
+ *   completionAudioTokens() / serverToolCost(): the remaining usage token
+ *   details and the metered server-tool execution cost
  * - throwOnError(): fails loudly when OpenRouter reports a mid-request error
  *   inside an otherwise valid HTTP 200 response - without this check, such a
  *   response would look like an empty one because accessors swallow exceptions.
@@ -48,6 +51,15 @@ public class OpenRouterChatCompletionWithResponseDetailsExample {
         }
         System.out.println("Cached prompt tokens: " + response.cachedPromptTokens());
         System.out.println("Reasoning tokens: " + response.reasoningTokens());
+        // Token details beyond the cached/reasoning pair - present only when the
+        // served modality or caching setup produced them:
+        System.out.println("Prompt audio tokens: " + response.promptAudioTokens());
+        System.out.println("Prompt video tokens: " + response.promptVideoTokens());
+        System.out.println("Prompt cache-write tokens: " + response.promptCacheWriteTokens());
+        System.out.println("Completion audio tokens: " + response.completionAudioTokens());
+        // Metered server-tool execution cost (e.g. shell sandbox time), 0.0 when a
+        // metered server tool ran but settled at zero dollars, absent otherwise:
+        System.out.println("Server-tool cost (USD): " + response.serverToolCost());
         if (response.openrouterMetadata() != null) {
             System.out.println("Routing metadata: " + response.openrouterMetadata());
         }

@@ -360,4 +360,55 @@ class OpenRouterChatCompletionResponseTest {
         assertThat(response.audioExpiresAt()).isNull();
         assertThat(response.audioTranscript()).isNull();
     }
+
+    @Test
+    void tokenDetailAndServerToolCostAccessorsAreSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Hi"},
+                    "finish_reason": "stop"
+                  }],
+                  "usage": {
+                    "prompt_tokens": 30,
+                    "completion_tokens": 20,
+                    "total_tokens": 50,
+                    "prompt_tokens_details": {
+                      "cached_tokens": 2,
+                      "audio_tokens": 8,
+                      "video_tokens": 4,
+                      "cache_write_tokens": 6
+                    },
+                    "completion_tokens_details": {
+                      "reasoning_tokens": 5,
+                      "audio_tokens": 12
+                    },
+                    "cost_details": {
+                      "upstream_inference_cost": null,
+                      "server_tool_cost": 0.0031
+                    }
+                  }
+                }
+                """);
+
+        assertThat(response.promptAudioTokens()).isEqualTo(8);
+        assertThat(response.promptVideoTokens()).isEqualTo(4);
+        assertThat(response.promptCacheWriteTokens()).isEqualTo(6);
+        assertThat(response.completionAudioTokens()).isEqualTo(12);
+        assertThat(response.serverToolCost()).isEqualTo(0.0031);
+    }
+
+    @Test
+    void tokenDetailAndServerToolCostAccessorsReturnNullWhenAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+
+        assertThat(response.promptAudioTokens()).isNull();
+        assertThat(response.promptVideoTokens()).isNull();
+        assertThat(response.promptCacheWriteTokens()).isNull();
+        assertThat(response.completionAudioTokens()).isNull();
+        assertThat(response.serverToolCost()).isNull();
+    }
 }
