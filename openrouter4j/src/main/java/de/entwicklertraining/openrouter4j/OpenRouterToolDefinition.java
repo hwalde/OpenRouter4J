@@ -189,20 +189,28 @@ public final class OpenRouterToolDefinition {
 
         /**
          * Sets {@code function.defer_loading}: withholds this tool from the model
-         * until the {@code openrouter:tool_search} server tool finds it and makes
-         * it callable. Keeps prompts small for large tool catalogs (dozens or
-         * hundreds of tools): the model first searches the catalog, then only the
-         * matching tools become callable.
+         * until it is revealed by tool search. Keeps prompts small for large tool
+         * catalogs (dozens or hundreds of tools): the model first searches the
+         * catalog, then only the matching tools become callable.
          * <p>
          * JSON field: {@code function.defer_loading}. Default: unset (the key is
          * not sent; the API default is {@code false}).
          * <p>
-         * API constraints: the request must also register the
-         * {@code openrouter:tool_search} server tool
-         * ({@link OpenRouterToolSearchServerTool}), and at least one tool must
-         * remain non-deferred.
+         * How deferral is expanded depends on the request shape: <b>without</b>
+         * the {@code openrouter:tool_search} server tool, the request routes to a
+         * provider whose gateway expands deferred tools itself - on Chat
+         * Completions that provider-managed path works on Anthropic models and
+         * Anthropic-compatible endpoints only (other models return a 400).
+         * <b>With</b> {@code openrouter:tool_search}, OpenRouter manages deferral
+         * itself and it works on any model - but that server tool is only served
+         * by the Responses and Anthropic Messages APIs (see
+         * {@link OpenRouterToolSearchServerTool}), not by the Chat Completions
+         * endpoint this library implements. Constraint in either case: at least
+         * one tool must remain non-deferred. Also note {@code tool_choice}
+         * conflicts with deferral on the tool-search path (omit it or leave the
+         * default {@code "auto"}, otherwise the request fails with a 400).
          *
-         * @param deferLoading {@code Boolean.TRUE} to withhold the tool until found by tool search
+         * @param deferLoading {@code Boolean.TRUE} to withhold the tool until revealed by tool search
          * @return this builder
          * @see <a href="https://openrouter.ai/docs/guides/features/server-tools/tool-search">Tool search server tool</a>
          */

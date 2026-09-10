@@ -2349,10 +2349,40 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(cacheControl.keySet()).containsExactly("cache_control");
         assertThat(cacheControl.getJSONObject("cache_control").getString("type")).isEqualTo("ephemeral");
         assertThat(cacheControl.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+        assertThat(cacheControl.getJSONObject("cache_control").has("prompt_cache_breakpoint")).isFalse();
 
         JSONObject breakpoint = OpenRouterCacheMarker.promptCacheBreakpoint().toJson();
         assertThat(breakpoint.keySet()).containsExactly("prompt_cache_breakpoint");
         assertThat(breakpoint.getJSONObject("prompt_cache_breakpoint").getString("mode")).isEqualTo("explicit");
+        assertThat(breakpoint.getJSONObject("prompt_cache_breakpoint").has("cache_control")).isFalse();
+    }
+
+    @Test
+    void cacheMarkerWithoutTtlOmitsTtlKey() {
+        JSONObject json = OpenRouterCacheMarker.cacheControl().toJson();
+
+        assertThat(json.keySet()).containsExactly("cache_control");
+        JSONObject cacheControl = json.getJSONObject("cache_control");
+        assertThat(cacheControl.getString("type")).isEqualTo("ephemeral");
+        assertThat(cacheControl.has("ttl")).isFalse();
+    }
+
+    @Test
+    void cacheMarkerAccessorsReportTheConfiguredStyle() {
+        OpenRouterCacheMarker cacheControl = OpenRouterCacheMarker.cacheControl("1h");
+        assertThat(cacheControl.cacheControlType()).isEqualTo("ephemeral");
+        assertThat(cacheControl.cacheControlTtl()).isEqualTo("1h");
+        assertThat(cacheControl.breakpointMode()).isNull();
+
+        OpenRouterCacheMarker cacheControlWithoutTtl = OpenRouterCacheMarker.cacheControl();
+        assertThat(cacheControlWithoutTtl.cacheControlType()).isEqualTo("ephemeral");
+        assertThat(cacheControlWithoutTtl.cacheControlTtl()).isNull();
+        assertThat(cacheControlWithoutTtl.breakpointMode()).isNull();
+
+        OpenRouterCacheMarker breakpoint = OpenRouterCacheMarker.promptCacheBreakpoint();
+        assertThat(breakpoint.cacheControlType()).isNull();
+        assertThat(breakpoint.cacheControlTtl()).isNull();
+        assertThat(breakpoint.breakpointMode()).isEqualTo("explicit");
     }
 
     @Test

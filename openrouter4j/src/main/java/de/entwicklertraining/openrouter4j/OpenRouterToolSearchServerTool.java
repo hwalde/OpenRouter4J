@@ -16,9 +16,24 @@ import java.util.Map;
  * callable. This keeps prompts small for large tool catalogs: the deferred tools
  * are withheld from the model until the model searches the catalog, then only the
  * matching tools become callable.
- * <p>
- * API constraints: a request using {@code defer_loading} requires this server
- * tool, and at least one tool must remain non-deferred.
+ *
+ * <p><b>Trap:</b> OpenRouter serves {@code openrouter:tool_search} only through
+ * the Responses API and the Anthropic Messages API. Requesting it on the Chat
+ * Completions API (the only endpoint this library currently implements) fails
+ * with HTTP 400: {@code "Tool 'openrouter:tool_search' is not available for the
+ * 'chat-completions' API. It is only supported for: responses, anthropic-messages."}.
+ * On Chat Completions, use {@link OpenRouterToolDefinition.Builder#deferLoading(Boolean)}
+ * <em>without</em> this server tool instead - the request then routes to a
+ * provider whose gateway expands deferred tools itself (Anthropic models and
+ * Anthropic-compatible endpoints only; other models return a 400). This class is
+ * the typed surface for the schema-defined tool so it is ready the moment the
+ * library speaks the other APIs; do not send it through
+ * {@code OpenRouterChatCompletionRequest.Builder#serverTools(OpenRouterServerTool...)}.
+ *
+ * <p>API constraint of the tool-search flow: at least one tool must remain
+ * non-deferred. Also note {@code tool_choice} conflicts with deferral - it must
+ * be omitted or left at the default {@code "auto"}, otherwise the request fails
+ * with a 400.
  *
  * @see <a href="https://openrouter.ai/docs/guides/features/server-tools/tool-search">Tool search server tool</a>
  */
