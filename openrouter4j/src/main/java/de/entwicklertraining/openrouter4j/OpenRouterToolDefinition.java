@@ -15,19 +15,28 @@ public final class OpenRouterToolDefinition {
     private final JSONObject parameters;
     private final OpenRouterToolsCallback callback;
     private final Boolean strict;
+    private final Boolean deferLoading;
+    private final String cacheControlType;
+    private final String cacheControlTtl;
 
     private OpenRouterToolDefinition(
             String name,
             String description,
             JSONObject parameters,
             OpenRouterToolsCallback callback,
-            Boolean strict
+            Boolean strict,
+            Boolean deferLoading,
+            String cacheControlType,
+            String cacheControlTtl
     ) {
         this.name = name;
         this.description = description;
         this.parameters = parameters;
         this.callback = callback;
         this.strict = strict;
+        this.deferLoading = deferLoading;
+        this.cacheControlType = cacheControlType;
+        this.cacheControlTtl = cacheControlTtl;
     }
 
     public String name() {
@@ -55,6 +64,29 @@ public final class OpenRouterToolDefinition {
     }
 
     /**
+     * The {@code function.defer_loading} flag, or {@code null} when unset (the key
+     * is omitted from the request).
+     */
+    public Boolean deferLoading() {
+        return deferLoading;
+    }
+
+    /**
+     * The tool-level {@code cache_control.type} value ({@code "ephemeral"}), or
+     * {@code null} when unset (the key is omitted from the request).
+     */
+    public String cacheControlType() {
+        return cacheControlType;
+    }
+
+    /**
+     * The tool-level {@code cache_control.ttl} value, or {@code null} when unset.
+     */
+    public String cacheControlTtl() {
+        return cacheControlTtl;
+    }
+
+    /**
      * OpenRouter expects tools in this format:
      * {
      *   "type": "function",
@@ -73,10 +105,21 @@ public final class OpenRouterToolDefinition {
         if (strict != null) {
             function.put("strict", strict);
         }
+        if (deferLoading != null) {
+            function.put("defer_loading", deferLoading);
+        }
 
         JSONObject tool = new JSONObject();
         tool.put("type", "function");
         tool.put("function", function);
+        if (cacheControlType != null) {
+            JSONObject cacheControl = new JSONObject();
+            cacheControl.put("type", cacheControlType);
+            if (cacheControlTtl != null) {
+                cacheControl.put("ttl", cacheControlTtl);
+            }
+            tool.put("cache_control", cacheControl);
+        }
         return tool;
     }
 
@@ -93,6 +136,9 @@ public final class OpenRouterToolDefinition {
         private final JSONArray required = new JSONArray();
         private OpenRouterToolsCallback callback;
         private Boolean strict;
+        private Boolean deferLoading;
+        private String cacheControlType;
+        private String cacheControlTtl;
 
         private Builder(String name) {
             this.name = name;
@@ -141,6 +187,74 @@ public final class OpenRouterToolDefinition {
             return this;
         }
 
+        /**
+         * Sets {@code function.defer_loading}: withholds this tool from the model
+         * until the {@code openrouter:tool_search} server tool finds it and makes
+         * it callable. Keeps prompts small for large tool catalogs (dozens or
+         * hundreds of tools): the model first searches the catalog, then only the
+         * matching tools become callable.
+         * <p>
+         * JSON field: {@code function.defer_loading}. Default: unset (the key is
+         * not sent; the API default is {@code false}).
+         * <p>
+         * API constraints: the request must also register the
+         * {@code openrouter:tool_search} server tool
+         * ({@link OpenRouterToolSearchServerTool}), and at least one tool must
+         * remain non-deferred.
+         *
+         * @param deferLoading {@code Boolean.TRUE} to withhold the tool until found by tool search
+         * @return this builder
+         * @see <a href="https://openrouter.ai/docs/guides/features/server-tools/tool-search">Tool search server tool</a>
+         */
+        public Builder deferLoading(Boolean deferLoading) {
+            this.deferLoading = deferLoading;
+            return this;
+        }
+
+        /**
+         * Marks this tool as an explicit prompt-cache breakpoint with the
+         * tool-level {@code cache_control: {"type":"ephemeral"}} object (default
+         * 5-minute TTL) - the same marker that content parts carry, but on the
+         * tool object itself. A big tool catalog is the canonical use: the tools
+         * block is often the largest stable part of a tool-heavy prompt, so
+         * marking it keeps the cache boundary stable across turns.
+         * <p>
+         * JSON field: {@code tools[].cache_control}. Default: unset (the key is
+         * not sent). Distinct from the request-root {@code cache_control}
+         * ({@code OpenRouterChatCompletionRequest.Builder#cacheControl()}), which
+         * enables <em>automatic</em> caching - per-block markers are the
+         * fine-grained alternative. Per the docs, explicit breakpoints are
+         * limited to four per request and should be reserved for large stable
+         * blocks.
+         * <p>
+         * Trap: the marker works on Anthropic-style caching providers; when
+         * routed to an OpenAI explicit-caching model, OpenRouter converts it to
+         * a {@code prompt_cache_breakpoint} automatically (TTLs are not
+         * translated toward OpenAI).
+         *
+         * @return this builder
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/prompt-caching">Prompt caching</a>
+         */
+        public Builder cacheControl() {
+            this.cacheControlType = "ephemeral";
+            return this;
+        }
+
+        /**
+         * Marks this tool as an explicit prompt-cache breakpoint with an explicit
+         * TTL - see {@link #cacheControl()}. The API supports {@code "5m"}
+         * (default) and {@code "1h"}; the 1-hour TTL costs more for cache writes
+         * but keeps the cache warm across longer sessions.
+         *
+         * @param ttl the cache TTL (e.g. {@code "5m"}, {@code "1h"})
+         * @return this builder
+         */
+        public Builder cacheControl(String ttl) {
+            this.cacheControlType = "ephemeral";
+            this.cacheControlTtl = ttl;
+            return this;
+        }
+
         public OpenRouterToolDefinition build() {
             if (!properties.isEmpty()) {
                 schema.put("properties", properties);
@@ -149,7 +263,7 @@ public final class OpenRouterToolDefinition {
                 schema.put("required", required);
             }
 
-            return new OpenRouterToolDefinition(name, description, schema, callback, strict);
+            return new OpenRouterToolDefinition(name, description, schema, callback, strict, deferLoading, cacheControlType, cacheControlTtl);
         }
     }
 }

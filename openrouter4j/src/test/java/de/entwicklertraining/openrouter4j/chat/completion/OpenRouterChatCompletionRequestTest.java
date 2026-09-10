@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.chat.completion;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterAppAttribution;
+import de.entwicklertraining.openrouter4j.OpenRouterCacheMarker;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterDatetimeServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericPlugin;
@@ -15,6 +16,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolDefinition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolResult;
+import de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterWebFetchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchPlugin;
@@ -2194,5 +2196,305 @@ class OpenRouterChatCompletionRequestTest {
 
         JSONArray tools = new JSONObject(next.getBody()).getJSONArray("tools");
         assertThat(tools.getJSONObject(0).getJSONObject("function").getBoolean("strict")).isTrue();
+    }
+
+    @Test
+    void toolCacheControlIsEmittedOnTheToolObject() {
+        OpenRouterToolDefinition tool = OpenRouterToolDefinition.builder("get_weather")
+                .description("Get the current weather")
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")))
+                .cacheControl("1h")
+                .build();
+
+        JSONObject json = tool.toJson();
+        assertThat(json.getJSONObject("cache_control").getString("type")).isEqualTo("ephemeral");
+        assertThat(json.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+        assertThat(tool.cacheControlType()).isEqualTo("ephemeral");
+        assertThat(tool.cacheControlTtl()).isEqualTo("1h");
+
+        OpenRouterChatCompletionRequest request = baseBuilder().addTool(tool).build();
+        JSONArray tools = new JSONObject(request.getBody()).getJSONArray("tools");
+        assertThat(tools.getJSONObject(0).getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+    }
+
+    @Test
+    void toolCacheControlWithoutTtlOmitsTtlKey() {
+        OpenRouterToolDefinition tool = OpenRouterToolDefinition.builder("get_weather")
+                .description("Get the current weather")
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")))
+                .cacheControl()
+                .build();
+
+        JSONObject cacheControl = tool.toJson().getJSONObject("cache_control");
+        assertThat(cacheControl.getString("type")).isEqualTo("ephemeral");
+        assertThat(cacheControl.has("ttl")).isFalse();
+        assertThat(tool.cacheControlTtl()).isNull();
+    }
+
+    @Test
+    void toolCacheControlIsOmittedWhenUnset() {
+        OpenRouterToolDefinition tool = OpenRouterToolDefinition.builder("get_weather")
+                .description("Get the current weather")
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")))
+                .build();
+
+        assertThat(tool.toJson().has("cache_control")).isFalse();
+        assertThat(tool.cacheControlType()).isNull();
+        assertThat(tool.cacheControlTtl()).isNull();
+    }
+
+    @Test
+    void toolDeferLoadingIsEmittedOnTheFunctionObject() {
+        OpenRouterToolDefinition deferredTool = OpenRouterToolDefinition.builder("search_archive")
+                .description("Search the archive")
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("hits", 0)))
+                .deferLoading(true)
+                .build();
+
+        assertThat(deferredTool.toJson().getJSONObject("function").getBoolean("defer_loading")).isTrue();
+        assertThat(deferredTool.deferLoading()).isTrue();
+
+        OpenRouterChatCompletionRequest request = baseBuilder().addTool(deferredTool).build();
+        JSONArray tools = new JSONObject(request.getBody()).getJSONArray("tools");
+        assertThat(tools.getJSONObject(0).getJSONObject("function").getBoolean("defer_loading")).isTrue();
+    }
+
+    @Test
+    void toolDeferLoadingExplicitFalseIsSerialized() {
+        OpenRouterToolDefinition tool = OpenRouterToolDefinition.builder("search_archive")
+                .description("Search the archive")
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("hits", 0)))
+                .deferLoading(false)
+                .build();
+
+        assertThat(tool.toJson().getJSONObject("function").getBoolean("defer_loading")).isFalse();
+    }
+
+    @Test
+    void toolDeferLoadingIsOmittedWhenUnset() {
+        OpenRouterToolDefinition tool = OpenRouterToolDefinition.builder("search_archive")
+                .description("Search the archive")
+                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("hits", 0)))
+                .build();
+
+        assertThat(tool.toJson().getJSONObject("function").has("defer_loading")).isFalse();
+        assertThat(tool.deferLoading()).isNull();
+    }
+
+    @Test
+    void toolCacheControlAndDeferLoadingSurviveTheToolCallLoop() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .addTool(OpenRouterToolDefinition.builder("get_weather")
+                        .description("Get the current weather")
+                        .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")))
+                        .cacheControl("1h")
+                        .build())
+                .addTool(OpenRouterToolDefinition.builder("search_archive")
+                        .description("Search the archive")
+                        .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("hits", 0)))
+                        .deferLoading(true)
+                        .build())
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONArray tools = new JSONObject(next.getBody()).getJSONArray("tools");
+        assertThat(tools.getJSONObject(0).getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+        assertThat(tools.getJSONObject(1).getJSONObject("function").getBoolean("defer_loading")).isTrue();
+    }
+
+    @Test
+    void toolSearchServerToolEmitsTypeAndConfiguredParameters() {
+        OpenRouterToolSearchServerTool tool = OpenRouterToolSearchServerTool.builder()
+                .maxResults(10)
+                .build();
+
+        assertThat(tool.type()).isEqualTo("openrouter:tool_search");
+        JSONObject json = tool.toJson();
+        assertThat(json.getString("type")).isEqualTo("openrouter:tool_search");
+        assertThat(json.getJSONObject("parameters").getInt("max_results")).isEqualTo(10);
+        assertThat(tool.maxResults()).isEqualTo(10);
+
+        OpenRouterChatCompletionRequest request = baseBuilder().addServerTool(tool).build();
+        JSONArray tools = new JSONObject(request.getBody()).getJSONArray("tools");
+        assertThat(tools.getJSONObject(0).getString("type")).isEqualTo("openrouter:tool_search");
+        assertThat(tools.getJSONObject(0).getJSONObject("parameters").getInt("max_results")).isEqualTo(10);
+    }
+
+    @Test
+    void toolSearchServerToolWithoutOptionsOmitsParameters() {
+        OpenRouterToolSearchServerTool tool = OpenRouterToolSearchServerTool.builder().build();
+
+        JSONObject json = tool.toJson();
+        assertThat(json.getString("type")).isEqualTo("openrouter:tool_search");
+        assertThat(json.has("parameters")).isFalse();
+        assertThat(tool.maxResults()).isNull();
+    }
+
+    @Test
+    void toolSearchServerToolEscapeHatchOptionsAreEmittedVerbatim() {
+        OpenRouterToolSearchServerTool tool = OpenRouterToolSearchServerTool.builder()
+                .option("future_key", "future-value")
+                .build();
+
+        assertThat(tool.toJson().getJSONObject("parameters").getString("future_key")).isEqualTo("future-value");
+    }
+
+    @Test
+    void cacheMarkerEmittingBothStylesProducesExactlyOneKey() {
+        JSONObject cacheControl = OpenRouterCacheMarker.cacheControl("1h").toJson();
+        assertThat(cacheControl.keySet()).containsExactly("cache_control");
+        assertThat(cacheControl.getJSONObject("cache_control").getString("type")).isEqualTo("ephemeral");
+        assertThat(cacheControl.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+
+        JSONObject breakpoint = OpenRouterCacheMarker.promptCacheBreakpoint().toJson();
+        assertThat(breakpoint.keySet()).containsExactly("prompt_cache_breakpoint");
+        assertThat(breakpoint.getJSONObject("prompt_cache_breakpoint").getString("mode")).isEqualTo("explicit");
+    }
+
+    @Test
+    void messageWithCacheControlMarkerIsEmittedAsContentPartsArray() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addMessage("user", "HUGE STABLE TEXT", OpenRouterCacheMarker.cacheControl("1h")));
+
+        JSONArray content = body.getJSONArray("messages").getJSONObject(1).getJSONArray("content");
+        assertThat(content.length()).isEqualTo(1);
+        JSONObject part = content.getJSONObject(0);
+        assertThat(part.getString("type")).isEqualTo("text");
+        assertThat(part.getString("text")).isEqualTo("HUGE STABLE TEXT");
+        assertThat(part.getJSONObject("cache_control").getString("type")).isEqualTo("ephemeral");
+        assertThat(part.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+    }
+
+    @Test
+    void messageWithPromptCacheBreakpointMarkerIsEmittedAsContentPartsArray() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addMessage("user", "HUGE STABLE TEXT", OpenRouterCacheMarker.promptCacheBreakpoint()));
+
+        JSONArray content = body.getJSONArray("messages").getJSONObject(1).getJSONArray("content");
+        JSONObject part = content.getJSONObject(0);
+        assertThat(part.getString("type")).isEqualTo("text");
+        assertThat(part.getJSONObject("prompt_cache_breakpoint").getString("mode")).isEqualTo("explicit");
+        assertThat(part.has("cache_control")).isFalse();
+    }
+
+    @Test
+    void messageWithoutMarkerKeepsThePlainStringContentForm() {
+        JSONObject body = bodyOf(baseBuilder().addMessage("user", "plain", null));
+
+        JSONObject message = body.getJSONArray("messages").getJSONObject(1);
+        assertThat(message.getString("content")).isEqualTo("plain");
+        assertThat(message.has("cache_control")).isFalse();
+        assertThat(message.has("prompt_cache_breakpoint")).isFalse();
+    }
+
+    @Test
+    void cacheMarkersSurviveTheToolCallLoop() throws Exception {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .addMessage("user", "HUGE STABLE TEXT", OpenRouterCacheMarker.cacheControl("1h"))
+                .addMessage("user", "question", OpenRouterCacheMarker.promptCacheBreakpoint())
+                .build();
+
+        // The tool-call loop carries the conversation messages verbatim into the
+        // follow-up request; simulate one follow-up turn.
+        List<JSONObject> updatedMessages = new ArrayList<>(initial.messages());
+        updatedMessages.add(new JSONObject()
+                .put("role", "assistant")
+                .put("tool_calls", new JSONArray().put(new JSONObject()
+                        .put("id", "call_1")
+                        .put("type", "function")
+                        .put("function", new JSONObject()
+                                .put("name", "get_weather")
+                                .put("arguments", "{}")))));
+        updatedMessages.add(new JSONObject()
+                .put("role", "tool")
+                .put("tool_call_id", "call_1")
+                .put("content", "sunny"));
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(initial, updatedMessages);
+
+        JSONArray messages = new JSONObject(next.getBody()).getJSONArray("messages");
+        JSONArray first = messages.getJSONObject(1).getJSONArray("content");
+        assertThat(first.getJSONObject(0).getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+        JSONArray second = messages.getJSONObject(2).getJSONArray("content");
+        assertThat(second.getJSONObject(0).getJSONObject("prompt_cache_breakpoint").getString("mode"))
+                .isEqualTo("explicit");
+    }
+
+    @Test
+    void responseGrammarIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().responseGrammar("root ::= \"yes\" | \"no\""));
+
+        JSONObject responseFormat = body.getJSONObject("response_format");
+        assertThat(responseFormat.getString("type")).isEqualTo("grammar");
+        assertThat(responseFormat.getString("grammar")).isEqualTo("root ::= \"yes\" | \"no\"");
+    }
+
+    @Test
+    void responsePythonIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().responsePython());
+
+        JSONObject responseFormat = body.getJSONObject("response_format");
+        assertThat(responseFormat.getString("type")).isEqualTo("python");
+        assertThat(responseFormat.keySet()).containsExactly("type");
+    }
+
+    @Test
+    void responseGrammarAndPythonAreOmittedWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder());
+
+        assertThat(body.has("response_format")).isFalse();
+    }
+
+    @Test
+    void responseFormatPrecedenceChain() {
+        // responseSchema wins over everything
+        JSONObject withSchema = bodyOf(baseBuilder()
+                .responseGrammar("root ::= \"yes\"")
+                .responsePython()
+                .responseMimeType("json_object")
+                .responseSchema(sampleSchema()));
+        assertThat(withSchema.getJSONObject("response_format").getString("type")).isEqualTo("json_schema");
+
+        // grammar wins over python and mime type
+        JSONObject withGrammar = bodyOf(baseBuilder()
+                .responseMimeType("json_object")
+                .responsePython()
+                .responseGrammar("root ::= \"yes\""));
+        assertThat(withGrammar.getJSONObject("response_format").getString("type")).isEqualTo("grammar");
+
+        // python wins over mime type
+        JSONObject withPython = bodyOf(baseBuilder()
+                .responseMimeType("json_object")
+                .responsePython());
+        assertThat(withPython.getJSONObject("response_format").getString("type")).isEqualTo("python");
+
+        // plain mime type still works alone
+        JSONObject withMime = bodyOf(baseBuilder().responseMimeType("json_object"));
+        assertThat(withMime.getJSONObject("response_format").getString("type")).isEqualTo("json_object");
+    }
+
+    @Test
+    void responseGrammarAndPythonAccessorsAndPropagation() throws Exception {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .responseGrammar("root ::= \"yes\" | \"no\"")
+                .responsePython()
+                .build();
+
+        assertThat(initial.responseGrammar()).isEqualTo("root ::= \"yes\" | \"no\"");
+        assertThat(initial.responsePython()).isTrue();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+
+        JSONObject body = new JSONObject(next.getBody());
+        assertThat(body.getJSONObject("response_format").getString("type")).isEqualTo("grammar");
+        assertThat(body.getJSONObject("response_format").getString("grammar")).isEqualTo("root ::= \"yes\" | \"no\"");
     }
     }

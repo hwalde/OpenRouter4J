@@ -38,6 +38,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final Boolean parallelToolCalls;
     private final OpenRouterJsonSchema responseSchema;
     private final String responseMimeType;
+    private final String responseGrammar; // response_format {"type":"grammar","grammar":...} - custom (llama.cpp-style) grammar
+    private final boolean responsePython; // response_format {"type":"python"} - request Python-code output
     private final String responseSchemaName; // response_format.json_schema.name (default "response_schema")
     private final Boolean responseSchemaStrict; // response_format.json_schema.strict (default true)
     private final String responseSchemaDescription; // response_format.json_schema.description (omitted when unset)
@@ -136,6 +138,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             Boolean parallelToolCalls,
             OpenRouterJsonSchema responseSchema,
             String responseMimeType,
+            String responseGrammar,
+            boolean responsePython,
             String responseSchemaName,
             Boolean responseSchemaStrict,
             String responseSchemaDescription,
@@ -215,6 +219,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.parallelToolCalls = parallelToolCalls;
         this.responseSchema = responseSchema;
         this.responseMimeType = responseMimeType;
+        this.responseGrammar = responseGrammar;
+        this.responsePython = responsePython;
         this.responseSchemaName = responseSchemaName;
         this.responseSchemaStrict = responseSchemaStrict;
         this.responseSchemaDescription = responseSchemaDescription;
@@ -362,6 +368,21 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public String responseMimeType() {
         return responseMimeType;
+    }
+
+    /**
+     * The custom grammar sent as {@code response_format: {"type":"grammar","grammar":...}},
+     * or {@code null} when unset.
+     */
+    public String responseGrammar() {
+        return responseGrammar;
+    }
+
+    /**
+     * Whether {@code response_format: {"type":"python"}} was requested.
+     */
+    public boolean responsePython() {
+        return responsePython;
     }
 
     /**
@@ -851,6 +872,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         b.parallelToolCalls = parallelToolCalls;
         b.responseSchema = responseSchema;
         b.responseMimeType = responseMimeType;
+        b.responseGrammar = responseGrammar;
+        b.responsePython = responsePython;
         b.responseSchemaName = responseSchemaName;
         b.responseSchemaStrict = responseSchemaStrict;
         b.responseSchemaDescription = responseSchemaDescription;
@@ -1126,6 +1149,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             jsonSchema.put("schema", responseSchema.toJson());
             responseFormat.put("json_schema", jsonSchema);
             root.put("response_format", responseFormat);
+        } else if (responseGrammar != null) {
+            JSONObject responseFormat = new JSONObject();
+            responseFormat.put("type", "grammar");
+            responseFormat.put("grammar", responseGrammar);
+            root.put("response_format", responseFormat);
+        } else if (responsePython) {
+            JSONObject responseFormat = new JSONObject();
+            responseFormat.put("type", "python");
+            root.put("response_format", responseFormat);
         } else if (responseMimeType != null) {
             JSONObject responseFormat = new JSONObject();
             if (responseMimeType.contains("json")) {
@@ -1390,6 +1422,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private Boolean parallelToolCalls;
         private OpenRouterJsonSchema responseSchema;
         private String responseMimeType;
+        private String responseGrammar;
+        private boolean responsePython;
         private String responseSchemaName;
         private Boolean responseSchemaStrict;
         private String responseSchemaDescription;
@@ -1523,6 +1557,57 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             JSONObject msg = new JSONObject();
             msg.put("role", role);
             msg.put("content", text);
+            messages.add(msg);
+            return this;
+        }
+
+        /**
+         * Adds a message whose content is a single <b>text content part</b>
+         * carrying a per-part prompt-cache marker
+         * ({@code cache_control} or {@code prompt_cache_breakpoint}, see
+         * {@link OpenRouterCacheMarker}). The message is emitted as
+         * {@code {"role":..., "content":[{"type":"text","text":...,<marker>}]}} -
+         * a content-parts array, which the API accepts on every message role.
+         * <p>
+         * Everything through the marked part becomes the candidate cached prefix.
+         * Docs traps: explicit breakpoints are limited to four per request and
+         * should be reserved for large stable blocks (the OpenAPI schema defines
+         * the markers on text parts only); the markers are interchangeable -
+         * OpenRouter converts Anthropic-style {@code cache_control} to
+         * OpenAI-style {@code prompt_cache_breakpoint} and vice versa based on
+         * the provider serving the request (TTLs are not translated). With
+         * {@code promptCacheOptions("explicit")} (request root), only parts
+         * carrying a {@code prompt_cache_breakpoint} marker participate in
+         * caching.
+         * <p>
+         * Messages are carried verbatim into the tool-call loop's follow-up
+         * requests, so markers survive multi-turn conversations.
+         *
+         * @param role the message role ("system", "user", "assistant", "tool", "developer")
+         * @param text the message text
+         * @param marker the per-part cache marker ({@code null} for none - the
+         *               message is then emitted in the plain string form, exactly
+         *               like {@link #addMessage(String, String)})
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/prompt-caching">Prompt caching</a>
+         */
+        public Builder addMessage(String role, String text, OpenRouterCacheMarker marker) {
+            JSONObject msg = new JSONObject();
+            msg.put("role", role);
+            if (marker == null) {
+                msg.put("content", text);
+            } else {
+                JSONObject contentPart = new JSONObject();
+                contentPart.put("type", "text");
+                contentPart.put("text", text);
+                JSONObject markerJson = marker.toJson();
+                for (String markerKey : markerJson.keySet()) {
+                    contentPart.put(markerKey, markerJson.get(markerKey));
+                }
+                JSONArray contentArr = new JSONArray();
+                contentArr.put(contentPart);
+                msg.put("content", contentArr);
+            }
             messages.add(msg);
             return this;
         }
@@ -1756,6 +1841,55 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         public Builder responseMimeType(String mime) {
             this.responseMimeType = mime;
+            return this;
+        }
+
+        /**
+         * Sets a custom grammar response format -
+         * {@code response_format: {"type":"grammar","grammar":...}} (a
+         * llama.cpp/Grammar-style grammar string constraining generation, e.g.
+         * {@code root ::= "yes" | "no"}).
+         * <p>
+         * JSON field: {@code response_format.grammar}. Default: unset (the key is
+         * not sent).
+         * <p>
+         * Precedence chain when several forms are set:
+         * {@code responseSchema} (structured output) &gt; {@code responseGrammar}
+         * &gt; {@code responsePython()} &gt; {@code responseMimeType} - exactly
+         * one {@code response_format} object is emitted, the highest-priority form
+         * configured wins.
+         * <p>
+         * Trap: like every constrained output, a grammar can still be silently
+         * dropped on endpoints without grammar support - combine with
+         * {@link #requireParameters(boolean)} to route only to supporting endpoints.
+         *
+         * @param grammar the grammar string (e.g. {@code root ::= "yes" | "no"})
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/structured-outputs">Structured outputs</a>
+         */
+        public Builder responseGrammar(String grammar) {
+            this.responseGrammar = grammar;
+            return this;
+        }
+
+        /**
+         * Requests Python-code output - {@code response_format: {"type":"python"}}.
+         * The type carries no payload.
+         * <p>
+         * JSON field: {@code response_format.type = "python"}. Default: unset.
+         * <p>
+         * Precedence chain when several forms are set:
+         * {@code responseSchema} (structured output) &gt; {@code responseGrammar}
+         * &gt; {@code responsePython()} &gt; {@code responseMimeType} - exactly
+         * one {@code response_format} object is emitted, the highest-priority form
+         * configured wins. Calling this method again does not toggle it off; build
+         * a fresh builder instead.
+         *
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/structured-outputs">Structured outputs</a>
+         */
+        public Builder responsePython() {
+            this.responsePython = true;
             return this;
         }
 
@@ -3149,6 +3283,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     parallelToolCalls,
                     responseSchema,
                     responseMimeType,
+                    responseGrammar,
+                    responsePython,
                     responseSchemaName,
                     responseSchemaStrict,
                     responseSchemaDescription,

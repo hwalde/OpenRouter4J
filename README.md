@@ -17,7 +17,9 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 * Chat Completions including tool calling (including forcing a specific tool), structured outputs, vision inputs and reasoning configuration (effort / max_tokens / exclude / enabled / summary)
 * **Streaming support** for real-time token generation using Server-Sent Events (SSE) - the synthetic response of the streaming loop carries reasoning, reasoning details, refusal and the chunk-level `service_tier` / `openrouter_metadata` / `system_fingerprint` fields, so both execution paths behave identically
 * Server-side plugins (web search), built-in server tools (`openrouter:web_search`, `openrouter:web_fetch`, `openrouter:datetime`, generic escape hatch) and multimodal output (`modalities` / `image_config`, with `images`/`audio` response accessors; note that the audio output path currently has no runnable example because only OpenAI models serve it)
-* Predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`) and capacity tiers (`service_tier`, echoed back on the response)
+* Predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`, per-content-part cache markers via `addMessage(role, text, marker)`, per-tool `cache_control`) and capacity tiers (`service_tier`, echoed back on the response)
+* Response formats: structured outputs (`json_schema` with a configurable envelope), `json_object`, `text`, custom grammars (`response_format: {"type":"grammar"}`) and Python-code output (`response_format: {"type":"python"}`)
+* Deferred tool loading: `deferLoading(true)` on a tool definition plus the `openrouter:tool_search` server tool keeps large tool catalogs out of the prompt until the model searches them
 * OpenRouter-specific response details: reasoning output, provider, native finish reason, routing metadata, cost, logprobs, system fingerprint and a loud error path for mid-request failures
 * Access to 200+ AI models through a single unified API
 * Provider selection for routing requests to specific providers
@@ -33,7 +35,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.12.0</version>
+    <version>1.13.0</version>
 </dependency>
 ```
 
@@ -79,7 +81,7 @@ OpenRouterChatCompletionResponse response = client.chat().completion()
 System.out.println(response.assistantMessage());
 ```
 
-See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs (with a configurable `json_schema` envelope: name, `strict` and description), reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), trace metadata for broadcast destinations (`OpenRouterChatCompletionWithTraceExample`), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort with partition, performance thresholds, Zero Data Retention via `zdr(true)`), streaming-only debug echo of the transformed upstream request body (`OpenRouterChatCompletionWithDebugEchoExample`), server-side plugins (web search), built-in server tools (with `strict` schema adherence on function tools) and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images` response accessor), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, full usage token details, server-tool cost, loud error handling).
+See the `openrouter4j-examples` module for more demonstrations including base64 images, per-image resolution tiers (`detail`: auto/low/high/original via `OpenRouterChatCompletionWithVisionDetailExample`), structured outputs (with a configurable `json_schema` envelope: name, `strict` and description), reasoning configuration, named tool choice, sampling options, model fallbacks, app attribution, observability parameters (metadata/user/session), trace metadata for broadcast destinations (`OpenRouterChatCompletionWithTraceExample`), extended provider preferences (data collection, ignore/only providers, price caps, quantizations, sort with partition, performance thresholds, Zero Data Retention via `zdr(true)`), streaming-only debug echo of the transformed upstream request body (`OpenRouterChatCompletionWithDebugEchoExample`), server-side plugins (web search), built-in server tools (with `strict` schema adherence on function tools) and stop conditions (`stop_server_tools_when`), multimodal output (`modalities` / `image_config` with the `images` response accessor), token log probabilities (`OpenRouterChatCompletionWithLogprobsExample`), predicted outputs (`prediction`), prompt-caching controls (`cache_control`, `prompt_cache_key`, `prompt_cache_options`), explicit per-block cache breakpoints (`OpenRouterChatCompletionWithExplicitCacheBreakpointsExample`), deferred tool loading with the tool-search server tool (`OpenRouterChatCompletionWithToolSearchExample`), grammar/python response formats (`OpenRouterChatCompletionWithResponseFormatGrammarExample`), capacity tiers (`service_tier`), and OpenRouter-specific response details (reasoning, provider, cost, full usage token details, server-tool cost, loud error handling).
 
 ### Provider Selection
 
