@@ -466,6 +466,48 @@ class StreamingToolCallAccumulatorTest {
     }
 
     @Test
+    void syntheticResponseCarriesTypedMetadataFromTerminalChunk() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        // OpenRouter delivers openrouter_metadata on the final chunk before [DONE].
+        accumulator.onData(metadataChunk(new JSONObject()
+                .put("requested", "openai/gpt-4o-mini")
+                .put("strategy", "fallback")
+                .put("region", "iad")
+                .put("attempt", 2)
+                .put("is_byok", true)
+                .put("generation_time", 640)
+                .put("endpoints", new JSONObject()
+                        .put("total", 1)
+                        .put("available", new JSONArray().put(new JSONObject()
+                                .put("provider", "OpenAI")
+                                .put("model", "openai/gpt-4o-mini")
+                                .put("selected", true))))
+                .put("attempts", new JSONArray().put(new JSONObject()
+                        .put("provider", "OpenAI")
+                        .put("model", "openai/gpt-4o-mini")
+                        .put("status", 200)))));
+        accumulator.onData(finishChunk("stop"));
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        // Sync/streaming symmetry: the typed accessors must behave identically
+        // on the synthetic response as they do on the synchronous one.
+        assertThat(response.openrouterMetadata()).isNotNull();
+        assertThat(response.metadataRequestedModel()).isEqualTo("openai/gpt-4o-mini");
+        assertThat(response.metadataRoutingStrategy()).isEqualTo("fallback");
+        assertThat(response.metadataRegion()).isEqualTo("iad");
+        assertThat(response.metadataAttempt()).isEqualTo(2);
+        assertThat(response.metadataIsByok()).isTrue();
+        assertThat(response.metadataGenerationTimeMs()).isEqualTo(640L);
+        assertThat(response.metadataSelectedProvider()).isEqualTo("OpenAI");
+        assertThat(response.metadataAttempts()).hasSize(1);
+        assertThat(response.metadataPipeline()).isEmpty();
+    }
+
+    @Test
     void resetClearsReasoningRefusalAudioAndChunkLevelFields() {
         accumulator.onData(reasoningChunk("r"));
         accumulator.onData(refusalChunk("f"));
@@ -671,6 +713,16 @@ class StreamingToolCallAccumulatorTest {
                 .put("index", 0)
                 .put("delta", new JSONObject())
                 .put("finish_reason", reason)))
+            .toString();
+    }
+
+    private String metadataChunk(JSONObject metadata) {
+        return new JSONObject()
+            .put("openrouter_metadata", metadata)
+            .put("choices", new JSONArray().put(new JSONObject()
+                .put("index", 0)
+                .put("delta", new JSONObject())
+                .put("finish_reason", JSONObject.NULL)))
             .toString();
     }
 

@@ -15,7 +15,17 @@ import org.json.JSONObject;
  * <p>
  * Implementations: {@link OpenRouterWebSearchServerTool} ({@code openrouter:web_search}),
  * {@link OpenRouterWebFetchServerTool} ({@code openrouter:web_fetch}),
- * {@link OpenRouterDatetimeServerTool} ({@code openrouter:datetime}) and
+ * {@link OpenRouterDatetimeServerTool} ({@code openrouter:datetime}),
+ * {@link OpenRouterToolSearchServerTool} ({@code openrouter:tool_search}),
+ * {@link OpenRouterAdvisorServerTool} ({@code openrouter:advisor}),
+ * {@link OpenRouterBashServerTool} ({@code openrouter:bash}),
+ * {@link OpenRouterShellServerTool} ({@code openrouter:shell}),
+ * {@link OpenRouterApplyPatchServerTool} ({@code openrouter:apply_patch}),
+ * {@link OpenRouterFilesServerTool} ({@code openrouter:files}),
+ * {@link OpenRouterFusionServerTool} ({@code openrouter:fusion}),
+ * {@link OpenRouterImageGenerationServerTool} ({@code openrouter:image_generation}),
+ * {@link OpenRouterSearchModelsServerTool} ({@code openrouter:experimental__search_models}),
+ * {@link OpenRouterSubagentServerTool} ({@code openrouter:subagent}) and
  * {@link OpenRouterGenericServerTool} as the verbatim escape hatch for every
  * other server-tool type (or for types OpenRouter adds later).
  * <p>

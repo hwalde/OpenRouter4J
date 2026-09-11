@@ -336,6 +336,264 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
     }
 
     /**
+     * Returns the model slug (or alias) the client sent from
+     * {@code openrouter_metadata.requested}, or {@code null} when the routing
+     * metadata is absent. May differ from {@link #model()} - the
+     * provider/model that actually served the request.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public String metadataRequestedModel() {
+        return metadataString("requested");
+    }
+
+    /**
+     * Returns the routing strategy that ran from {@code openrouter_metadata.strategy}
+     * ({@code direct}, {@code auto}, {@code free}, {@code latest}, {@code alias},
+     * {@code fallback}, {@code pareto}, {@code bodybuilder}, {@code fusion}),
+     * or {@code null} when the routing metadata is absent.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public String metadataRoutingStrategy() {
+        return metadataString("strategy");
+    }
+
+    /**
+     * Returns the edge region that handled the request from
+     * {@code openrouter_metadata.region}, or {@code null} when absent or when
+     * the routing metadata is absent.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public String metadataRegion() {
+        return metadataString("region");
+    }
+
+    /**
+     * Returns the human-readable one-liner describing the routing decision
+     * from {@code openrouter_metadata.summary}, or {@code null} when the
+     * routing metadata is absent.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public String metadataSummary() {
+        return metadataString("summary");
+    }
+
+    /**
+     * Returns the 1-indexed attempt number that succeeded from
+     * {@code openrouter_metadata.attempt}, or {@code null} when absent. An
+     * attempt greater than 1 means earlier attempts failed and the router fell
+     * back; {@code 0} means the request never reached a provider (for example
+     * every candidate was filtered out before submission).
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public Integer metadataAttempt() {
+        JSONObject metadata = openrouterMetadata();
+        if (metadata == null || !metadata.has("attempt") || metadata.isNull("attempt")) {
+            return null;
+        }
+        return metadata.optInt("attempt");
+    }
+
+    /**
+     * Returns whether the request used a Bring-Your-Own-Key provider key from
+     * {@code openrouter_metadata.is_byok}, or {@code null} when absent.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public Boolean metadataIsByok() {
+        JSONObject metadata = openrouterMetadata();
+        if (metadata == null || !metadata.has("is_byok") || metadata.isNull("is_byok")) {
+            return null;
+        }
+        return metadata.optBoolean("is_byok");
+    }
+
+    /**
+     * Returns how long the upstream generation took in milliseconds from
+     * {@code openrouter_metadata.generation_time}, or {@code null} when absent.
+     * Useful for throughput calculations together with the token counts of
+     * {@link #usage()}.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public Long metadataGenerationTimeMs() {
+        JSONObject metadata = openrouterMetadata();
+        if (metadata == null || !metadata.has("generation_time") || metadata.isNull("generation_time")) {
+            return null;
+        }
+        return metadata.optLong("generation_time");
+    }
+
+    /**
+     * Returns the provider name of the endpoint that actually served this
+     * request, read from the {@code selected: true} entry of
+     * {@code openrouter_metadata.endpoints.available[]}, or {@code null} when
+     * no endpoint is marked selected (for example on guardrail-blocked error
+     * responses) or when the routing metadata is absent.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public String metadataSelectedProvider() {
+        try {
+            JSONObject metadata = openrouterMetadata();
+            if (metadata == null) {
+                return null;
+            }
+            JSONObject endpoints = metadata.optJSONObject("endpoints");
+            JSONArray available = endpoints != null ? endpoints.optJSONArray("available") : null;
+            if (available == null) {
+                return null;
+            }
+            for (int i = 0; i < available.length(); i++) {
+                JSONObject endpoint = available.optJSONObject(i);
+                if (endpoint != null && endpoint.optBoolean("selected", false)) {
+                    return endpoint.optString("provider", null);
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the raw router-level parameters that influenced endpoint
+     * selection from {@code openrouter_metadata.params}
+     * (e.g. {@code quality_floor}, {@code throughput_floor}), or {@code null}
+     * when absent. Optional field - most responses do not carry it.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public JSONObject metadataParams() {
+        JSONObject metadata = openrouterMetadata();
+        return metadata != null ? metadata.optJSONObject("params") : null;
+    }
+
+    /**
+     * Returns the raw endpoint-candidates snapshot from
+     * {@code openrouter_metadata.endpoints} (the {@code total} count and the
+     * {@code available} array with {@code selected} flags), or {@code null}
+     * when absent. See {@link #metadataSelectedProvider()} for the typed
+     * shortcut.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public JSONObject metadataEndpoints() {
+        JSONObject metadata = openrouterMetadata();
+        return metadata != null ? metadata.optJSONObject("endpoints") : null;
+    }
+
+    /**
+     * Returns the per-attempt provider/model/status entries from
+     * {@code openrouter_metadata.attempts[]} (present when the router retried
+     * against fallbacks), empty when absent (never {@code null}).
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public List<JSONObject> metadataAttempts() {
+        return metadataList("attempts");
+    }
+
+    /**
+     * Returns the pipeline stages that materially altered the request or
+     * response from {@code openrouter_metadata.pipeline[]} (context
+     * compression, guardrails, healing, server tools, ...), empty when absent
+     * (never {@code null}). Each stage carries {@code type}, {@code name} and a
+     * free-form {@code data} record; unknown stage types are opaque by design
+     * and grow over time.
+     * <p>
+     * Traps: streaming responses deliver {@code openrouter_metadata} on the
+     * <b>final chunk</b> before {@code [DONE]} (the streaming accumulator
+     * already captures it there), and cache hits <b>never</b> include the
+     * field. Present only with the {@code metadataInResponse(true)} opt-in;
+     * see the <a href="https://openrouter.ai/docs/guides/features/router-metadata">router-metadata docs</a>.
+     */
+    public List<JSONObject> metadataPipeline() {
+        return metadataList("pipeline");
+    }
+
+    private String metadataString(String key) {
+        try {
+            JSONObject metadata = openrouterMetadata();
+            if (metadata == null || !metadata.has(key) || metadata.isNull(key)) {
+                return null;
+            }
+            return metadata.optString(key, null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private List<JSONObject> metadataList(String key) {
+        try {
+            JSONObject metadata = openrouterMetadata();
+            List<JSONObject> result = new ArrayList<>();
+            if (metadata != null && metadata.has(key) && !metadata.isNull(key)) {
+                JSONArray arr = metadata.optJSONArray(key);
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject entry = arr.optJSONObject(i);
+                        if (entry != null) {
+                            result.add(entry);
+                        }
+                    }
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /**
      * Checks whether the response carries a top-level {@code error} object.
      * OpenRouter reports mid-request failures this way - inside an otherwise
      * valid HTTP 200 response. Because the accessors of this class swallow

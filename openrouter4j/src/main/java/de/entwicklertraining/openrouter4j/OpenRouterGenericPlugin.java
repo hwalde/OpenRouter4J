@@ -9,9 +9,9 @@ import java.util.Objects;
 /**
  * Escape-hatch implementation of {@link OpenRouterPlugin}: emits the plugin
  * {@code id} plus any extra fields verbatim. Use it for plugin ids without a
- * typed implementation in this library (e.g. {@code file-parser},
- * {@code moderation}, {@code context-compression}, {@code auto-router},
- * {@code fusion}) or for ids OpenRouter introduces later.
+ * typed implementation in this library (every schema plugin id has one - see
+ * {@link OpenRouterPlugin} for the list) or for ids OpenRouter introduces
+ * later.
  * <p>
  * Field values are serialized with their Java type: strings as JSON strings,
  * numbers as JSON numbers, booleans as JSON booleans.

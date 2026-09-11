@@ -10,9 +10,19 @@ import org.json.JSONObject;
  * best-known one is the {@code web} plugin (web search), whose results reach the
  * model as tool calls ({@code server_tool_calls}).
  * <p>
- * Implementations: {@link OpenRouterWebSearchPlugin} for the typed {@code web}
- * plugin and {@link OpenRouterGenericPlugin} as escape hatch for every other
- * plugin id (or for ids OpenRouter adds after this library was released).
+ * Implementations: typed classes for all ten schema plugin ids -
+ * {@link OpenRouterWebSearchPlugin} ({@code web}),
+ * {@link OpenRouterAutoRouterPlugin} ({@code auto-router}),
+ * {@link OpenRouterAutoBetaRouterPlugin} ({@code auto-beta-router}),
+ * {@link OpenRouterModerationPlugin} ({@code moderation}),
+ * {@link OpenRouterWebFetchPlugin} ({@code web-fetch}),
+ * {@link OpenRouterFileParserPlugin} ({@code file-parser}),
+ * {@link OpenRouterResponseHealingPlugin} ({@code response-healing}),
+ * {@link OpenRouterContextCompressionPlugin} ({@code context-compression}),
+ * {@link OpenRouterParetoRouterPlugin} ({@code pareto-router}) and
+ * {@link OpenRouterFusionPlugin} ({@code fusion}) - plus
+ * {@link OpenRouterGenericPlugin} as escape hatch for every other plugin id
+ * (or for ids OpenRouter adds after this library was released).
  *
  * @see <a href="https://openrouter.ai/docs/guides/features/plugins">OpenRouter plugins</a>
  */

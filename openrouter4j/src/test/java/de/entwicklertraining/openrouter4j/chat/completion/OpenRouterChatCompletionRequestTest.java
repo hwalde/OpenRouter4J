@@ -2782,4 +2782,68 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(legacy.contentParts()).isNull();
         assertThat(legacy.content().getInt("a")).isEqualTo(1);
     }
+
+    // --- Preset-based chat completions ---
+
+    @Test
+    void presetSlugIsEmittedAsBodyField() {
+        JSONObject body = bodyOf(baseBuilder().preset("email-copywriter"));
+
+        assertThat(body.getString("preset")).isEqualTo("email-copywriter");
+    }
+
+    @Test
+    void presetKeyIsAbsentWhenNotSet() {
+        assertThat(bodyOf(baseBuilder()).has("preset")).isFalse();
+    }
+
+    @Test
+    void presetRequestKeepsChatCompletionsUrlAndBodyShape() {
+        OpenRouterChatCompletionRequest request = baseBuilder().preset("email-copywriter").build();
+
+        // Preset inference runs on the ordinary endpoint; the body fields
+        // merge server-side (request fields win, preset fields fill the rest).
+        assertThat(request.getRelativeUrl()).isEqualTo("/chat/completions");
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getString("preset")).isEqualTo("email-copywriter");
+        assertThat(body.has("model")).isTrue();
+        assertThat(body.has("messages")).isTrue();
+    }
+
+    @Test
+    void blankPresetSlugIsRejectedLoudly() {
+        assertThatThrownBy(() -> baseBuilder().preset(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> baseBuilder().preset("  ")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void presetSlugSurvivesTheToolCallLoop() {
+        OpenRouterChatCompletionRequest initial = baseBuilder().preset("email-copywriter").build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(initial, initial.messages());
+
+        // The whole loop must stay on the preset.
+        assertThat(next.presetSlug()).isEqualTo("email-copywriter");
+        assertThat(new JSONObject(next.getBody()).getString("preset")).isEqualTo("email-copywriter");
+    }
+
+    @Test
+    void presetSlugSurvivesTheStreamingLoop() {
+        OpenRouterChatCompletionRequest initial = baseBuilder().preset("email-copywriter").build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildStreamingRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")),
+                new StreamingToolCallAccumulator(new StreamingResponseHandler<String>() {
+                    @Override public void onData(String chunk) { }
+                    @Override public void onComplete() { }
+                    @Override public void onError(Throwable error) { }
+                }));
+
+        // The streaming loop must stay on the preset as well.
+        assertThat(next.presetSlug()).isEqualTo("email-copywriter");
+        assertThat(new JSONObject(next.getBody()).getString("preset")).isEqualTo("email-copywriter");
+    }
 }

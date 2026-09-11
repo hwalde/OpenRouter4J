@@ -24,6 +24,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     private final OpenRouterClient client;
     private final String model;
+    private final String presetSlug; // preset: <slug> - stored preset whose config merges with this request
     private final Double temperature;
     private final Integer topK;
     private final Double topP;
@@ -128,6 +129,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             Builder builder,
             OpenRouterClient client,
             String model,
+            String presetSlug,
             Double temperature,
             Integer topK,
             Double topP,
@@ -209,6 +211,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         super(builder);
         this.client = client;
         this.model = model;
+        this.presetSlug = presetSlug;
         this.temperature = temperature;
         this.topK = topK;
         this.topP = topP;
@@ -290,6 +293,15 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
     public String model() {
         return model;
+    }
+
+    /**
+     * The preset slug this request runs against, or {@code null} when no preset
+     * is referenced. Set via {@link Builder#preset(String)}; emitted as the
+     * {@code preset} body field.
+     */
+    public String presetSlug() {
+        return presetSlug;
     }
 
     public Double temperature() {
@@ -862,6 +874,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     ) {
         Builder b = new Builder(client);
         b.model = model;
+        b.presetSlug = presetSlug;
         b.temperature = temperature;
         b.topK = topK;
         b.topP = topP;
@@ -1086,6 +1099,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
         if (sessionId != null) {
             root.put("session_id", sessionId);
+        }
+        if (presetSlug != null) {
+            root.put("preset", presetSlug);
         }
 
         // Tools: client-side function tools and built-in OpenRouter server tools
@@ -1410,6 +1426,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     public static final class Builder extends ApiRequestBuilderBase<Builder, OpenRouterChatCompletionRequest> {
         private final OpenRouterClient client;
         private String model = "deepseek/deepseek-v4-flash-0731";
+        private String presetSlug;
         private Double temperature;
         private Integer topK;
         private Double topP;
@@ -1495,6 +1512,44 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
         public Builder model(String m) {
             this.model = m;
+            return this;
+        }
+
+        /**
+         * Runs the completion against a stored, versioned OpenRouter preset:
+         * emits the {@code preset} body field with the slug. The preset supplies
+         * the request defaults centrally (model, provider routing, system
+         * prompt, generation parameters, tools, ...); per the API the two are
+         * <b>shallow-merged</b> - every field present in this request overrides
+         * the preset's stored value, and preset fields not sent here are
+         * preserved. An explicit {@code model(...)} or
+         * {@code reasoningEffort(...)} on this builder therefore wins over the
+         * preset, options left unset fall back to the preset.
+         * <p>
+         * Two alternative referencing styles need no library support: the
+         * direct model reference {@code model("@preset/" + slug)} and the
+         * combined form {@code model("openai/gpt-4@preset/" + slug)} both work
+         * verbatim through {@link #model(String)}.
+         * <p>
+         * Traps: streaming and the tool-call loop carry {@code preset} into
+         * every follow-up request, so the whole loop stays on the preset.
+         * The {@code POST /presets/{slug}/chat/completions} endpoint is
+         * <b>not</b> an inference route - it creates/updates a preset from a
+         * request body (and needs a management key); it is deliberately not
+         * modelled here. Presets are created/managed in the OpenRouter web UI
+         * or via the management API.
+         * <p>
+         * JSON field: {@code preset}. Default: unset (the key is not sent).
+         *
+         * @param slug the preset slug (must not be blank)
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/presets">Presets</a>
+         */
+        public Builder preset(String slug) {
+            if (slug == null || slug.isBlank()) {
+                throw new IllegalArgumentException("Preset slug must not be blank");
+            }
+            this.presetSlug = slug;
             return this;
         }
 
@@ -3567,6 +3622,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     this,
                     client,
                     model,
+                    presetSlug,
                     temperature,
                     topK,
                     topP,

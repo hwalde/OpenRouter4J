@@ -101,6 +101,122 @@ class OpenRouterChatCompletionResponseTest {
     }
 
     @Test
+    void typedMetadataAccessorsAreSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [],
+                  "openrouter_metadata": {
+                    "requested": "openai/gpt-4o-mini",
+                    "strategy": "direct",
+                    "region": "iad",
+                    "summary": "available=1, selected=OpenAI",
+                    "attempt": 2,
+                    "is_byok": false,
+                    "generation_time": 812,
+                    "endpoints": {
+                      "total": 2,
+                      "available": [
+                        {"provider": "Azure", "model": "openai/gpt-4o-mini", "selected": false},
+                        {"provider": "OpenAI", "model": "openai/gpt-4o-mini", "selected": true}
+                      ]
+                    },
+                    "params": {"quality_floor": 0.8},
+                    "attempts": [
+                      {"provider": "Azure", "model": "openai/gpt-4o-mini", "status": 429},
+                      {"provider": "OpenAI", "model": "openai/gpt-4o-mini", "status": 200}
+                    ],
+                    "pipeline": [
+                      {"type": "context_compression", "name": "context-compression",
+                       "data": {"engine": "middle-out", "original_count": 42, "compressed_count": 30}}
+                    ]
+                  }
+                }
+                """);
+
+        assertThat(response.metadataRequestedModel()).isEqualTo("openai/gpt-4o-mini");
+        assertThat(response.metadataRoutingStrategy()).isEqualTo("direct");
+        assertThat(response.metadataRegion()).isEqualTo("iad");
+        assertThat(response.metadataSummary()).isEqualTo("available=1, selected=OpenAI");
+        assertThat(response.metadataAttempt()).isEqualTo(2);
+        assertThat(response.metadataIsByok()).isFalse();
+        assertThat(response.metadataGenerationTimeMs()).isEqualTo(812L);
+        assertThat(response.metadataSelectedProvider()).isEqualTo("OpenAI");
+        assertThat(response.metadataParams()).isNotNull();
+        assertThat(response.metadataParams().getDouble("quality_floor")).isEqualTo(0.8);
+        assertThat(response.metadataEndpoints()).isNotNull();
+        assertThat(response.metadataEndpoints().getInt("total")).isEqualTo(2);
+        assertThat(response.metadataAttempts()).hasSize(2);
+        assertThat(response.metadataAttempts().get(1).getInt("status")).isEqualTo(200);
+        assertThat(response.metadataPipeline()).hasSize(1);
+        assertThat(response.metadataPipeline().get(0).getString("type")).isEqualTo("context_compression");
+    }
+
+    @Test
+    void typedMetadataAccessorsReturnNullWhenAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+
+        assertThat(response.metadataRequestedModel()).isNull();
+        assertThat(response.metadataRoutingStrategy()).isNull();
+        assertThat(response.metadataRegion()).isNull();
+        assertThat(response.metadataSummary()).isNull();
+        assertThat(response.metadataAttempt()).isNull();
+        assertThat(response.metadataIsByok()).isNull();
+        assertThat(response.metadataGenerationTimeMs()).isNull();
+        assertThat(response.metadataSelectedProvider()).isNull();
+        assertThat(response.metadataParams()).isNull();
+        assertThat(response.metadataEndpoints()).isNull();
+        assertThat(response.metadataAttempts()).isEmpty();
+        assertThat(response.metadataPipeline()).isEmpty();
+    }
+
+    @Test
+    void metadataSelectedProviderIsNullWhenNoEndpointIsSelected() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "error": {"code": 404, "message": "No allowed providers available"},
+                  "openrouter_metadata": {
+                    "requested": "openai/gpt-4o-mini",
+                    "strategy": "direct",
+                    "attempt": 0,
+                    "endpoints": {
+                      "total": 1,
+                      "available": [{"provider": "OpenAI", "model": "openai/gpt-4o-mini", "selected": false}]
+                    }
+                  }
+                }
+                """);
+
+        assertThat(response.metadataSelectedProvider()).isNull();
+        assertThat(response.metadataRequestedModel()).isEqualTo("openai/gpt-4o-mini");
+        assertThat(response.metadataAttempt()).isEqualTo(0);
+    }
+
+    @Test
+    void typedMetadataAccessorsTolerateExplicitNulls() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [],
+                  "openrouter_metadata": {
+                    "requested": "openai/gpt-4o-mini",
+                    "strategy": "fallback",
+                    "region": null,
+                    "attempt": null,
+                    "is_byok": null,
+                    "generation_time": null
+                  }
+                }
+                """);
+
+        assertThat(response.metadataRequestedModel()).isEqualTo("openai/gpt-4o-mini");
+        assertThat(response.metadataRegion()).isNull();
+        assertThat(response.metadataAttempt()).isNull();
+        assertThat(response.metadataIsByok()).isNull();
+        assertThat(response.metadataGenerationTimeMs()).isNull();
+    }
+
+    @Test
     void topLevelErrorIsDetectedAndThrowsLoudly() {
         OpenRouterChatCompletionResponse response = responseOf("""
                 {
