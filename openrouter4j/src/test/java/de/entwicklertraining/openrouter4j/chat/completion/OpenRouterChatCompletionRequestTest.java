@@ -2548,4 +2548,238 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(responseFormat.getString("type")).isEqualTo("python");
         assertThat(responseFormat.keySet()).containsExactly("type");
     }
+
+    // --- File / input_audio / video_url content parts ---
+
+    @Test
+    void fileContentPartIsEmittedWithFileDataAndFilename() {
+        JSONObject body = bodyOf(baseBuilder()
+                .addFileByUrl("https://example.com/spec.pdf", "spec.pdf"));
+
+        JSONObject part = body.getJSONArray("messages").getJSONObject(1).getJSONArray("content").getJSONObject(0);
+        assertThat(part.getString("type")).isEqualTo("file");
+        assertThat(part.getJSONObject("file").getString("file_data")).isEqualTo("https://example.com/spec.pdf");
+        assertThat(part.getJSONObject("file").getString("filename")).isEqualTo("spec.pdf");
     }
+
+    @Test
+    void fileContentPartWithoutFilenameOmitsFilenameKey() {
+        JSONObject body = bodyOf(baseBuilder().addFileByUrl("data:application/pdf;base64,AAA", null));
+
+        JSONObject file = body.getJSONArray("messages").getJSONObject(1)
+                .getJSONArray("content").getJSONObject(0).getJSONObject("file");
+        assertThat(file.has("filename")).isFalse();
+        assertThat(file.getString("file_data")).isEqualTo("data:application/pdf;base64,AAA");
+    }
+
+    @Test
+    void fileByIdContentPartIsEmittedWithFileId() {
+        JSONObject body = bodyOf(baseBuilder().addFileById("file_abc123", null));
+
+        JSONObject part = body.getJSONArray("messages").getJSONObject(1).getJSONArray("content").getJSONObject(0);
+        assertThat(part.getString("type")).isEqualTo("file");
+        assertThat(part.getJSONObject("file").getString("file_id")).isEqualTo("file_abc123");
+        assertThat(part.getJSONObject("file").has("file_data")).isFalse();
+        assertThat(part.getJSONObject("file").has("filename")).isFalse();
+    }
+
+    @Test
+    void audioContentPartIsEmittedWithDataAndFormat() {
+        JSONObject body = bodyOf(baseBuilder().addAudioByBase64("QUJD", "wav"));
+
+        JSONObject part = body.getJSONArray("messages").getJSONObject(1).getJSONArray("content").getJSONObject(0);
+        assertThat(part.getString("type")).isEqualTo("input_audio");
+        assertThat(part.getJSONObject("input_audio").getString("data")).isEqualTo("QUJD");
+        assertThat(part.getJSONObject("input_audio").getString("format")).isEqualTo("wav");
+    }
+
+    @Test
+    void audioContentPartAcceptsEverySchemaFormat() {
+        for (String format : List.of("wav", "mp3", "flac", "m4a", "ogg", "aiff", "aac", "pcm16", "pcm24")) {
+            JSONObject body = bodyOf(baseBuilder().addAudioByBase64("QUJD", format));
+            assertThat(body.getJSONArray("messages").getJSONObject(1)
+                    .getJSONArray("content").getJSONObject(0)
+                    .getJSONObject("input_audio").getString("format")).isEqualTo(format);
+        }
+    }
+
+    @Test
+    void audioContentPartWithUnknownFormatIsRejectedLoudly() {
+        assertThatThrownBy(() -> baseBuilder().addAudioByBase64("QUJD", "ogg123"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported audio format");
+    }
+
+    @Test
+    void videoContentPartIsEmittedWithUrl() {
+        JSONObject body = bodyOf(baseBuilder().addVideoByUrl("https://example.com/clip.mp4"));
+
+        JSONObject part = body.getJSONArray("messages").getJSONObject(1).getJSONArray("content").getJSONObject(0);
+        assertThat(part.getString("type")).isEqualTo("video_url");
+        assertThat(part.getJSONObject("video_url").getString("url")).isEqualTo("https://example.com/clip.mp4");
+    }
+
+    @Test
+    void contentPartEscapeHatchIsEmittedVerbatim() {
+        // The legacy input_video variant has no typed helper - the verbatim
+        // escape hatch covers it.
+        JSONObject legacyVideo = new JSONObject()
+                .put("type", "input_video")
+                .put("input_video", new JSONObject().put("data", "AAAA"));
+        JSONObject body = bodyOf(baseBuilder().addContentPart(legacyVideo));
+
+        JSONObject part = body.getJSONArray("messages").getJSONObject(1).getJSONArray("content").getJSONObject(0);
+        assertThat(part.similar(legacyVideo)).isTrue();
+    }
+
+    @Test
+    void fileAudioVideoContentPartsSurviveTheToolCallLoop() {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .addFileByUrl("https://example.com/spec.pdf", "spec.pdf")
+                .addAudioByBase64("QUJD", "mp3")
+                .addVideoByUrl("https://example.com/clip.mp4")
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(initial, initial.messages());
+
+        JSONArray messages = new JSONObject(next.getBody()).getJSONArray("messages");
+        assertThat(messages.getJSONObject(1).getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("file");
+        assertThat(messages.getJSONObject(2).getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("input_audio");
+        assertThat(messages.getJSONObject(3).getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("video_url");
+    }
+
+    // --- Message name, developer role, configuration_update ---
+
+    @Test
+    void messageNameIsEmittedWhenSet() {
+        JSONObject body = bodyOf(baseBuilder().addNamedMessage("user", "Alice", "Hello"));
+
+        JSONObject msg = body.getJSONArray("messages").getJSONObject(1);
+        assertThat(msg.getString("role")).isEqualTo("user");
+        assertThat(msg.getString("name")).isEqualTo("Alice");
+        assertThat(msg.getString("content")).isEqualTo("Hello");
+    }
+
+    @Test
+    void messageNameIsOmittedWhenNull() {
+        JSONObject body = bodyOf(baseBuilder().addNamedMessage("user", null, "Hello"));
+
+        JSONObject msg = body.getJSONArray("messages").getJSONObject(1);
+        assertThat(msg.has("name")).isFalse();
+    }
+
+    @Test
+    void developerRoleIsEmittedByTypedHelper() {
+        JSONObject body = bodyOf(baseBuilder().addDeveloperMessage("Always answer in English"));
+
+        JSONObject msg = body.getJSONArray("messages").getJSONObject(1);
+        assertThat(msg.getString("role")).isEqualTo("developer");
+        assertThat(msg.getString("content")).isEqualTo("Always answer in English");
+    }
+
+    @Test
+    void configurationUpdateIsEmittedOnContentlessSystemMessage() {
+        JSONObject body = bodyOf(baseBuilder().addConfigurationUpdate("high"));
+
+        JSONObject msg = body.getJSONArray("messages").getJSONObject(1);
+        assertThat(msg.getString("role")).isEqualTo("system");
+        assertThat(msg.getString("content")).isEqualTo("");
+        assertThat(msg.getJSONObject("configuration_update").getJSONObject("reasoning").getString("effort"))
+                .isEqualTo("high");
+    }
+
+    @Test
+    void configurationUpdateWithBlankEffortIsRejectedLoudly() {
+        assertThatThrownBy(() -> baseBuilder().addConfigurationUpdate(" "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void configurationUpdateSurvivesTheToolCallLoopAtItsPosition() {
+        OpenRouterChatCompletionRequest initial = baseBuilder()
+                .addConfigurationUpdate("high")
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        // The tool-call loop must not drop or reorder the update message.
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(initial, initial.messages());
+
+        JSONArray messages = new JSONObject(next.getBody()).getJSONArray("messages");
+        assertThat(messages).hasSize(2);
+        // The update stays in its position (after the cached system/user prefix).
+        assertThat(messages.getJSONObject(0).getString("content")).isEqualTo("Hello");
+        assertThat(messages.getJSONObject(1).getString("role")).isEqualTo("system");
+        assertThat(messages.getJSONObject(1).getString("content")).isEqualTo("");
+        assertThat(messages.getJSONObject(1).getJSONObject("configuration_update")
+                .getJSONObject("reasoning").getString("effort")).isEqualTo("high");
+    }
+
+    // --- Tool result messages with content-parts arrays ---
+
+    @Test
+    void toolResultWithLegacyObjectEmitsStringContent() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        List<JSONObject> messages = new ArrayList<>();
+
+        handler.addToolResultMessage(messages, "call_1",
+                OpenRouterToolResult.of(new JSONObject().put("weather", "sunny")));
+
+        assertThat(messages).hasSize(1);
+        JSONObject msg = messages.get(0);
+        assertThat(msg.getString("role")).isEqualTo("tool");
+        assertThat(msg.getString("tool_call_id")).isEqualTo("call_1");
+        // Unchanged wire format: the legacy object form is emitted as a string.
+        assertThat(msg.get("content")).isInstanceOf(String.class);
+        assertThat(msg.getString("content")).contains("weather");
+    }
+
+    @Test
+    void toolResultWithContentPartsEmitsArrayContent() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+        List<JSONObject> messages = new ArrayList<>();
+
+        handler.addToolResultMessage(messages, "call_2", OpenRouterToolResult.ofParts(
+                OpenRouterToolResult.textPart("Screenshot of the dashboard:"),
+                OpenRouterToolResult.imageUrlPart("https://example.com/shot.png")));
+
+        JSONObject msg = messages.get(0);
+        assertThat(msg.getString("role")).isEqualTo("tool");
+        assertThat(msg.getString("tool_call_id")).isEqualTo("call_2");
+        JSONArray content = msg.getJSONArray("content");
+        assertThat(content.length()).isEqualTo(2);
+        assertThat(content.getJSONObject(0).getString("type")).isEqualTo("text");
+        assertThat(content.getJSONObject(0).getString("text")).isEqualTo("Screenshot of the dashboard:");
+        assertThat(content.getJSONObject(1).getString("type")).isEqualTo("image_url");
+        assertThat(content.getJSONObject(1).getJSONObject("image_url").getString("url"))
+                .isEqualTo("https://example.com/shot.png");
+    }
+
+    @Test
+    void toolResultImagePartCarriesDetailTier() {
+        JSONObject part = OpenRouterToolResult.imageUrlPart("https://example.com/shot.png", OpenRouterImageDetail.HIGH);
+        assertThat(part.getJSONObject("image_url").getString("detail")).isEqualTo("high");
+
+        JSONObject withoutDetail = OpenRouterToolResult.imageUrlPart("https://example.com/shot.png");
+        assertThat(withoutDetail.getJSONObject("image_url").has("detail")).isFalse();
+    }
+
+    @Test
+    void toolResultOfPartsRejectsEmptyParts() {
+        assertThatThrownBy(() -> OpenRouterToolResult.ofParts(List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void toolResultMultiPartFormLeavesLegacyAccessorsNull() {
+        OpenRouterToolResult multiPart = OpenRouterToolResult.ofParts(OpenRouterToolResult.textPart("hi"));
+        assertThat(multiPart.hasContentParts()).isTrue();
+        assertThat(multiPart.contentParts()).hasSize(1);
+        assertThat(multiPart.content()).isNull();
+
+        OpenRouterToolResult legacy = OpenRouterToolResult.of(new JSONObject().put("a", 1));
+        assertThat(legacy.hasContentParts()).isFalse();
+        assertThat(legacy.contentParts()).isNull();
+        assertThat(legacy.content().getInt("a")).isEqualTo(1);
+    }
+}

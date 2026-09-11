@@ -437,4 +437,104 @@ class OpenRouterChatCompletionResponseTest {
         assertThat(response.cachedPromptTokens()).isEqualTo(2);
         assertThat(response.reasoningTokens()).isEqualTo(5);
     }
+
+    // --- Typed logprobs accessors ---
+
+    @Test
+    void contentLogprobsAreTypedParsed() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Hi"},
+                    "finish_reason": "stop",
+                    "logprobs": {
+                      "content": [
+                        {"token": "Hi", "logprob": -0.02, "bytes": [72, 105],
+                         "top_logprobs": [{"token": "Hello", "logprob": -3.1, "bytes": [72, 101]}]},
+                        {"token": "!", "logprob": -0.5, "bytes": null, "top_logprobs": []}
+                      ]
+                    }
+                  }]
+                }
+                """);
+
+        assertThat(response.logprobs()).isNotNull();
+        assertThat(response.contentLogprobs()).hasSize(2);
+        assertThat(response.refusalLogprobs()).isEmpty();
+
+        de.entwicklertraining.openrouter4j.OpenRouterTokenLogprob first = response.contentLogprobs().get(0);
+        assertThat(first.token()).isEqualTo("Hi");
+        assertThat(first.logprob()).isEqualTo(-0.02);
+        assertThat(first.bytes()).containsExactly(72, 105);
+        assertThat(first.topLogprobs()).hasSize(1);
+        assertThat(first.topLogprobs().get(0).token()).isEqualTo("Hello");
+        assertThat(first.topLogprobs().get(0).logprob()).isEqualTo(-3.1);
+
+        de.entwicklertraining.openrouter4j.OpenRouterTokenLogprob second = response.contentLogprobs().get(1);
+        assertThat(second.token()).isEqualTo("!");
+        assertThat(second.bytes()).isNull();
+        assertThat(second.topLogprobs()).isEmpty();
+    }
+
+    @Test
+    void refusalLogprobsAreTypedParsed() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": null, "refusal": "No."},
+                    "finish_reason": "stop",
+                    "logprobs": {
+                      "content": [],
+                      "refusal": [{"token": "No", "logprob": -0.1, "bytes": [78, 111], "top_logprobs": []}]
+                    }
+                  }]
+                }
+                """);
+
+        assertThat(response.contentLogprobs()).isEmpty();
+        assertThat(response.refusalLogprobs()).hasSize(1);
+        assertThat(response.refusalLogprobs().get(0).token()).isEqualTo("No");
+        assertThat(response.refusalLogprobs().get(0).bytes()).containsExactly(78, 111);
+    }
+
+    @Test
+    void logprobsAccessorsAreEmptyAndRawNullWhenAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+
+        assertThat(response.logprobs()).isNull();
+        assertThat(response.contentLogprobs()).isEmpty();
+        assertThat(response.refusalLogprobs()).isEmpty();
+    }
+
+    @Test
+    void logprobsAccessorsTreatExplicitNullArraysAsAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Hi"},
+                    "finish_reason": "stop",
+                    "logprobs": {"content": null, "refusal": null}
+                  }]
+                }
+                """);
+
+        assertThat(response.contentLogprobs()).isEmpty();
+        assertThat(response.refusalLogprobs()).isEmpty();
+    }
+
+    @Test
+    void tokenLogprobWithoutLogprobKeyHasNullLogprob() {
+        de.entwicklertraining.openrouter4j.OpenRouterTokenLogprob token =
+                de.entwicklertraining.openrouter4j.OpenRouterTokenLogprob.fromJson(
+                        new JSONObject("{\"token\": \"x\"}"));
+        assertThat(token.token()).isEqualTo("x");
+        assertThat(token.logprob()).isNull();
+        assertThat(token.bytes()).isNull();
+        assertThat(token.topLogprobs()).isEmpty();
+    }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.entwicklertraining.api.base.ApiClient;
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
+import de.entwicklertraining.openrouter4j.OpenRouterTokenLogprob;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -558,7 +559,12 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
      * when the response does not carry it. The data only arrives when the
      * request opted in via {@code OpenRouterChatCompletionRequest.Builder#logprobs(Boolean)}
      * (and {@code topLogprobs(n)}); this accessor makes that paid-for data
-     * inspectable.
+     * inspectable. See {@link #contentLogprobs()} / {@link #refusalLogprobs()}
+     * for the typed variant.
+     * <p>
+     * Since 1.14.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when the stream carried per-chunk
+     * {@code logprobs}.
      */
     public JSONObject logprobs() {
         try {
@@ -567,6 +573,59 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
             return firstChoice.optJSONObject("logprobs");
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * Returns the typed per-token log probabilities of the generated content
+     * from {@code choices[0].logprobs.content}, empty when the response carries
+     * none (never {@code null}). Each entry carries the token, its log
+     * probability, the UTF-8 bytes (when reported) and the top alternatives;
+     * see {@link OpenRouterTokenLogprob}.
+     * <p>
+     * The data only arrives when the request opted in via
+     * {@code OpenRouterChatCompletionRequest.Builder#logprobs(Boolean)}
+     * (and {@code topLogprobs(n)}); this is the typed alternative to the raw
+     * {@link #logprobs()} object. Since 1.14.0 this is also populated by the
+     * synthetic response of the streaming tool-call loop when the stream
+     * carried per-chunk {@code logprobs}.
+     */
+    public List<OpenRouterTokenLogprob> contentLogprobs() {
+        return tokenLogprobs("content");
+    }
+
+    /**
+     * Returns the typed per-token log probabilities of the refusal text from
+     * {@code choices[0].logprobs.refusal}, empty when the response carries
+     * none (never {@code null}); see {@link #contentLogprobs()} and
+     * {@link OpenRouterTokenLogprob}.
+     * <p>
+     * Since 1.14.0 this is also populated by the synthetic response of the
+     * streaming tool-call loop when the stream carried per-chunk
+     * {@code logprobs}.
+     */
+    public List<OpenRouterTokenLogprob> refusalLogprobs() {
+        return tokenLogprobs("refusal");
+    }
+
+    private List<OpenRouterTokenLogprob> tokenLogprobs(String key) {
+        try {
+            JSONObject logprobs = logprobs();
+            List<OpenRouterTokenLogprob> result = new ArrayList<>();
+            if (logprobs != null && logprobs.has(key) && !logprobs.isNull(key)) {
+                JSONArray arr = logprobs.optJSONArray(key);
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject entry = arr.optJSONObject(i);
+                        if (entry != null) {
+                            result.add(OpenRouterTokenLogprob.fromJson(entry));
+                        }
+                    }
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of();
         }
     }
 

@@ -105,6 +105,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private static final Set<String> ALLOWED_EXTENSIONS =
             Set.of("jpg", "jpeg", "png", "webp", "heic", "heif");
 
+    /** Audio formats accepted by the {@code input_audio} content part (API schema enum). */
+    private static final Set<String> AUDIO_FORMATS =
+            Set.of("wav", "mp3", "flac", "m4a", "ogg", "aiff", "aac", "pcm16", "pcm24");
+
     private static final int METADATA_MAX_ENTRIES = 16;
     private static final int METADATA_MAX_KEY_LENGTH = 64;
     private static final int METADATA_MAX_VALUE_LENGTH = 512;
@@ -1608,6 +1612,101 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                 contentArr.put(contentPart);
                 msg.put("content", contentArr);
             }
+            messages.add(msg);
+            return this;
+        }
+
+        /**
+         * Adds a message with an explicit author {@code name} - the optional
+         * {@code name} key the API schema defines on the {@code system}, {@code user},
+         * {@code developer} and {@code assistant} message types.
+         * <p>
+         * JSON field: {@code messages[].name}. Default: unset (the key is not sent -
+         * use {@link #addMessage(String, String)} for that). The name helps the model
+         * distinguish between participants of the same role (for example two different
+         * users in a multi-user conversation). Deliberately <b>not</b> an
+         * {@code addMessage(String, String, String)} overload: that signature is taken
+         * by {@link #addMessage(String, String, OpenRouterCacheMarker)}, and a third
+         * String overload would make every existing {@code addMessage(role, text, null)}
+         * call ambiguous.
+         * <p>
+         * Messages are carried verbatim into the tool-call loop's follow-up requests,
+         * so the name survives multi-turn conversations.
+         *
+         * @param role the message role ("system", "user", "assistant", "tool", "developer")
+         * @param name the name of the message author, or {@code null} to omit the key
+         * @param text the message text
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion">Chat API reference</a>
+         */
+        public Builder addNamedMessage(String role, String name, String text) {
+            JSONObject msg = new JSONObject();
+            msg.put("role", role);
+            if (name != null) {
+                msg.put("name", name);
+            }
+            msg.put("content", text);
+            messages.add(msg);
+            return this;
+        }
+
+        /**
+         * Adds a message with {@code role: "developer"} - the OpenAI-style
+         * developer instruction role, a distinct role alongside {@code system}.
+         * <p>
+         * Difference to {@code system}: per the OpenAI message spec (which
+         * OpenRouter follows), {@code developer} instructions take precedence over
+         * conflicting {@code system} messages and are the documented place for
+         * behaviour-defining guidance on newer OpenAI-style models; other providers
+         * may treat the role as a system-level message or reject it. A raw
+         * {@link #addMessage(String, String) addMessage("developer", ...)} keeps
+         * working - this typed helper exists for discoverability and javadoc.
+         *
+         * @param text the developer instruction text
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion">Chat API reference</a>
+         */
+        public Builder addDeveloperMessage(String text) {
+            return addNamedMessage("developer", null, text);
+        }
+
+        /**
+         * Adds a content-less {@code configuration_update} system message that
+         * changes the reasoning effort from this point in the conversation onward
+         * <em>without invalidating the prompt cache for the preceding turns</em>.
+         * <p>
+         * Emitted exactly as {@code {"role":"system","content":"",
+         * "configuration_update":{"reasoning":{"effort":...}}}} (OpenRouter
+         * extension on {@code ChatSystemMessage} / {@code ChatDeveloperMessage}).
+         * <p>
+         * Docs traps: the message must sit directly before the user turn the new
+         * effort applies to; it must be kept at the same position in later requests
+         * of the conversation; and two updates must not be adjacent (a later update
+         * replaces the previous one only when positioned correctly). Because the
+         * message is content-less it does not grow the prompt cache prefix - that is
+         * the entire point of using it instead of a fresh {@code reasoningEffort}
+         * request, which would change the cached prefix.
+         * <p>
+         * Messages are carried verbatim into the tool-call loop's follow-up requests
+         * (positions preserved), so the update survives multi-turn conversations.
+         *
+         * @param effort the reasoning effort from this point onward
+         *               (e.g. {@code "low"}, {@code "medium"}, {@code "high"})
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/best-practices/reasoning-tokens">Reasoning tokens - Changing Effort Mid-Conversation</a>
+         */
+        public Builder addConfigurationUpdate(String effort) {
+            if (effort == null || effort.isBlank()) {
+                throw new IllegalArgumentException("effort must not be null or blank");
+            }
+            JSONObject msg = new JSONObject();
+            msg.put("role", "system");
+            msg.put("content", "");
+            JSONObject update = new JSONObject();
+            JSONObject reasoning = new JSONObject();
+            reasoning.put("effort", effort);
+            update.put("reasoning", reasoning);
+            msg.put("configuration_update", update);
             messages.add(msg);
             return this;
         }
@@ -3236,6 +3335,202 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             msg.put("content", contentArr);
             messages.add(msg);
 
+            return this;
+        }
+
+        /**
+         * Adds a {@code file} content part carrying a document (typically a PDF)
+         * to a user message - the document-understanding input for vision-capable
+         * models.
+         * <p>
+         * Emitted as {@code {"type":"file","file":{"file_data":...[,"filename":...]}}}
+         * on a user message; {@code file_data} is either an external URL or a
+         * base64 data URL. The {@code filename} key is only emitted when non-null
+         * and helps the model name and ground the document.
+         * <p>
+         * Trap: document understanding is model-dependent - route to a model that
+         * supports file inputs, otherwise the part is ignored or the request is
+         * rejected by the provider.
+         *
+         * @param fileData the document URL or base64 data URL (e.g. {@code data:application/pdf;base64,...})
+         * @param filename the display filename, or {@code null} to omit the key
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/pdfs">PDFs</a>
+         */
+        public Builder addFileByUrl(String fileData, String filename) {
+            Objects.requireNonNull(fileData, "fileData must not be null");
+
+            JSONObject msg = new JSONObject();
+            msg.put("role", "user");
+
+            JSONArray contentArr = new JSONArray();
+            JSONObject fileContent = new JSONObject();
+            fileContent.put("type", "file");
+            JSONObject file = new JSONObject();
+            file.put("file_data", fileData);
+            if (filename != null) {
+                file.put("filename", filename);
+            }
+            fileContent.put("file", file);
+            contentArr.put(fileContent);
+
+            msg.put("content", contentArr);
+            messages.add(msg);
+            return this;
+        }
+
+        /**
+         * Adds a {@code file} content part referencing a previously uploaded file
+         * by its {@code file_id} (OpenRouter Files API upload flow) - see
+         * {@link #addFileByUrl(String, String)} for the URL/data-URL variant.
+         * <p>
+         * Emitted as {@code {"type":"file","file":{"file_id":...[,"filename":...]}}}.
+         * The {@code filename} key is only emitted when non-null.
+         *
+         * @param fileId the id returned by the OpenRouter Files API upload
+         * @param filename the display filename, or {@code null} to omit the key
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/files-api">Files API</a>
+         */
+        public Builder addFileById(String fileId, String filename) {
+            Objects.requireNonNull(fileId, "fileId must not be null");
+
+            JSONObject msg = new JSONObject();
+            msg.put("role", "user");
+
+            JSONArray contentArr = new JSONArray();
+            JSONObject fileContent = new JSONObject();
+            fileContent.put("type", "file");
+            JSONObject file = new JSONObject();
+            file.put("file_id", fileId);
+            if (filename != null) {
+                file.put("filename", filename);
+            }
+            fileContent.put("file", file);
+            contentArr.put(fileContent);
+
+            msg.put("content", contentArr);
+            messages.add(msg);
+            return this;
+        }
+
+        /**
+         * Adds an {@code input_audio} content part carrying base64-encoded audio
+         * - the audio-understanding input for audio-capable models.
+         * <p>
+         * Emitted as {@code {"type":"input_audio","input_audio":{"data":...,"format":...}}}
+         * on a user message. Supported formats per the API schema: {@code wav},
+         * {@code mp3}, {@code flac}, {@code m4a}, {@code ogg}, {@code aiff},
+         * {@code aac}, {@code pcm16}, {@code pcm24} - anything else is rejected
+         * loudly here instead of by the API.
+         *
+         * @param base64Data the base64-encoded audio data (without the data-URL prefix)
+         * @param format one of {@code wav}, {@code mp3}, {@code flac}, {@code m4a},
+         *               {@code ogg}, {@code aiff}, {@code aac}, {@code pcm16}, {@code pcm24}
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/audio">Audio</a>
+         */
+        public Builder addAudioByBase64(String base64Data, String format) {
+            Objects.requireNonNull(base64Data, "base64Data must not be null");
+            if (!AUDIO_FORMATS.contains(format == null ? "" : format.toLowerCase(Locale.ROOT))) {
+                throw new IllegalArgumentException(
+                        "Unsupported audio format: " + format + ". Allowed: " + AUDIO_FORMATS
+                );
+            }
+
+            JSONObject msg = new JSONObject();
+            msg.put("role", "user");
+
+            JSONArray contentArr = new JSONArray();
+            JSONObject audioContent = new JSONObject();
+            audioContent.put("type", "input_audio");
+            JSONObject inputAudio = new JSONObject();
+            inputAudio.put("data", base64Data);
+            inputAudio.put("format", format.toLowerCase(Locale.ROOT));
+            audioContent.put("input_audio", inputAudio);
+            contentArr.put(audioContent);
+
+            msg.put("content", contentArr);
+            messages.add(msg);
+            return this;
+        }
+
+        /**
+         * Reads a local audio file, base64-encodes it, and adds it as an
+         * {@code input_audio} content part - the Path variant of
+         * {@link #addAudioByBase64(String, String)}.
+         *
+         * @param filePath the local audio file
+         * @param format one of {@code wav}, {@code mp3}, {@code flac}, {@code m4a},
+         *               {@code ogg}, {@code aiff}, {@code aac}, {@code pcm16}, {@code pcm24}
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/audio">Audio</a>
+         */
+        public Builder addAudioByBase64(Path filePath, String format) {
+            Objects.requireNonNull(filePath, "filePath must not be null");
+
+            byte[] fileBytes;
+            try {
+                fileBytes = Files.readAllBytes(filePath);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read file: " + filePath + " => " + e.getMessage(), e);
+            }
+            return addAudioByBase64(Base64.getEncoder().encodeToString(fileBytes), format);
+        }
+
+        /**
+         * Adds a {@code video_url} content part carrying a video - the
+         * video-understanding input for video-capable models.
+         * <p>
+         * Emitted as {@code {"type":"video_url","video_url":{"url":...}}} on a
+         * user message; {@code url} is either an external URL or a base64 data
+         * URL. The legacy {@code input_video} variant has no typed helper - use
+         * the verbatim escape hatch {@link #addContentPart(JSONObject)} for it.
+         *
+         * @param url the video URL or data URL
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/videos">Videos</a>
+         */
+        public Builder addVideoByUrl(String url) {
+            Objects.requireNonNull(url, "url must not be null");
+
+            JSONObject msg = new JSONObject();
+            msg.put("role", "user");
+
+            JSONArray contentArr = new JSONArray();
+            JSONObject videoContent = new JSONObject();
+            videoContent.put("type", "video_url");
+            JSONObject videoUrl = new JSONObject();
+            videoUrl.put("url", url);
+            videoContent.put("video_url", videoUrl);
+            contentArr.put(videoContent);
+
+            msg.put("content", contentArr);
+            messages.add(msg);
+            return this;
+        }
+
+        /**
+         * Adds a user message carrying one <b>verbatim content part</b> - the
+         * escape hatch for content-part types the library has no typed helper for
+         * (for example the legacy {@code input_video} variant or a type OpenRouter
+         * adds later). The given object is emitted exactly as provided inside the
+         * {@code content} array of a user message.
+         *
+         * @param contentPart the content part object (must carry a {@code type} key
+         *                    as the first entry for stable JSON key order)
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion">ChatContentItems</a>
+         */
+        public Builder addContentPart(JSONObject contentPart) {
+            Objects.requireNonNull(contentPart, "contentPart must not be null");
+
+            JSONObject msg = new JSONObject();
+            msg.put("role", "user");
+            JSONArray contentArr = new JSONArray();
+            contentArr.put(contentPart);
+            msg.put("content", contentArr);
+            messages.add(msg);
             return this;
         }
 

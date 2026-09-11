@@ -123,11 +123,7 @@ public final class OpenRouterChatCompletionCallHandler {
 
                 // Add tool result as a message with role "tool"
                 // OpenRouter expects: { "role": "tool", "tool_call_id": "...", "content": "..." }
-                JSONObject toolResultMsg = new JSONObject();
-                toolResultMsg.put("role", "tool");
-                toolResultMsg.put("tool_call_id", toolCallId);
-                toolResultMsg.put("content", result.content().toString());
-                messages.add(toolResultMsg);
+                addToolResultMessage(messages, toolCallId, result);
             }
 
             // Build the next request with updated messages
@@ -218,11 +214,9 @@ public final class OpenRouterChatCompletionCallHandler {
                         stch.onToolExecuted(functionName, toolCallId, result);
                     }
 
-                    JSONObject toolResultMsg = new JSONObject();
-                    toolResultMsg.put("role", "tool");
-                    toolResultMsg.put("tool_call_id", toolCallId);
-                    toolResultMsg.put("content", result.content().toString());
-                    messages.add(toolResultMsg);
+                    // Add tool result as a message with role "tool"
+                    // OpenRouter expects: { "role": "tool", "tool_call_id": "...", "content": "..." }
+                    addToolResultMessage(messages, toolCallId, result);
                 }
 
                 if (userHandler instanceof StreamingToolCallHandler stch) {
@@ -232,6 +226,38 @@ public final class OpenRouterChatCompletionCallHandler {
                 currentRequest = buildNextRequest(initialRequest, messages);
             }
         });
+    }
+
+    /**
+     * Builds the {@code role:"tool"} message for a tool result and appends it to
+     * the conversation. Since 1.14.0 the message carries multi-part content as a
+     * {@code content} array (the API's {@code anyOf} on {@code ChatToolMessage.content})
+     * when the result was created via {@link OpenRouterToolResult#ofParts(List)};
+     * legacy single-object results keep emitting the plain string form exactly
+     * as before - no wire-format change for existing callers.
+     * <p>
+     * Package-private so tests can exercise the emission of both shapes; both
+     * tool-call loops (synchronous and streaming) build their
+     * {@code role:"tool"} messages through this method.
+     */
+    static void addToolResultMessage(
+            List<JSONObject> messages,
+            String toolCallId,
+            OpenRouterToolResult result
+    ) {
+        JSONObject toolResultMsg = new JSONObject();
+        toolResultMsg.put("role", "tool");
+        toolResultMsg.put("tool_call_id", toolCallId);
+        if (result.hasContentParts()) {
+            JSONArray contentArr = new JSONArray();
+            for (JSONObject part : result.contentParts()) {
+                contentArr.put(part);
+            }
+            toolResultMsg.put("content", contentArr);
+        } else {
+            toolResultMsg.put("content", result.content().toString());
+        }
+        messages.add(toolResultMsg);
     }
 
     // Package-private so tests can exercise the option copy path
@@ -288,6 +314,12 @@ public final class OpenRouterChatCompletionCallHandler {
             // Chunk-level provider snapshot - exposed so systemFingerprint()
             // works on the streaming path too.
             root.put("system_fingerprint", accumulator.getSystemFingerprint());
+        }
+        if (accumulator.getLogprobs() != null) {
+            // Per-chunk log probabilities (opt-in via logprobs(true)) merged into
+            // the choice - exposed so logprobs(), contentLogprobs() and
+            // refusalLogprobs() work on the streaming path too.
+            choice.put("logprobs", accumulator.getLogprobs());
         }
         return root;
     }

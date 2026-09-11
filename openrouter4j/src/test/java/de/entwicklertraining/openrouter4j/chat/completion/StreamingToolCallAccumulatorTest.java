@@ -484,6 +484,92 @@ class StreamingToolCallAccumulatorTest {
         assertThat(accumulator.getOpenrouterMetadata()).isNull();
     }
 
+    // --- Per-chunk logprobs ---
+
+    private String logprobsChunk(String token, double logprob, String side) {
+        JSONObject tokenLogprob = new JSONObject()
+                .put("token", token)
+                .put("logprob", logprob)
+                .put("bytes", new JSONArray())
+                .put("top_logprobs", new JSONArray());
+        JSONObject logprobs = new JSONObject()
+                .put(side, new JSONArray().put(tokenLogprob));
+        return new JSONObject()
+                .put("choices", new JSONArray().put(new JSONObject()
+                        .put("index", 0)
+                        .put("delta", new JSONObject())
+                        .put("logprobs", logprobs)
+                        .put("finish_reason", JSONObject.NULL)))
+                .toString();
+    }
+
+    @Test
+    void perChunkLogprobsAreAccumulatedInArrivalOrder() {
+        accumulator.onData(logprobsChunk("Hel", -0.01, "content"));
+        accumulator.onData(logprobsChunk("lo", -0.02, "content"));
+        accumulator.onData(logprobsChunk("no", -0.7, "refusal"));
+        accumulator.onData(finishChunk("stop"));
+
+        assertThat(accumulator.getContentLogprobTokens()).hasSize(2);
+        assertThat(accumulator.getContentLogprobTokens().get(0).getString("token")).isEqualTo("Hel");
+        assertThat(accumulator.getContentLogprobTokens().get(1).getString("token")).isEqualTo("lo");
+        assertThat(accumulator.getRefusalLogprobTokens()).hasSize(1);
+        assertThat(accumulator.getRefusalLogprobTokens().get(0).getString("token")).isEqualTo("no");
+
+        JSONObject logprobs = accumulator.getLogprobs();
+        assertThat(logprobs).isNotNull();
+        assertThat(logprobs.getJSONArray("content").length()).isEqualTo(2);
+        assertThat(logprobs.getJSONArray("refusal").length()).isEqualTo(1);
+    }
+
+    @Test
+    void syntheticResponseCarriesAccumulatedLogprobs() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(logprobsChunk("Hi", -0.02, "content"));
+        accumulator.onData(logprobsChunk("!", -0.5, "content"));
+        accumulator.onData(finishChunk("stop"));
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        // Sync/streaming symmetry: the typed accessors must behave identically
+        // on the synthetic response as they do on the synchronous one.
+        assertThat(response.logprobs()).isNotNull();
+        assertThat(response.contentLogprobs()).hasSize(2);
+        assertThat(response.contentLogprobs().get(0).token()).isEqualTo("Hi");
+        assertThat(response.contentLogprobs().get(0).logprob()).isEqualTo(-0.02);
+        assertThat(response.contentLogprobs().get(1).token()).isEqualTo("!");
+        assertThat(response.refusalLogprobs()).isEmpty();
+    }
+
+    @Test
+    void syntheticResponseWithoutLogprobsChunksHasNoLogprobsKey() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(finishChunk("stop"));
+
+        JSONObject synthetic = handler.buildSyntheticResponseJson(accumulator, "test/model");
+        assertThat(synthetic.getJSONArray("choices").getJSONObject(0).has("logprobs")).isFalse();
+
+        var response = new OpenRouterChatCompletionResponse(synthetic, null);
+        assertThat(response.logprobs()).isNull();
+        assertThat(response.contentLogprobs()).isEmpty();
+        assertThat(response.refusalLogprobs()).isEmpty();
+    }
+
+    @Test
+    void resetClearsAccumulatedLogprobs() {
+        accumulator.onData(logprobsChunk("Hel", -0.01, "content"));
+        accumulator.onData(logprobsChunk("no", -0.7, "refusal"));
+        accumulator.reset();
+
+        assertThat(accumulator.getContentLogprobTokens()).isEmpty();
+        assertThat(accumulator.getRefusalLogprobTokens()).isEmpty();
+        assertThat(accumulator.getLogprobs()).isNull();
+    }
+
     // --- Helpers ---
 
     private String errorChunk(String message, Integer code, String errorType, String providerCode) {

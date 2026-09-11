@@ -18,10 +18,12 @@ import java.util.TreeMap;
  * <p>
  * Besides content and tool calls it also accumulates the remaining delta
  * fields OpenRouter can stream ({@code reasoning}, {@code reasoning_details},
- * {@code refusal}, {@code audio}) and the chunk-level fields
+ * {@code refusal}, {@code audio}), the chunk-level fields
  * {@code service_tier}, {@code openrouter_metadata} and
- * {@code system_fingerprint}, so the synthetic response of the streaming loop
- * reports the same state as the synchronous response.
+ * {@code system_fingerprint}, and the per-chunk {@code logprobs} token
+ * entries (merged into the synthetic response's {@code choices[0].logprobs}),
+ * so the synthetic response of the streaming loop reports the same state as
+ * the synchronous response.
  */
 final class StreamingToolCallAccumulator implements StreamingResponseHandler<String> {
 
@@ -42,6 +44,8 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
     private final StringBuilder reasoningBuilder = new StringBuilder();
     private final StringBuilder refusalBuilder = new StringBuilder();
     private final List<JSONObject> reasoningDetails = new ArrayList<>();
+    private final List<JSONObject> contentLogprobTokens = new ArrayList<>();
+    private final List<JSONObject> refusalLogprobTokens = new ArrayList<>();
     private final StringBuilder audioDataBuilder = new StringBuilder();
     private final StringBuilder audioTranscriptBuilder = new StringBuilder();
     private final TreeMap<Integer, ToolCallData> toolCallsByIndex = new TreeMap<>();
@@ -99,6 +103,17 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
 
             if (choice.has("native_finish_reason") && !choice.isNull("native_finish_reason")) {
                 this.nativeFinishReason = choice.getString("native_finish_reason");
+            }
+
+            // Per-chunk log probabilities (opt-in via logprobs(true)/topLogprobs(n)):
+            // the token entries of content and refusal are appended in arrival order
+            // and merged into the synthetic response's choices[0].logprobs, so the
+            // typed accessors (contentLogprobs()/refusalLogprobs()) behave on the
+            // streaming path exactly like on the synchronous path.
+            if (choice.has("logprobs") && !choice.isNull("logprobs")) {
+                JSONObject logprobs = choice.getJSONObject("logprobs");
+                appendLogprobTokens(logprobs.optJSONArray("content"), contentLogprobTokens);
+                appendLogprobTokens(logprobs.optJSONArray("refusal"), refusalLogprobTokens);
             }
 
             JSONObject delta = choice.optJSONObject("delta");
@@ -297,6 +312,63 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         return systemFingerprint;
     }
 
+    /**
+     * The per-token log probabilities accumulated from the chunks'
+     * {@code choices[0].logprobs.content} entries, appended in arrival order
+     * (each chunk that carries logprobs usually contributes one token), empty
+     * when the stream carried none. Exposed through the synthetic response's
+     * {@code choices[0].logprobs} so the typed response accessors work on the
+     * streaming path too.
+     */
+    List<JSONObject> getContentLogprobTokens() {
+        return List.copyOf(contentLogprobTokens);
+    }
+
+    /**
+     * The per-token log probabilities accumulated from the chunks'
+     * {@code choices[0].logprobs.refusal} entries, appended in arrival order,
+     * empty when the stream carried none (see {@link #getContentLogprobTokens()}).
+     */
+    List<JSONObject> getRefusalLogprobTokens() {
+        return List.copyOf(refusalLogprobTokens);
+    }
+
+    /**
+     * The merged {@code choices[0].logprobs} object for the synthetic response of
+     * the streaming loop ({@code content} and {@code refusal} arrays of the
+     * accumulated token entries), or {@code null} when the stream carried no
+     * logprobs at all.
+     */
+    JSONObject getLogprobs() {
+        if (contentLogprobTokens.isEmpty() && refusalLogprobTokens.isEmpty()) {
+            return null;
+        }
+        JSONObject logprobs = new JSONObject();
+        JSONArray contentArr = new JSONArray();
+        for (JSONObject token : contentLogprobTokens) {
+            contentArr.put(token);
+        }
+        logprobs.put("content", contentArr);
+        JSONArray refusalArr = new JSONArray();
+        for (JSONObject token : refusalLogprobTokens) {
+            refusalArr.put(token);
+        }
+        logprobs.put("refusal", refusalArr);
+        return logprobs;
+    }
+
+    private void appendLogprobTokens(JSONArray tokens, List<JSONObject> target) {
+        if (tokens == null) {
+            return;
+        }
+        for (int i = 0; i < tokens.length(); i++) {
+            JSONObject entry = tokens.optJSONObject(i);
+            if (entry != null) {
+                target.add(entry);
+            }
+        }
+    }
+
     private void mergeAudioDelta(JSONObject audio) {
         if (audioId == null && audio.has("id") && !audio.isNull("id")) {
             audioId = audio.getString("id");
@@ -377,6 +449,8 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         reasoningBuilder.setLength(0);
         refusalBuilder.setLength(0);
         reasoningDetails.clear();
+        contentLogprobTokens.clear();
+        refusalLogprobTokens.clear();
         audioDataBuilder.setLength(0);
         audioTranscriptBuilder.setLength(0);
     }
