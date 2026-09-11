@@ -1,8 +1,8 @@
 package de.entwicklertraining.openrouter4j;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -14,35 +14,22 @@ import java.util.Objects;
  * <ul>
  *   <li><b>Legacy single-object form</b> - a {@link JSONObject} payload, emitted
  *       by the tool-call loops as the plain string content of the
- *       {@code role:"tool"} message exactly as before (default, unchanged
- *       wire format);</li>
+ *       {@code role:"tool"} message (default, unchanged wire format);</li>
  *   <li><b>Multi-part form (since 1.14.0)</b> - a list of content parts (at
  *       least text and image parts are typed via {@link #textPart(String)} /
  *       {@link #imageUrlPart(String)}), emitted as a {@code content} array so a
  *       tool can feed images or documents back to a multimodal model.</li>
  * </ul>
  * Create with {@link #of(JSONObject)} for the legacy form or
- * {@link #ofParts(List)} for the multi-part form.
+ * {@link #ofParts(List)} for the multi-part form. The type stays a record with
+ * the single component {@code content}, so record patterns such as
+ * {@code r instanceof OpenRouterToolResult(JSONObject c)} keep working for both
+ * forms.
+ *
+ * @param content the legacy tool output; for a multi-part result an
+ *                informational view {@code {"content_parts":[...]}} of the parts
  */
-public final class OpenRouterToolResult {
-
-    private final JSONObject content;
-    private final List<JSONObject> contentParts;
-
-    /**
-     * Creates a tool result in the legacy single-object form (unchanged
-     * behaviour and wire format).
-     *
-     * @param content the tool output as a JSON object
-     */
-    public OpenRouterToolResult(JSONObject content) {
-        this(content, null);
-    }
-
-    private OpenRouterToolResult(JSONObject content, List<JSONObject> contentParts) {
-        this.content = content;
-        this.contentParts = contentParts;
-    }
+public record OpenRouterToolResult(JSONObject content) {
 
     /**
      * Creates a tool result in the legacy single-object form (unchanged
@@ -63,8 +50,12 @@ public final class OpenRouterToolResult {
      * {@link #imageUrlPart(String)}); arbitrary other parts can be passed as
      * verbatim JSON objects (e.g. {@code file} / {@code input_audio} /
      * {@code video_url}, the same shapes as on a user message).
+     * <p>
+     * Only results created here are emitted as an array: a hand-built
+     * {@code new OpenRouterToolResult(new JSONObject().put("content_parts", ...))}
+     * is an ordinary legacy result and is sent as a plain string.
      *
-     * @param parts the content parts of the tool result
+     * @param parts the content parts of the tool result (must not be empty)
      * @return the tool result
      */
     public static OpenRouterToolResult ofParts(List<JSONObject> parts) {
@@ -72,13 +63,13 @@ public final class OpenRouterToolResult {
         if (parts.isEmpty()) {
             throw new IllegalArgumentException("parts must not be empty");
         }
-        return new OpenRouterToolResult(null, List.copyOf(parts));
+        return new OpenRouterToolResult(new ContentParts(List.copyOf(parts)));
     }
 
     /**
      * Varargs variant of {@link #ofParts(List)}.
      *
-     * @param parts the content parts of the tool result
+     * @param parts the content parts of the tool result (must not be empty)
      * @return the tool result
      */
     public static OpenRouterToolResult ofParts(JSONObject... parts) {
@@ -127,50 +118,52 @@ public final class OpenRouterToolResult {
     }
 
     /**
-     * Returns the legacy single-object payload, or {@code null} when this
-     * result was created in the multi-part form ({@link #ofParts(List)}).
-     *
-     * @return the tool output as a JSON object, or {@code null} for multi-part results
-     */
-    public JSONObject content() {
-        return content;
-    }
-
-    /**
-     * Returns the content parts of the multi-part form, or {@code null} when
-     * this result was created in the legacy single-object form.
+     * Returns the content parts of the multi-part form (an unmodifiable list),
+     * or {@code null} when this result is in the legacy single-object form.
      *
      * @return the content parts, or {@code null} for legacy results
      */
     public List<JSONObject> contentParts() {
-        return contentParts;
+        return content instanceof ContentParts parts ? parts.parts : null;
     }
 
     /**
-     * Returns {@code true} when this result carries multi-part content and the
-     * tool-call loops must emit {@code content} as an array.
+     * Returns {@code true} when this result was created via
+     * {@link #ofParts(List)} and the tool-call loops emit {@code content} as an
+     * array.
      *
      * @return whether the multi-part form is set
      */
     public boolean hasContentParts() {
-        return contentParts != null;
+        return content instanceof ContentParts;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof OpenRouterToolResult that)) return false;
-        return Objects.equals(content, that.content)
-                && Objects.equals(contentParts, that.contentParts);
-    }
+    /**
+     * Marker payload of the multi-part form. Keeping the parts inside the one
+     * record component (instead of adding a second component) is what keeps
+     * this type source- and binary-compatible with the 1.x record: the
+     * canonical constructor, the component list and record patterns are
+     * unchanged. The JSON content is an informational view only; the parts
+     * list is the source of truth.
+     */
+    private static final class ContentParts extends JSONObject {
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(content, contentParts);
-    }
+        private final List<JSONObject> parts;
 
-    @Override
-    public String toString() {
-        return "OpenRouterToolResult[content=" + content + ", contentParts=" + contentParts + "]";
+        private ContentParts(List<JSONObject> parts) {
+            super();
+            this.parts = parts;
+            put("content_parts", new JSONArray(parts));
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return this == o || (o instanceof ContentParts that && parts.equals(that.parts));
+        }
+
+        @Override
+        public int hashCode() {
+            return parts.hashCode();
+        }
     }
 }

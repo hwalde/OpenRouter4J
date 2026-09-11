@@ -2771,16 +2771,61 @@ class OpenRouterChatCompletionRequestTest {
     }
 
     @Test
-    void toolResultMultiPartFormLeavesLegacyAccessorsNull() {
-        OpenRouterToolResult multiPart = OpenRouterToolResult.ofParts(OpenRouterToolResult.textPart("hi"));
+    void toolResultMultiPartAndLegacyAccessors() {
+        JSONObject text = OpenRouterToolResult.textPart("hi");
+        OpenRouterToolResult multiPart = OpenRouterToolResult.ofParts(text);
         assertThat(multiPart.hasContentParts()).isTrue();
-        assertThat(multiPart.contentParts()).hasSize(1);
-        assertThat(multiPart.content()).isNull();
+        assertThat(multiPart.contentParts()).containsExactly(text);
+        assertThatThrownBy(() -> multiPart.contentParts().add(new JSONObject()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        // content() is an informational view of the parts, never null.
+        assertThat(multiPart.content().getJSONArray("content_parts").getJSONObject(0).getString("text"))
+                .isEqualTo("hi");
 
         OpenRouterToolResult legacy = OpenRouterToolResult.of(new JSONObject().put("a", 1));
         assertThat(legacy.hasContentParts()).isFalse();
         assertThat(legacy.contentParts()).isNull();
         assertThat(legacy.content().getInt("a")).isEqualTo(1);
+    }
+
+    @Test
+    void toolResultStaysTheOneComponentRecordOf1x() {
+        // 1.5.0 shipped `record OpenRouterToolResult(JSONObject content)`. Losing the record
+        // (or changing its component list) breaks record patterns at compile time and code
+        // typed against java.lang.Record at class-load time, so both are pinned here.
+        assertThat(OpenRouterToolResult.class.isRecord()).isTrue();
+        var components = OpenRouterToolResult.class.getRecordComponents();
+        assertThat(components).hasSize(1);
+        assertThat(components[0].getName()).isEqualTo("content");
+        assertThat(components[0].getType()).isEqualTo(JSONObject.class);
+
+        JSONObject payload = new JSONObject().put("a", 1);
+        Object legacy = new OpenRouterToolResult(payload);
+        assertThat(legacy instanceof OpenRouterToolResult(JSONObject c) && c == payload).isTrue();
+        assertThat(legacy).hasToString("OpenRouterToolResult[content={\"a\":1}]");
+
+        Object multiPart = OpenRouterToolResult.ofParts(OpenRouterToolResult.textPart("hi"));
+        assertThat(multiPart instanceof OpenRouterToolResult(JSONObject c) && c.has("content_parts")).isTrue();
+    }
+
+    @Test
+    void toolResultMultiPartFormSurvivesRecordCopyAndEquality() {
+        JSONObject text = OpenRouterToolResult.textPart("hi");
+        OpenRouterToolResult multiPart = OpenRouterToolResult.ofParts(text);
+
+        // Rebuilding the record from its component (e.g. after deconstruction) keeps the form.
+        OpenRouterToolResult copy = new OpenRouterToolResult(multiPart.content());
+        assertThat(copy.hasContentParts()).isTrue();
+        assertThat(copy).isEqualTo(multiPart).hasSameHashCodeAs(multiPart);
+        assertThat(OpenRouterToolResult.ofParts(List.of(text))).isEqualTo(multiPart);
+
+        // A hand-built look-alike is NOT the multi-part form: only ofParts(...) emits an array.
+        OpenRouterToolResult lookAlike = new OpenRouterToolResult(
+                new JSONObject().put("content_parts", new JSONArray().put(text)));
+        assertThat(lookAlike.hasContentParts()).isFalse();
+        List<JSONObject> messages = new ArrayList<>();
+        OpenRouterChatCompletionCallHandler.addToolResultMessage(messages, "call_3", lookAlike);
+        assertThat(messages.get(0).get("content")).isInstanceOf(String.class);
     }
 
     // --- Preset-based chat completions ---
@@ -2808,6 +2853,25 @@ class OpenRouterChatCompletionRequestTest {
         assertThat(body.getString("preset")).isEqualTo("email-copywriter");
         assertThat(body.has("model")).isTrue();
         assertThat(body.has("messages")).isTrue();
+    }
+
+    @Test
+    void presetDoesNotSuppressTheModelField() {
+        // Documented trap: the request always carries a model (the builder default when
+        // model(...) is never called), and request fields override the preset's - so the
+        // preset's stored model only applies via the "@preset/slug" model reference.
+        // OpenRouter rejects a body without any model ("No models provided", 400), which is
+        // why the library does not drop the key when a preset is set.
+        JSONObject defaulted = new JSONObject(OpenRouterChatCompletionRequest.builder(new OpenRouterClient())
+                .preset("email-copywriter")
+                .addMessage("user", "Hello")
+                .build().getBody());
+        assertThat(defaulted.getString("preset")).isEqualTo("email-copywriter");
+        assertThat(defaulted.getString("model")).isEqualTo("deepseek/deepseek-v4-flash-0731");
+
+        JSONObject presetModel = bodyOf(baseBuilder().model("@preset/email-copywriter"));
+        assertThat(presetModel.getString("model")).isEqualTo("@preset/email-copywriter");
+        assertThat(presetModel.has("preset")).isFalse();
     }
 
     @Test

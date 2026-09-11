@@ -45,7 +45,7 @@
   <scm>
     <connection>scm:git:git://github.com/hwalde/OpenRouter4J.git</connection>
     <developerConnection>scm:git:ssh://github.com:hwalde/OpenRouter4J.git</developerConnection>
-    <url>http://github.com/hwalde/OpenRouter4J/tree/master</url>
+    <url>https://github.com/hwalde/OpenRouter4J/tree/main</url>
   </scm>
 
   <properties>

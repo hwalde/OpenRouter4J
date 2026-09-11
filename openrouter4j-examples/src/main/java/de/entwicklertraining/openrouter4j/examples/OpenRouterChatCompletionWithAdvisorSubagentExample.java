@@ -37,7 +37,7 @@ public class OpenRouterChatCompletionWithAdvisorSubagentExample {
                 // forwarding), answers with at most 2048 tokens:
                 .addServerTool(OpenRouterAdvisorServerTool.builder()
                         .name("reviewer")
-                        .model("~anthropic/claude-opus-latest")
+                        .model("deepseek/deepseek-v4-pro-0813")
                         .instructions("You are a senior story editor. Give a focused, decisive plan.")
                         .maxCompletionTokens(2048)
                         .build())

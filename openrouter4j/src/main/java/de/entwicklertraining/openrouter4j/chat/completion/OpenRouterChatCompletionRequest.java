@@ -1518,21 +1518,34 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         /**
          * Runs the completion against a stored, versioned OpenRouter preset:
          * emits the {@code preset} body field with the slug. The preset supplies
-         * the request defaults centrally (model, provider routing, system
-         * prompt, generation parameters, tools, ...); per the API the two are
+         * request defaults centrally (provider routing, system prompt,
+         * generation parameters, tools, ...); per the API the two are
          * <b>shallow-merged</b> - every field present in this request overrides
          * the preset's stored value, and preset fields not sent here are
-         * preserved. An explicit {@code model(...)} or
-         * {@code reasoningEffort(...)} on this builder therefore wins over the
-         * preset, options left unset fall back to the preset.
+         * preserved. An explicit {@code reasoningEffort(...)} on this builder
+         * therefore wins over the preset, options left unset fall back to it.
          * <p>
-         * Two alternative referencing styles need no library support: the
-         * direct model reference {@code model("@preset/" + slug)} and the
-         * combined form {@code model("openai/gpt-4@preset/" + slug)} both work
-         * verbatim through {@link #model(String)}.
+         * <b>Trap - the model always comes from this request.</b> The body
+         * always carries {@code model}: the value of {@link #model(String)}, or
+         * the builder default when it is never called. Because request fields
+         * win, the preset's stored model is overridden in either case. To let
+         * the preset choose the model, use the direct model reference
+         * {@code model("@preset/" + slug)} instead of (or in addition to) this
+         * method; the combined form {@code model("openai/gpt-4@preset/" + slug)}
+         * pins the model and applies the preset. Both work verbatim through
+         * {@link #model(String)}. Dropping {@code model} is not an option:
+         * OpenRouter rejects a body without one ("No models provided", 400),
+         * even when {@code preset} is set.
          * <p>
-         * Traps: streaming and the tool-call loop carry {@code preset} into
-         * every follow-up request, so the whole loop stays on the preset.
+         * <b>Trap - an unknown slug is not reported.</b> Observed live
+         * (2026-09-11): a {@code preset} body field naming a preset that does
+         * not exist is ignored and the request is served normally by the
+         * request's model, so a typo in the slug goes unnoticed. The
+         * {@code model("@preset/" + slug)} form fails loudly instead
+         * (404, {@code preset_not_found}).
+         * <p>
+         * Further traps: streaming and the tool-call loop carry {@code preset}
+         * into every follow-up request, so the whole loop stays on the preset.
          * The {@code POST /presets/{slug}/chat/completions} endpoint is
          * <b>not</b> an inference route - it creates/updates a preset from a
          * request body (and needs a management key); it is deliberately not
