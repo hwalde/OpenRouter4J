@@ -14,7 +14,7 @@
 
   <name>OpenRouter4J</name>
   <description>Fluent API Java Library for OpenRouter</description>
-  <url>http://github.com/hwalde/OpenRouter4J</url> <licenses>
+  <url>https://github.com/hwalde/OpenRouter4J</url> <licenses>
   <license>
     <name>MIT License</name>
     <url>https://opensource.org/licenses/MIT</url>
@@ -36,7 +36,7 @@
   <scm>
     <connection>scm:git:git://github.com/hwalde/OpenRouter4J.git</connection>
     <developerConnection>scm:git:ssh://github.com:hwalde/OpenRouter4J.git</developerConnection>
-    <url>http://github.com/hwalde/OpenRouter4J/tree/master</url>
+    <url>https://github.com/hwalde/OpenRouter4J/tree/main</url>
   </scm>
 
   <dependencies>
