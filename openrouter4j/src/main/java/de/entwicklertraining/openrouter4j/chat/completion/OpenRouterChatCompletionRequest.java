@@ -3386,6 +3386,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * <p>
          * Emitted as {@code {"type":"file","file":{"file_id":...[,"filename":...]}}}.
          * The {@code filename} key is only emitted when non-null.
+         * <p>
+         * Trap: like every file input, document understanding is model-dependent -
+         * route to a model that supports file inputs.
          *
          * @param fileId the id returned by the OpenRouter Files API upload
          * @param filename the display filename, or {@code null} to omit the key
@@ -3517,8 +3520,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * adds later). The given object is emitted exactly as provided inside the
          * {@code content} array of a user message.
          *
-         * @param contentPart the content part object (must carry a {@code type} key
-         *                    as the first entry for stable JSON key order)
+         * @param contentPart the content part object (should carry a {@code type}
+         *                    key, as every schema-defined content part does)
          * @return This builder instance
          * @see <a href="https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion">ChatContentItems</a>
          */
