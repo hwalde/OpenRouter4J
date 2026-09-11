@@ -2817,7 +2817,14 @@ class OpenRouterChatCompletionRequestTest {
         OpenRouterToolResult copy = new OpenRouterToolResult(multiPart.content());
         assertThat(copy.hasContentParts()).isTrue();
         assertThat(copy).isEqualTo(multiPart).hasSameHashCodeAs(multiPart);
-        assertThat(OpenRouterToolResult.ofParts(List.of(text))).isEqualTo(multiPart);
+        // An independently built result with the same parts is equal AND hashes equally
+        // (equals/hashCode contract - HashSet/HashMap lookups depend on it).
+        assertThat(OpenRouterToolResult.ofParts(List.of(text))).isEqualTo(multiPart).hasSameHashCodeAs(multiPart);
+        // Record toString of the one component; key order inside a JSONObject is unspecified.
+        assertThat(multiPart.toString())
+                .startsWith("OpenRouterToolResult[content={\"content_parts\":[{")
+                .contains("\"text\":\"hi\"")
+                .endsWith("}]}]");
 
         // A hand-built look-alike is NOT the multi-part form: only ofParts(...) emits an array.
         OpenRouterToolResult lookAlike = new OpenRouterToolResult(
@@ -2826,6 +2833,20 @@ class OpenRouterChatCompletionRequestTest {
         List<JSONObject> messages = new ArrayList<>();
         OpenRouterChatCompletionCallHandler.addToolResultMessage(messages, "call_3", lookAlike);
         assertThat(messages.get(0).get("content")).isInstanceOf(String.class);
+    }
+
+    @Test
+    void toolResultMultiPartViewIsNotTheSourceOfTheWire() {
+        OpenRouterToolResult multiPart = OpenRouterToolResult.ofParts(OpenRouterToolResult.textPart("hi"));
+
+        // content() is informational only: tampering with the view must not change what is sent.
+        multiPart.content().put("content_parts", new JSONArray());
+
+        List<JSONObject> messages = new ArrayList<>();
+        OpenRouterChatCompletionCallHandler.addToolResultMessage(messages, "call_4", multiPart);
+        JSONArray content = messages.get(0).getJSONArray("content");
+        assertThat(content.length()).isEqualTo(1);
+        assertThat(content.getJSONObject(0).getString("text")).isEqualTo("hi");
     }
 
     // --- Preset-based chat completions ---
@@ -2857,11 +2878,9 @@ class OpenRouterChatCompletionRequestTest {
 
     @Test
     void presetDoesNotSuppressTheModelField() {
-        // Documented trap: the request always carries a model (the builder default when
-        // model(...) is never called), and request fields override the preset's - so the
-        // preset's stored model only applies via the "@preset/slug" model reference.
-        // OpenRouter rejects a body without any model ("No models provided", 400), which is
-        // why the library does not drop the key when a preset is set.
+        // Documented trap: setting a preset does not remove the model (the builder default
+        // when model(...) is never called), and request fields override the preset's - so
+        // the preset's stored model only applies via the "@preset/slug" model reference.
         JSONObject defaulted = new JSONObject(OpenRouterChatCompletionRequest.builder(new OpenRouterClient())
                 .preset("email-copywriter")
                 .addMessage("user", "Hello")
@@ -2872,6 +2891,11 @@ class OpenRouterChatCompletionRequestTest {
         JSONObject presetModel = bodyOf(baseBuilder().model("@preset/email-copywriter"));
         assertThat(presetModel.getString("model")).isEqualTo("@preset/email-copywriter");
         assertThat(presetModel.has("preset")).isFalse();
+
+        // Only an explicit model(null) leaves the key out (as documented on model(String)).
+        JSONObject nullModel = bodyOf(baseBuilder().preset("email-copywriter").model(null));
+        assertThat(nullModel.has("model")).isFalse();
+        assertThat(nullModel.getString("preset")).isEqualTo("email-copywriter");
     }
 
     @Test

@@ -858,8 +858,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
      * flag / accumulator where needed).
      * <p>
      * This is the single place where options are carried into the next turn - it reads
-     * the private fields of this class directly, so a newly added option cannot be
-     * forgotten here without the compiler noticing the unused field in the copy.
+     * the private fields of this class directly. Nothing checks this mechanically (javac
+     * does not flag a field that is left out of the copy), so a newly added option must
+     * be added here by hand and covered by a tool-loop propagation test.
      *
      * @param updatedMessages the accumulated conversation messages for the next turn
      * @param stream whether the follow-up request should stream
@@ -1510,6 +1511,25 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             this.client = client;
         }
 
+        /**
+         * Sets the model that serves the request. JSON field: {@code model},
+         * sent whenever it is non-null - i.e. always, unless {@code model(null)}
+         * is called explicitly, which leaves the key out of the body.
+         * <p>
+         * Default when never called: {@code deepseek/deepseek-v4-flash-0731},
+         * a <b>text-only</b> model - requests that add images, files, audio or
+         * video must set a model that accepts that input (e.g.
+         * {@code z-ai/glm-5.3-flash} for images and video).
+         * <p>
+         * The preset reference forms {@code "@preset/<slug>"} (the preset
+         * chooses the model) and {@code "<model>@preset/<slug>"} (this model,
+         * with the preset applied) are passed through verbatim. Together with
+         * the {@code preset} body field ({@link #preset(String)}) this value
+         * overrides the preset's stored model.
+         *
+         * @param m the model slug, e.g. {@code "deepseek/deepseek-v4-flash-0731"}
+         * @return This builder instance
+         */
         public Builder model(String m) {
             this.model = m;
             return this;
@@ -1525,17 +1545,21 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * preserved. An explicit {@code reasoningEffort(...)} on this builder
          * therefore wins over the preset, options left unset fall back to it.
          * <p>
-         * <b>Trap - the model always comes from this request.</b> The body
-         * always carries {@code model}: the value of {@link #model(String)}, or
-         * the builder default when it is never called. Because request fields
-         * win, the preset's stored model is overridden in either case. To let
-         * the preset choose the model, use the direct model reference
-         * {@code model("@preset/" + slug)} instead of (or in addition to) this
-         * method; the combined form {@code model("openai/gpt-4@preset/" + slug)}
-         * pins the model and applies the preset. Both work verbatim through
-         * {@link #model(String)}. Dropping {@code model} is not an option:
-         * OpenRouter rejects a body without one ("No models provided", 400),
-         * even when {@code preset} is set.
+         * <b>Trap - the model comes from this request.</b> Setting a preset
+         * does not remove {@code model} from the body: it carries the value of
+         * {@link #model(String)}, or the builder default
+         * ({@code deepseek/deepseek-v4-flash-0731}) when that is never called.
+         * Because request fields win, the preset's stored model is overridden
+         * in either case. To let the preset choose the model, use the direct
+         * model reference {@code model("@preset/" + slug)} instead of this
+         * method; the combined form
+         * {@code model("deepseek/deepseek-v4-flash-0731@preset/" + slug)} pins
+         * the model and applies the preset. Both work verbatim through
+         * {@link #model(String)}. An explicit {@code model(null)} leaves the
+         * key out, but that is not a supported way to defer to the preset: a
+         * body without {@code model} was observed to fail with 400
+         * ("No models provided") for an unknown slug, and whether an existing
+         * preset fills in a missing model is not verified.
          * <p>
          * <b>Trap - an unknown slug is not reported.</b> Observed live
          * (2026-09-11): a {@code preset} body field naming a preset that does

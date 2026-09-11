@@ -17,13 +17,14 @@ import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompleti
  * 2. {@code .preset("email-copywriter")} emits the {@code preset} body field.
  *    Per the API the two are shallow-merged: every field present in the
  *    request overrides the preset's stored value, and preset fields not sent
- *    are preserved. Trap: the request ALWAYS carries a model (the explicit
- *    {@code .model(...)} or the builder default), so the preset's model never
- *    applies in this form - set the model you want explicitly. Second trap:
+ *    are preserved. Trap: setting a preset does not remove the model from the
+ *    request (it carries the explicit {@code .model(...)} or the builder
+ *    default), so the preset's model does not apply in this form - set the
+ *    model you want explicitly. Second trap:
  *    an unknown slug in the {@code preset} field is silently ignored and the
  *    request runs without the preset.
  *
- * The combined form {@code .model("openai/gpt-4@preset/email-copywriter")}
+ * The combined form {@code .model("deepseek/deepseek-v4-flash-0731@preset/email-copywriter")}
  * pins a model and applies the preset in one reference.
  *
  * Trap: {@code POST /presets/{slug}/chat/completions} is NOT an inference
@@ -47,7 +48,7 @@ public class OpenRouterChatCompletionWithPresetExample {
         //    over the preset's values; everything not sent here falls back to the preset.
         OpenRouterChatCompletionResponse byField = client.chat().completion()
                 .preset("email-copywriter")
-                .model("deepseek/deepseek-v4-flash-0731") // always sent - overrides the preset's model
+                .model("deepseek/deepseek-v4-flash-0731") // sent as well - overrides the preset's model
                 .temperature(0.2)                         // per-call override
                 .addMessage("user", "Write a two-sentence product announcement for a coffee subscription.")
                 .execute();

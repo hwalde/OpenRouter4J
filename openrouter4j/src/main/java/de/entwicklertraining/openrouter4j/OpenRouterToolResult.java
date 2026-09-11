@@ -51,9 +51,13 @@ public record OpenRouterToolResult(JSONObject content) {
      * verbatim JSON objects (e.g. {@code file} / {@code input_audio} /
      * {@code video_url}, the same shapes as on a user message).
      * <p>
-     * Only results created here are emitted as an array: a hand-built
+     * Only results created here (or rebuilt from such a result's own
+     * {@link #content()} object) are emitted as an array. A hand-built
      * {@code new OpenRouterToolResult(new JSONObject().put("content_parts", ...))}
-     * is an ordinary legacy result and is sent as a plain string.
+     * or a deep copy such as {@code new JSONObject(r.content().toString())} is
+     * an ordinary legacy result and is sent as a plain string - with any base64
+     * image data inside it as text. Note that {@link #toString()} of a
+     * multi-part result prints the parts in full, base64 data included.
      *
      * @param parts the content parts of the tool result (must not be empty)
      * @return the tool result
