@@ -1,0 +1,60 @@
+package de.entwicklertraining.openrouter4j.examples;
+
+import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.activity.OpenRouterActivityResponse;
+import de.entwicklertraining.openrouter4j.activity.OpenRouterAnalyticsQueryResponse;
+import de.entwicklertraining.openrouter4j.activity.OpenRouterActivityItem;
+import org.json.JSONObject;
+
+/**
+ * Demonstrates the usage endpoints:
+ *
+ * - GET /activity - per-day, per-model, per-endpoint usage rows (typed)
+ * - POST /analytics/query - the metric/dimension query engine (rows are
+ *   free-form objects keyed by the requested metrics and dimensions)
+ *
+ * <p>OpenRouter requires a management key for both endpoints.
+ */
+public class OpenRouterActivityAnalyticsExample {
+
+    public static void main(String[] args) {
+        OpenRouterClient client = new OpenRouterClient();
+
+        // 1. Activity rows for one day.
+        OpenRouterActivityResponse activity = client.activity()
+                .date("2026-09-14")
+                .execute();
+
+        System.out.println("Activity rows: " + activity.items().size());
+        for (OpenRouterActivityItem item : activity.items()) {
+            System.out.printf("  %s %s via %s - %d request(s), %d/%d tokens, %.4f USD%n",
+                    item.date(),
+                    item.model(),
+                    item.providerName(),
+                    item.requests(),
+                    item.promptTokens(),
+                    item.completionTokens(),
+                    item.usage());
+        }
+
+        // 2. Analytics query: daily request counts per model over a window.
+        OpenRouterAnalyticsQueryResponse analytics = client.analyticsQuery()
+                .metrics("request_count", "cost")
+                .dimensions("model")
+                .granularity("day")
+                .timeRange("2026-09-01T00:00:00Z", "2026-09-14T23:59:59Z")
+                .orderBy("request_count", "desc")
+                .limit(100)
+                .execute();
+
+        System.out.println("Analytics rows: " + analytics.rowCount()
+                + " (query time " + analytics.queryTimeMs() + " ms, truncated: " + analytics.truncated() + ")");
+        for (JSONObject row : analytics.rows()) {
+            System.out.println("  " + row);
+        }
+        // Filter-resolution warnings do not fail the query:
+        if (!analytics.warnings().isEmpty()) {
+            System.out.println("Warnings: " + analytics.warnings());
+        }
+    }
+}

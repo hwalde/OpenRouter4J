@@ -3,7 +3,18 @@ package de.entwicklertraining.openrouter4j;
 import de.entwicklertraining.api.base.ApiClient;
 import de.entwicklertraining.api.base.ApiClientSettings;
 import de.entwicklertraining.api.base.ApiHttpConfiguration;
+import de.entwicklertraining.openrouter4j.activity.OpenRouterActivityRequest;
+import de.entwicklertraining.openrouter4j.activity.OpenRouterAnalyticsQueryRequest;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest;
+import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
+import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentRequest;
+import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackRequest;
+import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest;
+import de.entwicklertraining.openrouter4j.models.OpenRouterModelEndpointsRequest;
+import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
+import de.entwicklertraining.openrouter4j.models.OpenRouterModelsCountRequest;
+import de.entwicklertraining.openrouter4j.models.OpenRouterModelsListRequest;
+import de.entwicklertraining.openrouter4j.models.OpenRouterUserModelsRequest;
 
 // Import exception classes
 import static de.entwicklertraining.api.base.ApiClient.HTTP_400_RequestRejectedException;
@@ -105,6 +116,132 @@ public final class OpenRouterClient extends ApiClient {
 
     public OpenRouterChat chat() {
         return new OpenRouterChat(this);
+    }
+
+    /**
+     * Reads the credit balance of the account:
+     * GET /credits (management key required).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterCreditsRequest.Builder credits() {
+        return new OpenRouterCreditsRequest.Builder(this);
+    }
+
+    /**
+     * Lists the full OpenRouter model catalog:
+     * GET /models.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterModelsListRequest.Builder models() {
+        return new OpenRouterModelsListRequest.Builder(this);
+    }
+
+    /**
+     * Counts the models in the catalog:
+     * GET /models/count.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterModelsCountRequest.Builder modelsCount() {
+        return new OpenRouterModelsCountRequest.Builder(this);
+    }
+
+    /**
+     * Lists the models the authenticated account may use:
+     * GET /models/user.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterUserModelsRequest.Builder userModels() {
+        return new OpenRouterUserModelsRequest.Builder(this);
+    }
+
+    /**
+     * Fetches one model from the catalog:
+     * GET /model/{author}/{slug}.
+     *
+     * @param modelId the full model id ({@code author/slug}); the first slash splits it
+     * @return the starting point for the request
+     */
+    public OpenRouterModelRequest.Builder model(String modelId) {
+        int slash = modelId != null ? modelId.indexOf('/') : -1;
+        if (modelId == null || modelId.isEmpty() || slash <= 0 || slash == modelId.length() - 1) {
+            throw new IllegalArgumentException(
+                    "modelId must be of the form \"author/slug\", got: " + modelId);
+        }
+        return new OpenRouterModelRequest.Builder(this,
+                modelId.substring(0, slash), modelId.substring(slash + 1));
+    }
+
+    /**
+     * Lists the serving endpoints of one model:
+     * GET /models/{author}/{slug}/endpoints.
+     *
+     * @param modelId the full model id ({@code author/slug}); the first slash splits it
+     * @return the starting point for the request
+     */
+    public OpenRouterModelEndpointsRequest.Builder modelEndpoints(String modelId) {
+        int slash = modelId != null ? modelId.indexOf('/') : -1;
+        if (modelId == null || modelId.isEmpty() || slash <= 0 || slash == modelId.length() - 1) {
+            throw new IllegalArgumentException(
+                    "modelId must be of the form \"author/slug\", got: " + modelId);
+        }
+        return new OpenRouterModelEndpointsRequest.Builder(this,
+                modelId.substring(0, slash), modelId.substring(slash + 1));
+    }
+
+    /**
+     * Fetches the request/usage metadata of one generation:
+     * GET /generation?id=... (management key required).
+     *
+     * @param generationId the generation id ({@code gen-...})
+     * @return the starting point for the request
+     */
+    public OpenRouterGenerationRequest.Builder generation(String generationId) {
+        return new OpenRouterGenerationRequest.Builder(this, generationId);
+    }
+
+    /**
+     * Fetches the stored prompt and completion of one generation:
+     * GET /generation/content?id=... (management key required).
+     *
+     * @param generationId the generation id ({@code gen-...})
+     * @return the starting point for the request
+     */
+    public OpenRouterGenerationContentRequest.Builder generationContent(String generationId) {
+        return new OpenRouterGenerationContentRequest.Builder(this, generationId);
+    }
+
+    /**
+     * Submits structured feedback on one generation:
+     * POST /generation/feedback (management key required).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterGenerationFeedbackRequest.Builder generationFeedback() {
+        return new OpenRouterGenerationFeedbackRequest.Builder(this);
+    }
+
+    /**
+     * Reads the usage activity of the account:
+     * GET /activity (management key required).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterActivityRequest.Builder activity() {
+        return new OpenRouterActivityRequest.Builder(this);
+    }
+
+    /**
+     * Queries the account's usage analytics:
+     * POST /analytics/query (management key required).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterAnalyticsQueryRequest.Builder analyticsQuery() {
+        return new OpenRouterAnalyticsQueryRequest.Builder(this);
     }
 
     /**
