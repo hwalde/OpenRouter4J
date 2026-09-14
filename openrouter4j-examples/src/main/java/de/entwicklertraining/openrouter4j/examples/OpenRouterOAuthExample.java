@@ -57,9 +57,11 @@ public class OpenRouterOAuthExample {
             System.out.println("How the user authorizes this code is not documented by OpenRouter;");
             System.out.println("the documented alternative consent flow is");
             System.out.println("https://openrouter.ai/auth?callback_url=<callback>&code_challenge=<challenge>");
-            System.out.println("&code_challenge_method=S256 and does not require this call. Either");
-            System.out.println("way, the code arrives as ?code=<code> on the callback redirect - the");
-            System.out.println("page itself will fail to load, copy the code from the address bar.");
+            System.out.println("&code_challenge_method=S256 and does not require this call (there is");
+            System.out.println("also a headless variant without callback_url that displays the code");
+            System.out.println("on screen). Either way, the code arrives as ?code=<code> on the");
+            System.out.println("callback redirect - the page itself will fail to load, copy the");
+            System.out.println("code from the address bar.");
             System.out.println("The code expires 10 minutes after issuance - exchange it promptly.");
             System.out.println("Then re-run this program with that code as the first argument.");
             return;
