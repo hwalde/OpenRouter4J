@@ -95,4 +95,14 @@ class OpenRouterClientEntryPointsTest {
                 .isEqualTo("/embeddings/models");
         assertThat(client().embeddingsModels().build().getHttpMethod()).isEqualTo("GET");
     }
+
+    @Test
+    void rerankEntryPointProducesTheRerankRequest() {
+        assertThat(client().rerank()
+                .model("cohere/rerank-v3.5").query("q").addDocument("doc")
+                .build().getRelativeUrl()).isEqualTo("/rerank");
+        assertThat(client().rerank()
+                .model("cohere/rerank-v3.5").query("q").addDocument("doc")
+                .build().getHttpMethod()).isEqualTo("POST");
+    }
 }

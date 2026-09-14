@@ -17,6 +17,7 @@ import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsCountRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsListRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterUserModelsRequest;
+import de.entwicklertraining.openrouter4j.rerank.OpenRouterRerankRequest;
 
 // Import exception classes
 import static de.entwicklertraining.api.base.ApiClient.HTTP_400_RequestRejectedException;
@@ -268,6 +269,16 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterEmbeddingsModelsRequest.Builder embeddingsModels() {
         return new OpenRouterEmbeddingsModelsRequest.Builder(this);
+    }
+
+    /**
+     * Reranks documents against a query:
+     * POST /rerank.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterRerankRequest.Builder rerank() {
+        return new OpenRouterRerankRequest.Builder(this);
     }
 
     /**
