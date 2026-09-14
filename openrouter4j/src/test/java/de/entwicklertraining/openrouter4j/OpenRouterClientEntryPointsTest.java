@@ -105,4 +105,20 @@ class OpenRouterClientEntryPointsTest {
                 .model("cohere/rerank-v3.5").query("q").addDocument("doc")
                 .build().getHttpMethod()).isEqualTo("POST");
     }
+
+    @Test
+    void oauthEntryPointsProduceTheAuthorizationCodeRequests() {
+        assertThat(client().createAuthorizationCode()
+                .callbackUrl("https://myapp.com/auth/callback")
+                .build().getRelativeUrl()).isEqualTo("/auth/keys/code");
+        assertThat(client().createAuthorizationCode()
+                .callbackUrl("https://myapp.com/auth/callback")
+                .build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().exchangeAuthorizationCode()
+                .code("auth_code_abc123def456")
+                .build().getRelativeUrl()).isEqualTo("/auth/keys");
+        assertThat(client().exchangeAuthorizationCode()
+                .code("auth_code_abc123def456")
+                .build().getHttpMethod()).isEqualTo("POST");
+    }
 }

@@ -17,6 +17,8 @@ import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsCountRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsListRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterUserModelsRequest;
+import de.entwicklertraining.openrouter4j.oauth.OpenRouterAuthorizationCodeExchangeRequest;
+import de.entwicklertraining.openrouter4j.oauth.OpenRouterCreateAuthorizationCodeRequest;
 import de.entwicklertraining.openrouter4j.rerank.OpenRouterRerankRequest;
 
 // Import exception classes
@@ -279,6 +281,28 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterRerankRequest.Builder rerank() {
         return new OpenRouterRerankRequest.Builder(this);
+    }
+
+    /**
+     * Creates an OAuth authorization code:
+     * POST /auth/keys/code. Step one of the OAuth authorization-code flow
+     * with PKCE; pair it with {@link de.entwicklertraining.openrouter4j.oauth.OpenRouterPkce}.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterCreateAuthorizationCodeRequest.Builder createAuthorizationCode() {
+        return new OpenRouterCreateAuthorizationCodeRequest.Builder(this);
+    }
+
+    /**
+     * Exchanges an OAuth authorization code for an API key:
+     * POST /auth/keys. Final step of the OAuth authorization-code flow with
+     * PKCE.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterAuthorizationCodeExchangeRequest.Builder exchangeAuthorizationCode() {
+        return new OpenRouterAuthorizationCodeExchangeRequest.Builder(this);
     }
 
     /**
