@@ -96,6 +96,16 @@ class OpenRouterWorkloadIdentityTest {
                 .federationPolicyId("4b2f7d1e-8c3a-4e5f-9a6b-1c2d3e4f5a6b")
                 .build())
                 .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new OpenRouterWorkloadIdentityExchangeRequest.Builder(client())
+                .subjectToken("")
+                .federationPolicyId("4b2f7d1e-8c3a-4e5f-9a6b-1c2d3e4f5a6b")
+                .build())
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new OpenRouterWorkloadIdentityExchangeRequest.Builder(client())
+                .subjectToken("header.payload.signature")
+                .federationPolicyId("")
+                .build())
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
