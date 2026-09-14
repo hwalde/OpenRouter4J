@@ -19,7 +19,7 @@ public class OpenRouterRerankExample {
                 .query("What is the capital of France?")
                 .addDocument("Paris is the capital of France.")
                 .addDocument("Berlin is the capital of Germany.")
-                .addDocument("The Eiffel Tower is in Paris.")
+                .addDocument("The Eiffel Tower is in Paris.", "https://example.com/eiffel-tower.png")
                 .topN(2)
                 .execute();
 

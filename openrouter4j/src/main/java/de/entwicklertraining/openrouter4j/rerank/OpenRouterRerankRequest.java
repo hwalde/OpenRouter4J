@@ -41,9 +41,9 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
     /**
      * A structured document with optional text and/or image content. At least
      * one of the two must be provided (enforced by
-     * {@link Builder#addDocument(String, String)}). A {@code Document} is
-     * always emitted as a JSON object; the plain-string form is reserved for
-     * {@link Builder#addDocument(String)}.
+     * {@link Builder#addDocument(String, String)}). A two-arg
+     * {@code Document} is always emitted as a JSON object; the plain-string
+     * form is reserved for {@link Builder#addDocument(String)}.
      */
     public static final class Document {
 
