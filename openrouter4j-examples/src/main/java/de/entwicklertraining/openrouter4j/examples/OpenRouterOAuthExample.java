@@ -54,10 +54,13 @@ public class OpenRouterOAuthExample {
             System.out.println("Created at:            " + codeResponse.createdAt());
             System.out.println("PKCE verifier stored in " + VERIFIER_FILE + " (keep it secret).");
             System.out.println("Phase 1 requires OPENROUTER_API_KEY to be set (HTTP 401 otherwise).");
-            System.out.println("Send the user to the consent flow for this code; OpenRouter");
-            System.out.println("redirects the browser to " + "http://localhost:9876/callback");
-            System.out.println("with ?code=<code> - the page itself will fail to load, copy");
-            System.out.println("the code from the address bar.");
+            System.out.println("How the user authorizes this code is not documented by OpenRouter;");
+            System.out.println("the documented alternative consent flow is");
+            System.out.println("https://openrouter.ai/auth?callback_url=<callback>&code_challenge=<challenge>");
+            System.out.println("&code_challenge_method=S256 and does not require this call. Either");
+            System.out.println("way, the code arrives as ?code=<code> on the callback redirect - the");
+            System.out.println("page itself will fail to load, copy the code from the address bar.");
+            System.out.println("The code expires 10 minutes after issuance - exchange it promptly.");
             System.out.println("Then re-run this program with that code as the first argument.");
             return;
         }
@@ -66,13 +69,17 @@ public class OpenRouterOAuthExample {
         // stored verifier that pairs with the challenge of phase 1.
         String verifier = Files.readString(VERIFIER_FILE, StandardCharsets.UTF_8).trim();
 
-        OpenRouterAuthorizationCodeExchangeResponse exchange = client.exchangeAuthorizationCode()
-                .code(args[0])
-                .codeVerifier(verifier)
-                .codeChallengeMethod("S256")
-                .execute();
+        OpenRouterAuthorizationCodeExchangeResponse exchange;
+        try {
+            exchange = client.exchangeAuthorizationCode()
+                    .code(args[0])
+                    .codeVerifier(verifier)
+                    .codeChallengeMethod("S256")
+                    .execute();
+        } finally {
+            Files.deleteIfExists(VERIFIER_FILE);
+        }
 
-        Files.deleteIfExists(VERIFIER_FILE);
         System.out.println("API key created for user: " + exchange.userId());
         System.out.println("(the key itself is intentionally not printed - treat it as a secret)");
         System.out.println("(the stored verifier file was deleted)");

@@ -14,7 +14,9 @@ import org.json.JSONObject;
  * and delivered to the {@code callback_url} by the consent redirect, and the
  * verifier is the secret generated alongside the {@code code_challenge}. The
  * response carries the fresh API key; the existing plain-bearer path of the
- * library is untouched by this flow.
+ * library is untouched by this flow. Trap: authorization codes expire 10
+ * minutes after issuance (per the OpenRouter OAuth docs) - exchange the code
+ * promptly or restart the flow.
  */
 public final class OpenRouterAuthorizationCodeExchangeRequest
         extends OpenRouterRequest<OpenRouterAuthorizationCodeExchangeResponse> {

@@ -20,11 +20,17 @@ import org.json.JSONObject;
  * with {@link OpenRouterPkce#generateCodeVerifier()} and
  * {@link OpenRouterPkce#codeChallengeS256(String)}.
  *
- * <p>Authentication: OpenRouter expects the existing OpenRouter API key of
- * the authorizing app in the Authorization header for this call; a missing
- * header fails with HTTP 401 and a non-management key with HTTP 403 (both
- * surfaced as api-base exceptions). The client attaches the configured
+ * <p>Authentication, per the published OpenAPI spec: this call expects the
+ * Authorization header (401 "Missing Authentication header" without one) and
+ * the 403 example reads "Only management keys can perform this operation" -
+ * a normal inference key may be rejected. The client attaches the configured
  * bearer globally.
+ *
+ * <p>Trap (observed live 2026-09-14): POST to
+ * {@code https://openrouter.ai/api/v1/auth/keys/code} currently returns the
+ * OpenRouter website's 404 page, so the endpoint may not be deployed at that
+ * path yet. This implementation follows the published OpenAPI spec; verify
+ * the endpoint's availability before relying on it.
  */
 public final class OpenRouterCreateAuthorizationCodeRequest
         extends OpenRouterRequest<OpenRouterCreateAuthorizationCodeResponse> {
