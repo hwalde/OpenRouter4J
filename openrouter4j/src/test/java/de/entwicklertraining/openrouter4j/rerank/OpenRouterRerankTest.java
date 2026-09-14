@@ -58,12 +58,40 @@ class OpenRouterRerankTest {
                 .build()
                 .getBody());
 
-        // the text-only first document travels as a plain JSON string
-        assertThat(body.getJSONArray("documents").get(0)).isEqualTo("Paris is the capital of France.");
+        assertThat(body.getJSONArray("documents").length()).isEqualTo(3);
+        assertThat(body.getJSONArray("documents").getJSONObject(0).toMap())
+                .containsOnlyKeys("text");
         assertThat(body.getJSONArray("documents").getJSONObject(1).toMap())
                 .containsOnlyKeys("image");
         assertThat(body.getJSONArray("documents").getJSONObject(2).toMap())
                 .containsKeys("text", "image");
+    }
+
+    @Test
+    void emptyTextNormalizesToImageOnlyDocument() {
+        JSONObject body = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("", "https://example.com/image.png")
+                .build()
+                .getBody());
+
+        assertThat(body.getJSONArray("documents").getJSONObject(0).toMap())
+                .containsOnlyKeys("image");
+    }
+
+    @Test
+    void emptyPlainDocumentIsRejected() {
+        assertThatThrownBy(() -> new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument(""))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -113,6 +141,51 @@ class OpenRouterRerankTest {
     }
 
     @Test
+    void eachProviderOptionAloneTriggersTheProviderObject() {
+        String[][] cases = {
+                {"order", "providerOrder", "cohere"},
+                {"only", "providerOnly", "cohere"},
+                {"ignore", "providerIgnore", "deepinfra"}
+        };
+        for (String[] jsonKeyAndValue : cases) {
+            OpenRouterRerankRequest.Builder builder = new OpenRouterRerankRequest.Builder(client())
+                    .model("cohere/rerank-v3.5")
+                    .query("q")
+                    .addDocument("doc");
+            switch (jsonKeyAndValue[1]) {
+                case "providerOrder" -> builder.providerOrder(jsonKeyAndValue[2]);
+                case "providerOnly" -> builder.providerOnly(jsonKeyAndValue[2]);
+                case "providerIgnore" -> builder.providerIgnore(jsonKeyAndValue[2]);
+                default -> throw new IllegalStateException(jsonKeyAndValue[1]);
+            }
+            JSONObject body = new JSONObject(builder.build().getBody());
+
+            assertThat(body.has("provider")).isTrue();
+            assertThat(body.getJSONObject("provider").toMap()).containsOnlyKeys(jsonKeyAndValue[0]);
+        }
+
+        JSONObject requireParameters = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .requireParameters(true)
+                .build()
+                .getBody());
+        assertThat(requireParameters.getJSONObject("provider").toMap())
+                .containsOnlyKeys("require_parameters");
+
+        JSONObject allowFallbacks = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .allowFallbacks(false)
+                .build()
+                .getBody());
+        assertThat(allowFallbacks.getJSONObject("provider").toMap())
+                .containsOnlyKeys("allow_fallbacks");
+    }
+
+    @Test
     void providerOrderWithNoValuesEmitsNoProviderObject() {
         JSONObject body = new JSONObject(new OpenRouterRerankRequest.Builder(client())
                 .model("cohere/rerank-v3.5")
@@ -138,6 +211,31 @@ class OpenRouterRerankTest {
                 .query("q")
                 .build())
                 .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .topN(0)
+                .build())
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void requestAccessorsReflectTheBuilderInput() {
+        OpenRouterRerankRequest request = new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("capital of France?")
+                .addDocument("plain")
+                .addDocument("text", "image.png")
+                .build();
+
+        assertThat(request.model()).isEqualTo("cohere/rerank-v3.5");
+        assertThat(request.query()).isEqualTo("capital of France?");
+        assertThat(request.documents()).hasSize(2);
+        assertThat(request.documents().get(0).text()).isEqualTo("plain");
+        assertThat(request.documents().get(0).image()).isNull();
+        assertThat(request.documents().get(1).text()).isEqualTo("text");
+        assertThat(request.documents().get(1).image()).isEqualTo("image.png");
     }
 
     @Test
@@ -158,6 +256,7 @@ class OpenRouterRerankTest {
         assertThat(response.id()).isEqualTo("gen-rerank-123");
         assertThat(response.model()).isEqualTo("cohere/rerank-v3.5");
         assertThat(response.provider()).isEqualTo("Cohere");
+        assertThat(response.usage().toMap()).containsOnlyKeys("total_tokens", "search_units", "cost");
         assertThat(response.totalTokens()).isEqualTo(150L);
         assertThat(response.searchUnits()).isEqualTo(1L);
         assertThat(response.cost()).isEqualTo(0.001);
@@ -220,6 +319,24 @@ class OpenRouterRerankTest {
         assertThat(withoutDocument.index()).isEqualTo(2);
         assertThat(withoutDocument.relevanceScore()).isEqualTo(0.5);
         assertThat(withoutDocument.documentText()).isNull();
+    }
+
+    @Test
+    void resultsSkipNonObjectEntries() {
+        OpenRouterRerankResponse response = responseOf(
+                "{\"results\": [\"not-an-object\", {\"index\": 0, \"relevance_score\": 0.5}]}");
+
+        assertThat(response.results()).hasSize(1);
+        assertThat(response.results().get(0).index()).isEqualTo(0);
+    }
+
+    @Test
+    void resultJsonAccessorReturnsTheRawEntry() {
+        OpenRouterRerankResponse response = responseOf(
+                "{\"results\": [{\"index\": 0, \"relevance_score\": 0.5}]}");
+
+        assertThat(response.results().get(0).json().toMap())
+                .containsOnlyKeys("index", "relevance_score");
     }
 
     private OpenRouterRerankResponse responseOf(String json) {

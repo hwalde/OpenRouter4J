@@ -41,16 +41,24 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
     /**
      * A structured document with optional text and/or image content. At least
      * one of the two must be provided (enforced by
-     * {@link Builder#addDocument(String, String)}).
+     * {@link Builder#addDocument(String, String)}). A {@code Document} is
+     * always emitted as a JSON object; the plain-string form is reserved for
+     * {@link Builder#addDocument(String)}.
      */
     public static final class Document {
 
         private final String text;
         private final String image;
+        private final boolean plainString;
 
-        private Document(String text, String image) {
+        private Document(String text, String image, boolean plainString) {
             this.text = text;
             this.image = image;
+            this.plainString = plainString;
+        }
+
+        private boolean isPlainString() {
+            return plainString;
         }
 
         /**
@@ -131,7 +139,7 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
         root.put("query", query);
         JSONArray documentsArr = new JSONArray();
         for (Document document : documents) {
-            if (document.text() != null && document.image() == null) {
+            if (document.isPlainString()) {
                 documentsArr.put(document.text());
             } else {
                 JSONObject documentObj = new JSONObject();
@@ -246,14 +254,20 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
 
         /**
          * Adds a plain-string document to the required JSON field
-         * {@code documents}. The response results reference documents by
-         * their position in the input list.
+         * {@code documents} (emitted as a bare JSON string). The response
+         * results reference documents by their position in the input list.
+         * Rejected loudly when the text is null or empty - use
+         * {@link #addDocument(String, String)} for the structured form.
          *
          * @param text the document text
          * @return this builder
          */
         public Builder addDocument(String text) {
-            documents.add(new Document(text, null));
+            if (text == null || text.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "a plain rerank document needs non-empty text");
+            }
+            documents.add(new Document(text, null, true));
             return this;
         }
 
@@ -261,32 +275,33 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
          * Adds a structured document (JSON object {@code {"text":...,
          * "image":...}}) to the required JSON field {@code documents}, for
          * multimodal rerank models. At least one of text or image must be
-         * non-null and non-empty; a plain-text-only document should use
-         * {@link #addDocument(String)} instead (emitted as a JSON string).
-         * Trap: the image must be a remote URL (http/https) or a
-         * base64-encoded data URI ({@code data:image/...}); the API rejects
-         * other forms.
+         * non-null and non-empty. Trap: the image must be a remote URL
+         * (http/https) or a base64-encoded data URI ({@code data:image/...});
+         * the API rejects other forms. An empty text with a valid image
+         * normalizes to an image-only document, and vice versa.
          *
          * @param text the document text, or {@code null} for an image-only document
          * @param image the image URL or data URI, or {@code null} for a text-only document
          * @return this builder
          */
         public Builder addDocument(String text, String image) {
-            if (text == null || text.isEmpty()) {
-                if (image == null || image.isEmpty()) {
-                    throw new IllegalArgumentException(
-                            "a structured rerank document needs text or image");
-                }
+            boolean hasText = text != null && !text.isEmpty();
+            boolean hasImage = image != null && !image.isEmpty();
+            if (!hasText && !hasImage) {
+                throw new IllegalArgumentException(
+                        "a structured rerank document needs text or image");
             }
             documents.add(new Document(
-                    text == null || text.isEmpty() ? null : text,
-                    image == null || image.isEmpty() ? null : image));
+                    hasText ? text : null,
+                    hasImage ? image : null,
+                    false));
             return this;
         }
 
         /**
          * Sets the JSON field {@code top_n} - the number of most relevant
-         * documents to return. When unset, the API returns all documents
+         * documents to return (API schema minimum 1, validated loudly in
+         * {@link #build()}). When unset, the API returns all documents
          * reranked.
          *
          * @param topN the number of results to return
@@ -383,6 +398,9 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
             }
             if (documents.isEmpty()) {
                 throw new IllegalStateException("at least one document is required for a rerank request");
+            }
+            if (topN != null && topN < 1) {
+                throw new IllegalStateException("topN must be at least 1 (API schema minimum)");
             }
             return new OpenRouterRerankRequest(this);
         }
