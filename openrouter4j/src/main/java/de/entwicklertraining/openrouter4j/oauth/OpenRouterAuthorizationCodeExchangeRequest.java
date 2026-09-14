@@ -32,6 +32,28 @@ public final class OpenRouterAuthorizationCodeExchangeRequest
         this.codeChallengeMethod = builder.codeChallengeMethod;
     }
 
+    /**
+     * @return the authorization code received from the OAuth redirect
+     */
+    public String code() {
+        return code;
+    }
+
+    /**
+     * @return the PKCE code verifier, or {@code null} when unset. Treat this
+     *         value as a secret.
+     */
+    public String codeVerifier() {
+        return codeVerifier;
+    }
+
+    /**
+     * @return the PKCE code challenge method, or {@code null} when unset
+     */
+    public String codeChallengeMethod() {
+        return codeChallengeMethod;
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/auth/keys";
@@ -47,8 +69,8 @@ public final class OpenRouterAuthorizationCodeExchangeRequest
      * authorization code received from the OAuth redirect),
      * {@code code_verifier} (the PKCE verifier when a challenge was used)
      * and {@code code_challenge_method} (omitted when unset; the API schema
-     * also allows an explicit JSON null, which this builder expresses by not
-     * calling {@link Builder#codeChallengeMethod(String)}).
+     * also allows an explicit JSON null, but this builder simply omits the
+     * field when the method was not set).
      *
      * @return the JSON body of this request
      */

@@ -19,6 +19,12 @@ import org.json.JSONObject;
  * <p>Only {@code callback_url} is required. Pair the optional PKCE fields
  * with {@link OpenRouterPkce#generateCodeVerifier()} and
  * {@link OpenRouterPkce#codeChallengeS256(String)}.
+ *
+ * <p>Authentication: OpenRouter expects the existing OpenRouter API key of
+ * the authorizing app in the Authorization header for this call; a missing
+ * header fails with HTTP 401 and a non-management key with HTTP 403 (both
+ * surfaced as api-base exceptions). The client attaches the configured
+ * bearer globally.
  */
 public final class OpenRouterCreateAuthorizationCodeRequest
         extends OpenRouterRequest<OpenRouterCreateAuthorizationCodeResponse> {
@@ -44,6 +50,63 @@ public final class OpenRouterCreateAuthorizationCodeRequest
         this.limit = builder.limit;
         this.usageLimitType = builder.usageLimitType;
         this.workspaceId = builder.workspaceId;
+    }
+
+    /**
+     * @return the redirect target of the consent flow
+     */
+    public String callbackUrl() {
+        return callbackUrl;
+    }
+
+    /**
+     * @return the PKCE code challenge, or {@code null} when unset
+     */
+    public String codeChallenge() {
+        return codeChallenge;
+    }
+
+    /**
+     * @return the PKCE code challenge method ({@code "S256"} or {@code "plain"}),
+     *         or {@code null} when unset
+     */
+    public String codeChallengeMethod() {
+        return codeChallengeMethod;
+    }
+
+    /**
+     * @return the expiration timestamp of the code, or {@code null} when unset
+     */
+    public String expiresAt() {
+        return expiresAt;
+    }
+
+    /**
+     * @return the label of the future API key, or {@code null} when unset
+     */
+    public String keyLabel() {
+        return keyLabel;
+    }
+
+    /**
+     * @return the credit limit of the future API key, or {@code null} when unset
+     */
+    public Double limit() {
+        return limit;
+    }
+
+    /**
+     * @return the credit-limit reset interval, or {@code null} when unset
+     */
+    public String usageLimitType() {
+        return usageLimitType;
+    }
+
+    /**
+     * @return the associated workspace ID, or {@code null} when unset
+     */
+    public String workspaceId() {
+        return workspaceId;
     }
 
     @Override
@@ -235,6 +298,9 @@ public final class OpenRouterCreateAuthorizationCodeRequest
         public OpenRouterCreateAuthorizationCodeRequest build() {
             if (callbackUrl == null || callbackUrl.isEmpty()) {
                 throw new IllegalStateException("callbackUrl is required to create an authorization code");
+            }
+            if (keyLabel != null && keyLabel.length() > 100) {
+                throw new IllegalStateException("keyLabel must be at most 100 characters (API schema maximum)");
             }
             return new OpenRouterCreateAuthorizationCodeRequest(this);
         }

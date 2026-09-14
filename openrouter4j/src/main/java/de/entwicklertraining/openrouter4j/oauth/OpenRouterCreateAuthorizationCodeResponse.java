@@ -55,10 +55,8 @@ public final class OpenRouterCreateAuthorizationCodeResponse
     public Long appId() {
         try {
             JSONObject data = data();
-            if (data == null || !data.has("app_id") || data.isNull("app_id")) {
-                return null;
-            }
-            return data.optLong("app_id");
+            Object value = data != null ? data.opt("app_id") : null;
+            return value instanceof Number ? ((Number) value).longValue() : null;
         } catch (Exception e) {
             return null;
         }

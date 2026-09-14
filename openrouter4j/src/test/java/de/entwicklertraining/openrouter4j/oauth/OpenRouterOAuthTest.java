@@ -67,6 +67,43 @@ class OpenRouterOAuthTest {
     void createRequestRejectsMissingCallbackUrl() {
         assertThatThrownBy(() -> new OpenRouterCreateAuthorizationCodeRequest.Builder(client()).build())
                 .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new OpenRouterCreateAuthorizationCodeRequest.Builder(client())
+                .callbackUrl("")
+                .build())
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void createRequestRejectsOverlongKeyLabel() {
+        assertThatThrownBy(() -> new OpenRouterCreateAuthorizationCodeRequest.Builder(client())
+                .callbackUrl("https://myapp.com/auth/callback")
+                .keyLabel("a".repeat(101))
+                .build())
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void createRequestAccessorsReflectTheBuilderInput() {
+        OpenRouterCreateAuthorizationCodeRequest request =
+                new OpenRouterCreateAuthorizationCodeRequest.Builder(client())
+                        .callbackUrl("https://myapp.com/auth/callback")
+                        .codeChallenge("challenge")
+                        .codeChallengeMethod("S256")
+                        .expiresAt("2027-12-31T23:59:59Z")
+                        .keyLabel("My Custom Key")
+                        .limit(100.0)
+                        .usageLimitType("monthly")
+                        .workspaceId("4b2f7d1e-8c3a-4e5f-9a6b-1c2d3e4f5a6b")
+                        .build();
+
+        assertThat(request.callbackUrl()).isEqualTo("https://myapp.com/auth/callback");
+        assertThat(request.codeChallenge()).isEqualTo("challenge");
+        assertThat(request.codeChallengeMethod()).isEqualTo("S256");
+        assertThat(request.expiresAt()).isEqualTo("2027-12-31T23:59:59Z");
+        assertThat(request.keyLabel()).isEqualTo("My Custom Key");
+        assertThat(request.limit()).isEqualTo(100.0);
+        assertThat(request.usageLimitType()).isEqualTo("monthly");
+        assertThat(request.workspaceId()).isEqualTo("4b2f7d1e-8c3a-4e5f-9a6b-1c2d3e4f5a6b");
     }
 
     @Test
@@ -100,6 +137,7 @@ class OpenRouterOAuthTest {
 
         OpenRouterCreateAuthorizationCodeResponse malformed =
                 request.createResponse("{\"data\": \"not-an-object\"}");
+        assertThat(malformed.data()).isNull();
         assertThat(malformed.id()).isNull();
         assertThat(malformed.appId()).isNull();
         assertThat(malformed.createdAt()).isNull();
@@ -141,6 +179,24 @@ class OpenRouterOAuthTest {
     void exchangeRequestRejectsMissingCode() {
         assertThatThrownBy(() -> new OpenRouterAuthorizationCodeExchangeRequest.Builder(client()).build())
                 .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new OpenRouterAuthorizationCodeExchangeRequest.Builder(client())
+                .code("")
+                .build())
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void exchangeRequestAccessorsReflectTheBuilderInput() {
+        OpenRouterAuthorizationCodeExchangeRequest request =
+                new OpenRouterAuthorizationCodeExchangeRequest.Builder(client())
+                        .code("auth_code_abc123def456")
+                        .codeVerifier("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+                        .codeChallengeMethod("S256")
+                        .build();
+
+        assertThat(request.code()).isEqualTo("auth_code_abc123def456");
+        assertThat(request.codeVerifier()).isEqualTo("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk");
+        assertThat(request.codeChallengeMethod()).isEqualTo("S256");
     }
 
     @Test
