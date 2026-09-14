@@ -64,6 +64,23 @@ class OpenRouterOAuthTest {
     }
 
     @Test
+    void createRequestAccessorsReturnNullWhenUnset() {
+        OpenRouterCreateAuthorizationCodeRequest request =
+                new OpenRouterCreateAuthorizationCodeRequest.Builder(client())
+                        .callbackUrl("https://myapp.com/auth/callback")
+                        .build();
+
+        assertThat(request.callbackUrl()).isEqualTo("https://myapp.com/auth/callback");
+        assertThat(request.codeChallenge()).isNull();
+        assertThat(request.codeChallengeMethod()).isNull();
+        assertThat(request.expiresAt()).isNull();
+        assertThat(request.keyLabel()).isNull();
+        assertThat(request.limit()).isNull();
+        assertThat(request.usageLimitType()).isNull();
+        assertThat(request.workspaceId()).isNull();
+    }
+
+    @Test
     void createRequestRejectsMissingCallbackUrl() {
         assertThatThrownBy(() -> new OpenRouterCreateAuthorizationCodeRequest.Builder(client()).build())
                 .isInstanceOf(IllegalStateException.class);
@@ -80,6 +97,13 @@ class OpenRouterOAuthTest {
                 .keyLabel("a".repeat(101))
                 .build())
                 .isInstanceOf(IllegalStateException.class);
+        // the boundary itself is accepted
+        org.assertj.core.api.Assertions.assertThatCode(() ->
+                new OpenRouterCreateAuthorizationCodeRequest.Builder(client())
+                        .callbackUrl("https://myapp.com/auth/callback")
+                        .keyLabel("a".repeat(100))
+                        .build())
+                .doesNotThrowAnyException();
     }
 
     @Test
@@ -141,6 +165,17 @@ class OpenRouterOAuthTest {
         assertThat(malformed.id()).isNull();
         assertThat(malformed.appId()).isNull();
         assertThat(malformed.createdAt()).isNull();
+
+        // present-but-non-numeric values stay null instead of being coerced
+        OpenRouterCreateAuthorizationCodeResponse nonNumeric =
+                request.createResponse("{\"data\": {\"id\": \"x\", \"app_id\": \"not-a-number\"}}");
+        assertThat(nonNumeric.appId()).isNull();
+        assertThat(nonNumeric.id()).isEqualTo("x");
+
+        // the Long return type survives values beyond int range
+        OpenRouterCreateAuthorizationCodeResponse large = request.createResponse(
+                "{\"data\": {\"app_id\": 12345678901234}}");
+        assertThat(large.appId()).isEqualTo(12345678901234L);
     }
 
     @Test
@@ -173,6 +208,18 @@ class OpenRouterOAuthTest {
         assertThat(full.getString("code")).isEqualTo("auth_code_abc123def456");
         assertThat(full.getString("code_verifier")).isEqualTo("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk");
         assertThat(full.getString("code_challenge_method")).isEqualTo("S256");
+    }
+
+    @Test
+    void exchangeRequestAccessorsReturnNullWhenUnset() {
+        OpenRouterAuthorizationCodeExchangeRequest request =
+                new OpenRouterAuthorizationCodeExchangeRequest.Builder(client())
+                        .code("auth_code_abc123def456")
+                        .build();
+
+        assertThat(request.code()).isEqualTo("auth_code_abc123def456");
+        assertThat(request.codeVerifier()).isNull();
+        assertThat(request.codeChallengeMethod()).isNull();
     }
 
     @Test
