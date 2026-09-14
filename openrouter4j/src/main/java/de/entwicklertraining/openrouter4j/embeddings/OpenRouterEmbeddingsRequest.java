@@ -16,10 +16,10 @@ import java.util.List;
  * <p>The {@code model} and the {@code input} are required; the input may be a
  * single string ({@link Builder#input(String)}) or a list of strings
  * ({@link Builder#inputs(List)}), which is sent as a JSON array. Multimodal
- * inputs (token arrays, images, audio, video, files) are not typed here yet;
- * they can be sent by calling {@link Builder#input(String)} with a
- * pre-serialized value only if the provider accepts it - otherwise wait for a
- * library version with a typed multimodal input.
+ * inputs (token arrays, images, audio, video, files) are not typed here yet
+ * and cannot be sent through this builder; wait for a library version with a
+ * typed multimodal input or use the raw response/request escape hatches of
+ * other surfaces.
  *
  * <p>The optional {@code provider} routing object is emitted only when at
  * least one of {@link Builder#providerOrder(String...)},

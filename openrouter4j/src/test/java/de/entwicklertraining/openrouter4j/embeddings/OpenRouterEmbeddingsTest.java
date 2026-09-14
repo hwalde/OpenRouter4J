@@ -97,6 +97,54 @@ class OpenRouterEmbeddingsTest {
     }
 
     @Test
+    void providerOnlyAndAllowFallbacksAreEmitted() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .providerOnly("openai")
+                .allowFallbacks(false)
+                .build()
+                .getBody());
+
+        assertThat(body.getJSONObject("provider").getJSONArray("only").toList())
+                .containsExactly("openai");
+        // the false half matters: it is the only value that distinguishes the
+        // option from an unset boolean
+        assertThat(body.getJSONObject("provider").getBoolean("allow_fallbacks")).isFalse();
+    }
+
+    @Test
+    void providerOrderWithNoValuesEmitsNoProviderObject() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .providerOrder()
+                .build()
+                .getBody());
+
+        assertThat(body.has("provider")).isFalse();
+    }
+
+    @Test
+    void inputAndInputsClearEachOther() {
+        JSONObject afterInput = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .inputs(List.of("a", "b"))
+                .input("x")
+                .build()
+                .getBody());
+        assertThat(afterInput.getString("input")).isEqualTo("x");
+
+        JSONObject afterInputs = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("x")
+                .inputs(List.of("a", "b"))
+                .build()
+                .getBody());
+        assertThat(afterInputs.getJSONArray("input").toList()).containsExactly("a", "b");
+    }
+
+    @Test
     void buildRejectsMissingModelAndInput() {
         assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client()).build())
                 .isInstanceOf(IllegalStateException.class);
@@ -131,8 +179,9 @@ class OpenRouterEmbeddingsTest {
         assertThat(response.promptTokens()).isEqualTo(8L);
         assertThat(response.totalTokens()).isEqualTo(8L);
         assertThat(response.embeddings()).hasSize(2);
-        assertThat(response.embedding(1).vector()).containsExactly(0.1, 0.2);
+        assertThat(response.embedding(1).vector()).containsExactly(0.1f, 0.2f);
         assertThat(response.embedding(1).object()).isEqualTo("embedding");
+        assertThat(response.embedding(1).vectorOrDecoded()).containsExactly(0.1f, 0.2f);
         assertThat(response.embedding(5)).isNull();
     }
 
@@ -178,6 +227,9 @@ class OpenRouterEmbeddingsTest {
         assertThat(response.usage()).isNull();
         assertThat(response.promptTokens()).isNull();
         assertThat(response.totalTokens()).isNull();
+        // the coerced string form still documents the swallow behaviour of
+        // the string accessors on a malformed body
+        assertThat(response.id()).isEqualTo("42");
     }
 
     @Test
@@ -196,6 +248,13 @@ class OpenRouterEmbeddingsTest {
                         .build();
 
         assertThat(paged.getRelativeUrl()).isEqualTo("/embeddings/models?offset=10&limit=20");
+
+        OpenRouterEmbeddingsModelsRequest limitOnly =
+                new OpenRouterEmbeddingsModelsRequest.Builder(client())
+                        .limit(20)
+                        .build();
+
+        assertThat(limitOnly.getRelativeUrl()).isEqualTo("/embeddings/models?limit=20");
     }
 
     @Test

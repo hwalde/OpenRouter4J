@@ -65,20 +65,23 @@ public final class OpenRouterEmbedding {
      * JSON path: {@code embedding} read as a float vector. Only populated
      * when the request used {@code encoding_format: "float"} (the default);
      * with {@code "base64"} the field is a string and this returns
-     * {@code null} - use {@link #embeddingBase64()} instead.
+     * {@code null} - use {@link #embeddingBase64()} or
+     * {@link #vectorFromBase64()} instead. The wire format is IEEE 754
+     * float32, so {@code float} is lossless here; all vector accessors of
+     * this class return {@code List<Float>} for that reason.
      *
      * @return the embedding vector, or {@code null} when the entry carries a
      *         base64 string instead of an array
      */
-    public List<Double> vector() {
+    public List<Float> vector() {
         try {
             JSONArray arr = json.optJSONArray("embedding");
             if (arr == null) {
                 return null;
             }
-            List<Double> vector = new ArrayList<>(arr.length());
+            List<Float> vector = new ArrayList<>(arr.length());
             for (int i = 0; i < arr.length(); i++) {
-                vector.add(arr.optDouble(i));
+                vector.add((float) arr.optDouble(i));
             }
             return vector;
         } catch (Exception e) {
@@ -143,14 +146,7 @@ public final class OpenRouterEmbedding {
      *         form is present or decodable
      */
     public List<Float> vectorOrDecoded() {
-        List<Double> direct = vector();
-        if (direct != null) {
-            List<Float> result = new ArrayList<>(direct.size());
-            for (Double d : direct) {
-                result.add(d == null ? null : d.floatValue());
-            }
-            return result;
-        }
-        return vectorFromBase64();
+        List<Float> direct = vector();
+        return direct != null ? direct : vectorFromBase64();
     }
 }
