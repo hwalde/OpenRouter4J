@@ -17,12 +17,15 @@ import java.nio.file.Path;
  *
  * <p>The flow is interactive, so the example runs in two phases and keeps
  * the PKCE verifier consistent across both: the first run (no arguments)
- * generates the verifier, stores it in a file next to this program's working
- * directory, creates the code and prints what to do next; the second run
+ * generates the verifier, stores it in a file in the system temporary
+ * directory ({@code java.io.tmpdir}) and tells you the path; the second run
  * (first argument: the received authorization code) reads the stored
- * verifier back and performs the exchange. The verifier is a secret - it is
- * stored with owner-only permissions expectations on a local disk and must
- * never be logged or committed.
+ * verifier back and performs the exchange, then deletes the file. Be honest
+ * with yourself about the verifier file: it is written with the default OS
+ * permissions into a directory other local users can read, so this example
+ * is only safe on a single-user machine; adapt it with restrictive file
+ * permissions and a private directory before using it for real. The
+ * verifier is a secret - never log it or commit it.
  */
 public class OpenRouterOAuthExample {
 
@@ -50,8 +53,12 @@ public class OpenRouterOAuthExample {
             System.out.println("Authorization code id: " + codeResponse.id());
             System.out.println("Created at:            " + codeResponse.createdAt());
             System.out.println("PKCE verifier stored in " + VERIFIER_FILE + " (keep it secret).");
-            System.out.println("Open the consent page for this code, then re-run this program");
-            System.out.println("with the received authorization code as the first argument.");
+            System.out.println("Phase 1 requires OPENROUTER_API_KEY to be set (HTTP 401 otherwise).");
+            System.out.println("Send the user to the consent flow for this code; OpenRouter");
+            System.out.println("redirects the browser to " + "http://localhost:9876/callback");
+            System.out.println("with ?code=<code> - the page itself will fail to load, copy");
+            System.out.println("the code from the address bar.");
+            System.out.println("Then re-run this program with that code as the first argument.");
             return;
         }
 
@@ -65,7 +72,9 @@ public class OpenRouterOAuthExample {
                 .codeChallengeMethod("S256")
                 .execute();
 
+        Files.deleteIfExists(VERIFIER_FILE);
         System.out.println("API key created for user: " + exchange.userId());
         System.out.println("(the key itself is intentionally not printed - treat it as a secret)");
+        System.out.println("(the stored verifier file was deleted)");
     }
 }

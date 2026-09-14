@@ -10,11 +10,11 @@ import org.json.JSONObject;
  * key: POST https://openrouter.ai/api/v1/auth/keys
  *
  * <p>This is the final step of the OAuth 2.0 authorization-code flow with
- * PKCE: the code comes from the consent redirect (its ID is created by
- * {@link OpenRouterCreateAuthorizationCodeRequest}), and the verifier is the
- * secret generated alongside the {@code code_challenge}. The response
- * carries the fresh API key; the existing plain-bearer path of the library
- * is untouched by this flow.
+ * PKCE: the code is created via {@link OpenRouterCreateAuthorizationCodeRequest}
+ * and delivered to the {@code callback_url} by the consent redirect, and the
+ * verifier is the secret generated alongside the {@code code_challenge}. The
+ * response carries the fresh API key; the existing plain-bearer path of the
+ * library is untouched by this flow.
  */
 public final class OpenRouterAuthorizationCodeExchangeRequest
         extends OpenRouterRequest<OpenRouterAuthorizationCodeExchangeResponse> {

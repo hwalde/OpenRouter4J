@@ -297,6 +297,9 @@ class OpenRouterOAuthTest {
         // invalid alphabet characters
         assertThatThrownBy(() -> OpenRouterPkce.codeChallengeS256("a".repeat(42) + "+"))
                 .isInstanceOf(IllegalArgumentException.class);
+        // the documented upper bound is accepted
+        assertThat(OpenRouterPkce.codeChallengeS256("a".repeat(128)))
+                .matches("[A-Za-z0-9_-]+");
     }
 
     @Test
