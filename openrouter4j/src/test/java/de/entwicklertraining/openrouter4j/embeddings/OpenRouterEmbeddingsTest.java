@@ -181,6 +181,7 @@ class OpenRouterEmbeddingsTest {
         assertThat(response.embeddings()).hasSize(2);
         assertThat(response.embedding(1).vector()).containsExactly(0.1f, 0.2f);
         assertThat(response.embedding(1).object()).isEqualTo("embedding");
+        assertThat(response.embedding(1).index()).isEqualTo(1);
         assertThat(response.embedding(1).vectorOrDecoded()).containsExactly(0.1f, 0.2f);
         assertThat(response.embedding(5)).isNull();
     }
@@ -255,6 +256,13 @@ class OpenRouterEmbeddingsTest {
                         .build();
 
         assertThat(limitOnly.getRelativeUrl()).isEqualTo("/embeddings/models?limit=20");
+
+        OpenRouterEmbeddingsModelsRequest offsetOnly =
+                new OpenRouterEmbeddingsModelsRequest.Builder(client())
+                        .offset(10)
+                        .build();
+
+        assertThat(offsetOnly.getRelativeUrl()).isEqualTo("/embeddings/models?offset=10");
     }
 
     @Test
