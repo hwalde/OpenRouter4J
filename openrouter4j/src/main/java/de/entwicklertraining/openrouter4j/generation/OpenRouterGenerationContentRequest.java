@@ -15,6 +15,10 @@ import org.json.JSONObject;
  * error that was returned to the client instead of stored content. OpenRouter
  * requires a <a href="https://openrouter.ai/docs/guides/overview/auth/management-api-keys">management key</a>
  * for this endpoint.
+ *
+ * <p>OpenRouter needs a few seconds after a completion before its stored
+ * content is queryable; querying earlier fails with HTTP 404 (api-base's
+ * {@code HTTP_404_NotFoundException}) - retry with backoff.
  */
 public final class OpenRouterGenerationContentRequest extends OpenRouterRequest<OpenRouterGenerationContentResponse> {
 

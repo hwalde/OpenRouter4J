@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.examples;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionResponse;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentResponse;
+import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackResponse;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationResponse;
 
 /**
@@ -58,8 +59,7 @@ public class OpenRouterGenerationMetadataExample {
         System.out.println("Stored completion:     " + content.outputCompletion());
 
         // 3. Structured feedback on the generation.
-        de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackResponse feedback =
-                client.generationFeedback()
+        OpenRouterGenerationFeedbackResponse feedback = client.generationFeedback()
                         .generationId(generationId)
                         .category("other")
                         .comment("Example feedback: the answer followed the instruction.")

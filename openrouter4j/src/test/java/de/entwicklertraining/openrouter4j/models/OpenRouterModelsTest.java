@@ -42,6 +42,7 @@ class OpenRouterModelsTest {
                 .outputModalities("text")
                 .sort("pricing-low-to-high")
                 .context(128000)
+                .minPrice(0.5)
                 .maxPrice(10.0)
                 .minOutputPrice(0.0)
                 .maxOutputPrice(2.5)
@@ -63,6 +64,7 @@ class OpenRouterModelsTest {
         assertThat(params.get("output_modalities")).isEqualTo("text");
         assertThat(params.get("sort")).isEqualTo("pricing-low-to-high");
         assertThat(params.get("context")).isEqualTo("128000");
+        assertThat(params.get("min_price")).isEqualTo("0.5");
         assertThat(params.get("max_price")).isEqualTo("10.0");
         assertThat(params.get("min_output_price")).isEqualTo("0.0");
         assertThat(params.get("max_output_price")).isEqualTo("2.5");
@@ -102,8 +104,11 @@ class OpenRouterModelsTest {
                       "created": 1692901234,
                       "description": "GPT-4 is a large multimodal model.",
                       "context_length": 8192,
-                      "hugging_face_id": null,
-                      "pricing": {"prompt": "0.00003", "completion": "0.00006", "request": "0", "image": "0"},
+                      "hugging_face_id": "microsoft/DialoGPT-medium",
+                      "expiration_date": "2025-06-01",
+                      "knowledge_cutoff": "2024-10-01",
+                      "pricing": {"prompt": "0.00003", "completion": "0.00006", "request": "0", "image": "0",
+                                  "input_cache_read": "0.0000025", "input_cache_write": "0.00000625"},
                       "architecture": {
                         "modality": "text->text",
                         "input_modalities": ["text"],
@@ -112,6 +117,7 @@ class OpenRouterModelsTest {
                         "instruct_type": "chatml"
                       },
                       "supported_parameters": ["temperature", "top_p", "max_tokens"],
+                      "supported_voices": ["alloy", "echo"],
                       "top_provider": {"context_length": 8192, "max_completion_tokens": 4096, "is_moderated": true}
                     }
                   ]
@@ -128,17 +134,27 @@ class OpenRouterModelsTest {
         assertThat(model.created()).isEqualTo(1692901234L);
         assertThat(model.description()).isEqualTo("GPT-4 is a large multimodal model.");
         assertThat(model.contextLength()).isEqualTo(8192L);
+        assertThat(model.huggingFaceId()).isEqualTo("microsoft/DialoGPT-medium");
+        assertThat(model.expirationDate()).isEqualTo("2025-06-01");
+        assertThat(model.knowledgeCutoff()).isEqualTo("2024-10-01");
         assertThat(model.pricingPrompt()).isEqualTo("0.00003");
         assertThat(model.pricingCompletion()).isEqualTo("0.00006");
         assertThat(model.pricingRequest()).isEqualTo("0");
         assertThat(model.pricingImage()).isEqualTo("0");
         assertThat(model.pricingAudio()).isNull();
+        assertThat(model.pricingInputCacheRead()).isEqualTo("0.0000025");
+        assertThat(model.pricingInputCacheWrite()).isEqualTo("0.00000625");
+        assertThat(model.pricing()).isNotNull();
+        assertThat(model.pricing().optString("prompt")).isEqualTo("0.00003");
+        assertThat(model.json()).isNotNull();
+        assertThat(model.json().optString("id")).isEqualTo("openai/gpt-4");
         assertThat(model.modality()).isEqualTo("text->text");
         assertThat(model.inputModalities()).containsExactly("text");
         assertThat(model.outputModalities()).containsExactly("text");
         assertThat(model.tokenizer()).isEqualTo("GPT");
         assertThat(model.instructType()).isEqualTo("chatml");
         assertThat(model.supportedParameters()).containsExactly("temperature", "top_p", "max_tokens");
+        assertThat(model.supportedVoices()).containsExactly("alloy", "echo");
         assertThat(model.topProviderContextLength()).isEqualTo(8192L);
         assertThat(model.topProviderMaxCompletionTokens()).isEqualTo(4096L);
         assertThat(model.topProviderIsModerated()).isTrue();
@@ -162,11 +178,18 @@ class OpenRouterModelsTest {
                 .outputModalities("text", "image")
                 .build();
 
-        assertThat(request.getRelativeUrl()).isEqualTo("/models/count?output_modalities=text,image");
+        assertThat(request.getRelativeUrl()).isEqualTo("/models/count?output_modalities=text%2Cimage");
         assertThat(request.getHttpMethod()).isEqualTo("GET");
 
         OpenRouterModelsCountRequest plainRequest = new OpenRouterModelsCountRequest.Builder(client()).build();
         assertThat(plainRequest.getRelativeUrl()).isEqualTo("/models/count");
+
+        // regression: filter values must arrive URL-encoded, not raw
+        OpenRouterModelsCountRequest encoded = new OpenRouterModelsCountRequest.Builder(client())
+                .outputModalities("image&limit=1")
+                .build();
+        assertThat(encoded.getRelativeUrl())
+                .isEqualTo("/models/count?output_modalities=image%26limit%3D1");
 
         OpenRouterModelsCountResponse response = plainRequest.createResponse(
                 "{\"data\": {\"count\": 150}}");
@@ -189,6 +212,13 @@ class OpenRouterModelsTest {
 
         OpenRouterUserModelsRequest plainRequest = new OpenRouterUserModelsRequest.Builder(client()).build();
         assertThat(plainRequest.getRelativeUrl()).isEqualTo("/models/user");
+
+        // regression: filter values must arrive URL-encoded, not raw
+        OpenRouterUserModelsRequest encoded = new OpenRouterUserModelsRequest.Builder(client())
+                .outputModalities("image&limit=1", "text x")
+                .build();
+        assertThat(encoded.getRelativeUrl())
+                .isEqualTo("/models/user?output_modalities=image%26limit%3D1%2Ctext+x");
 
         OpenRouterModelsListResponse<OpenRouterUserModelsRequest> response = plainRequest.createResponse(
                 "{\"data\": [{\"id\": \"m/1\", \"name\": \"M\"}]}");

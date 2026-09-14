@@ -23,7 +23,8 @@ public final class OpenRouterModelsCountRequest extends OpenRouterRequest<OpenRo
     @Override
     public String getRelativeUrl() {
         return outputModalities != null
-                ? "/models/count?output_modalities=" + outputModalities
+                ? "/models/count?output_modalities="
+                        + java.net.URLEncoder.encode(outputModalities, java.nio.charset.StandardCharsets.UTF_8)
                 : "/models/count";
     }
 

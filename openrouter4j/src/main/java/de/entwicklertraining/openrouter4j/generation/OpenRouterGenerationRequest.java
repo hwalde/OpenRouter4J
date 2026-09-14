@@ -17,6 +17,10 @@ import org.json.JSONObject;
  * <p>This is the post-mortem surface: which provider served the request, the
  * native finish reason, and the token/cost breakdown of a generation that
  * already happened.
+ *
+ * <p>OpenRouter needs a few seconds after a completion before its metadata is
+ * queryable; querying earlier fails with HTTP 404 (api-base's
+ * {@code HTTP_404_NotFoundException}) - retry with backoff.
  */
 public final class OpenRouterGenerationRequest extends OpenRouterRequest<OpenRouterGenerationResponse> {
 

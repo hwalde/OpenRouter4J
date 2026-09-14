@@ -194,7 +194,9 @@ public final class OpenRouterClient extends ApiClient {
 
     /**
      * Fetches the request/usage metadata of one generation:
-     * GET /generation?id=... (management key required).
+     * GET /generation?id=... (management key required). OpenRouter needs a few
+     * seconds after a completion before the metadata is queryable - querying
+     * earlier fails with HTTP 404.
      *
      * @param generationId the generation id ({@code gen-...})
      * @return the starting point for the request
@@ -205,7 +207,9 @@ public final class OpenRouterClient extends ApiClient {
 
     /**
      * Fetches the stored prompt and completion of one generation:
-     * GET /generation/content?id=... (management key required).
+     * GET /generation/content?id=... (management key required). OpenRouter
+     * needs a few seconds after a completion before the content is queryable -
+     * querying earlier fails with HTTP 404.
      *
      * @param generationId the generation id ({@code gen-...})
      * @return the starting point for the request

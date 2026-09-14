@@ -40,7 +40,8 @@ public final class OpenRouterUserModelsRequest extends OpenRouterRequest<OpenRou
             first = false;
         }
         if (outputModalities != null) {
-            sb.append(first ? '?' : '&').append("output_modalities=").append(outputModalities);
+            sb.append(first ? '?' : '&').append("output_modalities=")
+                    .append(java.net.URLEncoder.encode(outputModalities, java.nio.charset.StandardCharsets.UTF_8));
         }
         return sb.toString();
     }
