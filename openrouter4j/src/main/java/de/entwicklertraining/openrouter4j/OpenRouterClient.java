@@ -19,6 +19,7 @@ import de.entwicklertraining.openrouter4j.models.OpenRouterModelsListRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterUserModelsRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterAuthorizationCodeExchangeRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterCreateAuthorizationCodeRequest;
+import de.entwicklertraining.openrouter4j.oauth.OpenRouterWorkloadIdentityExchangeRequest;
 import de.entwicklertraining.openrouter4j.rerank.OpenRouterRerankRequest;
 
 // Import exception classes
@@ -303,6 +304,17 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterAuthorizationCodeExchangeRequest.Builder exchangeAuthorizationCode() {
         return new OpenRouterAuthorizationCodeExchangeRequest.Builder(this);
+    }
+
+    /**
+     * Exchanges a workload identity token (identity-provider JWT) for a
+     * short-lived OpenRouter access token:
+     * POST /oauth/token (RFC 8693, urlencoded form body).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterWorkloadIdentityExchangeRequest.Builder exchangeWorkloadIdentityToken() {
+        return new OpenRouterWorkloadIdentityExchangeRequest.Builder(this);
     }
 
     /**

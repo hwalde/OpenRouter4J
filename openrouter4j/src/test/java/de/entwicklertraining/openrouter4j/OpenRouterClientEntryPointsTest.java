@@ -121,4 +121,16 @@ class OpenRouterClientEntryPointsTest {
                 .code("auth_code_abc123def456")
                 .build().getHttpMethod()).isEqualTo("POST");
     }
+
+    @Test
+    void workloadIdentityEntryPointProducesTheTokenExchangeRequest() {
+        assertThat(client().exchangeWorkloadIdentityToken()
+                .subjectToken("header.payload.signature")
+                .federationPolicyId("4b2f7d1e-8c3a-4e5f-9a6b-1c2d3e4f5a6b")
+                .build().getRelativeUrl()).isEqualTo("/oauth/token");
+        assertThat(client().exchangeWorkloadIdentityToken()
+                .subjectToken("header.payload.signature")
+                .federationPolicyId("4b2f7d1e-8c3a-4e5f-9a6b-1c2d3e4f5a6b")
+                .build().getHttpMethod()).isEqualTo("POST");
+    }
 }
