@@ -82,4 +82,17 @@ class OpenRouterClientEntryPointsTest {
         assertThat(client().analyticsQuery().metrics("request_count").build().getHttpMethod())
                 .isEqualTo("POST");
     }
+
+    @Test
+    void embeddingsEntryPointsProduceTheEmbeddingsRequests() {
+        assertThat(client().embeddings()
+                .model("openai/text-embedding-3-small").input("hello")
+                .build().getRelativeUrl()).isEqualTo("/embeddings");
+        assertThat(client().embeddings()
+                .model("openai/text-embedding-3-small").input("hello")
+                .build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().embeddingsModels().build().getRelativeUrl())
+                .isEqualTo("/embeddings/models");
+        assertThat(client().embeddingsModels().build().getHttpMethod()).isEqualTo("GET");
+    }
 }

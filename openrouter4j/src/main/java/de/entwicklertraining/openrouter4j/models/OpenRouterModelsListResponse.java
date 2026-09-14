@@ -19,7 +19,14 @@ import java.util.List;
  */
 public class OpenRouterModelsListResponse<T extends OpenRouterRequest<?>> extends OpenRouterResponse<T> {
 
-    OpenRouterModelsListResponse(JSONObject json, T request) {
+    /**
+     * Creates a typed list response. Public so that other endpoint packages
+     * can reuse this catalog listing shape (e.g. GET /embeddings/models).
+     *
+     * @param json the parsed response body
+     * @param request the request that produced this response
+     */
+    public OpenRouterModelsListResponse(JSONObject json, T request) {
         super(json, request);
     }
 

@@ -7,6 +7,8 @@ import de.entwicklertraining.openrouter4j.activity.OpenRouterActivityRequest;
 import de.entwicklertraining.openrouter4j.activity.OpenRouterAnalyticsQueryRequest;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest;
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
+import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsModelsRequest;
+import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest;
@@ -246,6 +248,26 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterAnalyticsQueryRequest.Builder analyticsQuery() {
         return new OpenRouterAnalyticsQueryRequest.Builder(this);
+    }
+
+    /**
+     * Creates embedding vectors:
+     * POST /embeddings.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterEmbeddingsRequest.Builder embeddings() {
+        return new OpenRouterEmbeddingsRequest.Builder(this);
+    }
+
+    /**
+     * Lists the embedding models of the catalog:
+     * GET /embeddings/models.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterEmbeddingsModelsRequest.Builder embeddingsModels() {
+        return new OpenRouterEmbeddingsModelsRequest.Builder(this);
     }
 
     /**
