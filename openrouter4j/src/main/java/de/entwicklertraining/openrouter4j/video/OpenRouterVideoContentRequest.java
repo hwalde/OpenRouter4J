@@ -7,7 +7,6 @@ import de.entwicklertraining.openrouter4j.OpenRouterRequest;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-import java.nio.charset.StandardCharsets;
 
 /**
  * Downloads the generated video content of one job:
