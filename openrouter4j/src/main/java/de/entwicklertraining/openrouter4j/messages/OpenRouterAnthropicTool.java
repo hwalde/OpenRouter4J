@@ -50,7 +50,12 @@ public final class OpenRouterAnthropicTool {
         return deferLoading;
     }
 
-    /** @return the cache_control TTL ({@code 5m} or {@code 1h}), or {@code null} when unset */
+    /**
+     * @return the cache_control TTL ({@code 5m} or {@code 1h}); the empty
+     *         string means the default TTL was requested via
+     *         {@link Builder#cacheControl(String)} with {@code null}, and
+     *         {@code null} means no cache_control marker is emitted
+     */
     public String cacheControlTtl() {
         return cacheControlTtl;
     }
