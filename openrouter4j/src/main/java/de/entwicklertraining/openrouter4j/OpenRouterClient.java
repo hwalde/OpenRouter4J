@@ -5,6 +5,8 @@ import de.entwicklertraining.api.base.ApiClientSettings;
 import de.entwicklertraining.api.base.ApiHttpConfiguration;
 import de.entwicklertraining.openrouter4j.activity.OpenRouterActivityRequest;
 import de.entwicklertraining.openrouter4j.activity.OpenRouterAnalyticsQueryRequest;
+import de.entwicklertraining.openrouter4j.audio.OpenRouterSpeechRequest;
+import de.entwicklertraining.openrouter4j.audio.OpenRouterSttRequest;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest;
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsModelsRequest;
@@ -12,6 +14,10 @@ import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsRequest
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest;
+import de.entwicklertraining.openrouter4j.image.OpenRouterImageGenerationRequest;
+import de.entwicklertraining.openrouter4j.image.OpenRouterImageModelEndpointsRequest;
+import de.entwicklertraining.openrouter4j.image.OpenRouterImageModelsRequest;
+import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelEndpointsRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsCountRequest;
@@ -21,6 +27,10 @@ import de.entwicklertraining.openrouter4j.oauth.OpenRouterAuthorizationCodeExcha
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterCreateAuthorizationCodeRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterWorkloadIdentityExchangeRequest;
 import de.entwicklertraining.openrouter4j.rerank.OpenRouterRerankRequest;
+import de.entwicklertraining.openrouter4j.video.OpenRouterVideoContentRequest;
+import de.entwicklertraining.openrouter4j.video.OpenRouterVideoGenerationRequest;
+import de.entwicklertraining.openrouter4j.video.OpenRouterVideoJobRequest;
+import de.entwicklertraining.openrouter4j.video.OpenRouterVideoModelsRequest;
 
 // Import exception classes
 import static de.entwicklertraining.api.base.ApiClient.HTTP_400_RequestRejectedException;
@@ -255,6 +265,51 @@ public final class OpenRouterClient extends ApiClient {
     }
 
     /**
+     * The Anthropic Messages API on OpenRouter:
+     * POST /messages (top-level {@code system}, {@code max_tokens} required
+     * by Anthropic semantics, SSE streaming with the Anthropic event model).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterMessagesRequest.Builder messages() {
+        return new OpenRouterMessagesRequest.Builder(this);
+    }
+
+    /**
+     * Speech-to-text and text-to-speech on the dedicated Audio API:
+     * POST /audio/transcriptions (STT) and POST /audio/speech (TTS, binary
+     * audio response).
+     *
+     * @return the starting point for the audio requests
+     */
+    public OpenRouterAudio audio() {
+        return new OpenRouterAudio(this);
+    }
+
+    /**
+     * Async video generation with polling:
+     * POST /videos, GET /videos/{jobId},
+     * GET /videos/{jobId}/content and the video model listing
+     * (GET /videos/models).
+     *
+     * @return the starting point for the video requests
+     */
+    public OpenRouterVideos videos() {
+        return new OpenRouterVideos(this);
+    }
+
+    /**
+     * Image generation on the dedicated Image API:
+     * POST /images plus the image model listings
+     * (GET /images/models, GET /images/models/{author}/{slug}/endpoints).
+     *
+     * @return the starting point for the image requests
+     */
+    public OpenRouterImages images() {
+        return new OpenRouterImages(this);
+    }
+
+    /**
      * Creates embedding vectors:
      * POST /embeddings.
      *
@@ -343,6 +398,151 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterAppAttribution appAttribution() {
         return appAttribution;
+    }
+
+    /**
+     * Entry point for the dedicated Audio API: transcribe audio to text
+     * (STT) and synthesize speech from text (TTS).
+     */
+    public static class OpenRouterAudio {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterAudio(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Transcribes audio to text:
+         * POST /audio/transcriptions (JSON body with base64 audio, or
+         * multipart form with a file part).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterSttRequest.Builder transcriptions() {
+            return new OpenRouterSttRequest.Builder(client);
+        }
+
+        /**
+         * Synthesizes speech from text:
+         * POST /audio/speech (binary audio response, mp3 or pcm).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterSpeechRequest.Builder speech() {
+            return new OpenRouterSpeechRequest.Builder(client);
+        }
+    }
+
+    /**
+     * Entry point for the async video generation API: submit jobs, poll them
+     * and download the finished video bytes.
+     */
+    public static class OpenRouterVideos {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterVideos(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Submits an async video generation job:
+         * POST /videos (responds 202 with the job id and polling URL).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterVideoGenerationRequest.Builder generate() {
+            return new OpenRouterVideoGenerationRequest.Builder(client);
+        }
+
+        /**
+         * Polls the status of one video generation job:
+         * GET /videos/{jobId}.
+         *
+         * @param jobId the job id ({@code job-...}) from the submission response
+         * @return the starting point for the request
+         */
+        public OpenRouterVideoJobRequest.Builder job(String jobId) {
+            return new OpenRouterVideoJobRequest.Builder(client, jobId);
+        }
+
+        /**
+         * Downloads the generated video content of one job:
+         * GET /videos/{jobId}/content (binary video bytes, typically mp4).
+         *
+         * @param jobId the job id ({@code job-...}) of a completed job
+         * @return the starting point for the request
+         */
+        public OpenRouterVideoContentRequest.Builder jobContent(String jobId) {
+            return new OpenRouterVideoContentRequest.Builder(client, jobId);
+        }
+
+        /**
+         * Lists the video generation models of the catalog:
+         * GET /videos/models.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterVideoModelsRequest.Builder models() {
+            return new OpenRouterVideoModelsRequest.Builder(client);
+        }
+    }
+
+    /**
+     * Entry point for the dedicated Image API: generate images and discover
+     * the image generation models.
+     */
+    public static class OpenRouterImages {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterImages(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Generates an image:
+         * POST /images.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterImageGenerationRequest.Builder generate() {
+            return new OpenRouterImageGenerationRequest.Builder(client);
+        }
+
+        /**
+         * Lists the image generation models of the catalog:
+         * GET /images/models.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterImageModelsRequest.Builder models() {
+            return new OpenRouterImageModelsRequest.Builder(client);
+        }
+
+        /**
+         * Lists the serving endpoints of one image model:
+         * GET /images/models/{author}/{slug}/endpoints.
+         *
+         * @param modelId the full model id ({@code author/slug}); the first slash splits it
+         * @return the starting point for the request
+         */
+        public OpenRouterImageModelEndpointsRequest.Builder modelEndpoints(String modelId) {
+            int slash = modelId != null ? modelId.indexOf('/') : -1;
+            if (modelId == null || modelId.isEmpty() || slash <= 0 || slash == modelId.length() - 1) {
+                throw new IllegalArgumentException(
+                        "modelId must be of the form \"author/slug\", got: " + modelId);
+            }
+            return new OpenRouterImageModelEndpointsRequest.Builder(client,
+                    modelId.substring(0, slash), modelId.substring(slash + 1));
+        }
     }
 
     public static class OpenRouterChat {
