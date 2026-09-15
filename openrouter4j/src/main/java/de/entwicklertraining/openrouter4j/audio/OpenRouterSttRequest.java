@@ -401,11 +401,24 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             if (model == null || model.isEmpty()) {
                 throw new IllegalStateException("model is required for a transcription request");
             }
+            // CR/LF in an interpolated multipart line would split the header
+            // (a malformed body that only fails server-side) - reject loudly.
+            rejectLineBreaks("model", model);
+            rejectLineBreaks("language", language);
+            rejectLineBreaks("responseFormat", responseFormat);
+            rejectLineBreaks("fileName", fileName);
             if (fileBytes == null && (audioData == null || audioFormat == null)) {
                 throw new IllegalStateException(
                         "audio is required for a transcription request - use audioByBase64, audioByPath or audioByFile");
             }
             return new OpenRouterSttRequest(this);
+        }
+
+        private void rejectLineBreaks(String field, String value) {
+            if (value != null && (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0)) {
+                throw new IllegalArgumentException(
+                        field + " must not contain CR/LF characters");
+            }
         }
 
         @Override

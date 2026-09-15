@@ -11,7 +11,7 @@ import java.nio.file.Path;
 /**
  * Demonstrates the async video generation API: submit a job (POST /videos,
  * answers 202 with a polling URL), wait for it to reach a terminal state
- * (GET /videos/{jobId} - here via the {@code awaitCompletion()} helper) and
+ * (GET /videos/{jobId} - here via the {@code awaitCompletion(client)} helper) and
  * download the finished video bytes (GET /videos/{jobId}/content).
  */
 public class OpenRouterVideoGenerationExample {

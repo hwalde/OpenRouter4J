@@ -79,7 +79,9 @@ public final class OpenRouterAnthropicTool {
         if (cacheControlTtl != null) {
             JSONObject cacheControl = new JSONObject();
             cacheControl.put("type", "ephemeral");
-            cacheControl.put("ttl", cacheControlTtl);
+            if (!cacheControlTtl.isEmpty()) {
+                cacheControl.put("ttl", cacheControlTtl);
+            }
             json.put("cache_control", cacheControl);
         }
         return json;
@@ -156,7 +158,7 @@ public final class OpenRouterAnthropicTool {
          * @return this builder
          */
         public Builder cacheControl(String ttl) {
-            this.cacheControlTtl = ttl;
+            this.cacheControlTtl = ttl == null ? "" : ttl;
             return this;
         }
 

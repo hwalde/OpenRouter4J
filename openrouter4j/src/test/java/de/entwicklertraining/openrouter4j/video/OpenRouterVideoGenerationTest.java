@@ -61,20 +61,26 @@ class OpenRouterVideoGenerationTest {
                 .prompt("A serene mountain landscape at sunset")
                 .aspectRatio("16:9")
                 .resolution("720p")
+                .size("1280x720")
                 .duration(8)
                 .generateAudio(true)
                 .seed(42L)
                 .callbackUrl("https://example.com/webhook")
+                .creativity(1)
+                .upscaleFactor(2.0)
                 .build()
                 .getBody());
 
         assertThat(body.getString("prompt")).isEqualTo("A serene mountain landscape at sunset");
         assertThat(body.getString("aspect_ratio")).isEqualTo("16:9");
         assertThat(body.getString("resolution")).isEqualTo("720p");
+        assertThat(body.getString("size")).isEqualTo("1280x720");
         assertThat(body.getInt("duration")).isEqualTo(8);
         assertThat(body.getBoolean("generate_audio")).isTrue();
         assertThat(body.getLong("seed")).isEqualTo(42L);
         assertThat(body.getString("callback_url")).isEqualTo("https://example.com/webhook");
+        assertThat(body.getInt("creativity")).isEqualTo(1);
+        assertThat(body.getDouble("upscale_factor")).isEqualTo(2.0);
     }
 
     @Test

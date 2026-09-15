@@ -3,6 +3,8 @@ package de.entwicklertraining.openrouter4j.messages;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
+import de.entwicklertraining.openrouter4j.OpenRouterModerationPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -228,6 +230,34 @@ class OpenRouterMessagesTest {
     }
 
     @Test
+    void modelsFallbackListIsEmittedAsPlainStringArray() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .models("anthropic/claude-sonnet-4", "google/gemini-3.5-flash-lite")
+                .build()
+                .getBody());
+
+        assertThat(body.getJSONArray("models").toList())
+                .containsExactly("anthropic/claude-sonnet-4", "google/gemini-3.5-flash-lite");
+    }
+
+    @Test
+    void pluginsTraceAndProviderOnlyIgnoreAreEmitted() {
+        OpenRouterTraceConfig trace = OpenRouterTraceConfig.builder().traceId("trace-1").build();
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addPlugin(new OpenRouterModerationPlugin())
+                .trace(trace)
+                .providerOnly("anthropic")
+                .providerIgnore("openai")
+                .build()
+                .getBody());
+
+        assertThat(body.getJSONArray("plugins").getJSONObject(0).getString("id")).isEqualTo("moderation");
+        assertThat(body.getJSONObject("trace").getString("trace_id")).isEqualTo("trace-1");
+        assertThat(body.getJSONObject("provider").getJSONArray("only").toList()).containsExactly("anthropic");
+        assertThat(body.getJSONObject("provider").getJSONArray("ignore").toList()).containsExactly("openai");
+    }
+
+    @Test
     void simpleFieldsAreEmittedOnlyWhenSet() {
         JSONObject body = new JSONObject(minimalBuilder()
                 .temperature(0.7)
@@ -284,6 +314,25 @@ class OpenRouterMessagesTest {
         assertThat(toolJson.getBoolean("defer_loading")).isFalse();
         assertThat(toolJson.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
         assertThat(toolJson.has("type")).isFalse();
+    }
+
+    @Test
+    void toolCacheControlWithNullTtlEmitsEphemeralWithoutTtl() {
+        OpenRouterAnthropicTool tool = new OpenRouterAnthropicTool.Builder()
+                .name("get_weather")
+                .inputSchema(new JSONObject().put("type", "object"))
+                .cacheControl(null)
+                .build();
+
+        JSONObject toolJson = tool.toJson();
+        assertThat(toolJson.getJSONObject("cache_control").toMap())
+                .isEqualTo(new JSONObject().put("type", "ephemeral").toMap());
+
+        OpenRouterAnthropicTool uncached = new OpenRouterAnthropicTool.Builder()
+                .name("get_weather")
+                .inputSchema(new JSONObject().put("type", "object"))
+                .build();
+        assertThat(uncached.toJson().has("cache_control")).isFalse();
     }
 
     @Test

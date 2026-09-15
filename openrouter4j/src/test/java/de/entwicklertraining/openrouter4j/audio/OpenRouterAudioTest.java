@@ -102,6 +102,26 @@ class OpenRouterAudioTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    void sttRejectsLineBreaksInMultipartInterpolatedFieldsLoudly() throws Exception {
+        Path wav = tempDir.resolve("bad\r\nname.wav");
+        Files.write(wav, new byte[]{0x00});
+
+        assertThatThrownBy(() -> new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByFile(wav)
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("CR/LF");
+        assertThatThrownBy(() -> new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("QQ==", "wav")
+                .language("en\ntext")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("CR/LF");
+    }
+
     // ---------- STT: multipart form ----------
 
     @Test

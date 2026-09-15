@@ -5,6 +5,9 @@ import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
 import org.json.JSONObject;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 /**
  * Lists the serving endpoints of one image generation model:
  * GET https://openrouter.ai/api/v1/images/models/{author}/{slug}/endpoints
@@ -40,7 +43,16 @@ public final class OpenRouterImageModelEndpointsRequest
 
     @Override
     public String getRelativeUrl() {
-        return "/images/models/" + author + "/" + slug + "/endpoints";
+        return "/images/models/" + encode(author) + "/" + encode(slug) + "/endpoints";
+    }
+
+    private static String encode(String segment) {
+        if (segment == null) {
+            return "";
+        }
+        // URLEncoder is form-encoding; path segments must keep "/" out anyway,
+        // so encoding it is the correct behaviour for a slugged id.
+        return URLEncoder.encode(segment, StandardCharsets.UTF_8);
     }
 
     @Override

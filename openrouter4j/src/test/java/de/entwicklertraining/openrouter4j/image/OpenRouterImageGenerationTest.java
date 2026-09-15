@@ -62,6 +62,7 @@ class OpenRouterImageGenerationTest {
                 .background("transparent")
                 .quality("high")
                 .resolution("2K")
+                .size("2048x2048")
                 .n(2)
                 .outputFormat("png")
                 .outputCompression(80)
@@ -74,6 +75,7 @@ class OpenRouterImageGenerationTest {
         assertThat(body.getString("background")).isEqualTo("transparent");
         assertThat(body.getString("quality")).isEqualTo("high");
         assertThat(body.getString("resolution")).isEqualTo("2K");
+        assertThat(body.getString("size")).isEqualTo("2048x2048");
         assertThat(body.getInt("n")).isEqualTo(2);
         assertThat(body.getString("output_format")).isEqualTo("png");
         assertThat(body.getInt("output_compression")).isEqualTo(80);

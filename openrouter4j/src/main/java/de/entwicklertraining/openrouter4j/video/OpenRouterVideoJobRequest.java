@@ -3,6 +3,9 @@ package de.entwicklertraining.openrouter4j.video;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import org.json.JSONObject;
 
 /**
@@ -32,7 +35,16 @@ public final class OpenRouterVideoJobRequest
 
     @Override
     public String getRelativeUrl() {
-        return "/videos/" + jobId;
+        return "/videos/" + encode(jobId);
+    }
+
+    private static String encode(String segment) {
+        if (segment == null) {
+            return "";
+        }
+        // URLEncoder is form-encoding; path segments must keep "/" out anyway,
+        // so encoding it is the correct behaviour for a job id.
+        return URLEncoder.encode(segment, StandardCharsets.UTF_8);
     }
 
     @Override

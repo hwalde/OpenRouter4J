@@ -758,6 +758,10 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         /**
          * Sets the JSON field {@code output_config.format} - the structured
          * output schema ({@code {"type":"json_schema","schema":...}}).
+         * Trap: like every structured output, the schema can be silently
+         * ignored on endpoints without support - combine with
+         * {@link #requireParameters(Boolean)} (true) to route only to
+         * endpoints that support all parameters.
          *
          * @param outputFormat the structured output schema
          * @return this builder
