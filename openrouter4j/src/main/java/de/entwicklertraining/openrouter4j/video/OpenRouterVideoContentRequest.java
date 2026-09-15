@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * Trap: a job whose content is not ready (or already expired) fails with
  * HTTP 400/404/409 - poll the job to {@code completed} first (see
- * {@link OpenRouterVideoGenerationResponse#awaitCompletion()}).
+ * {@link OpenRouterVideoGenerationResponse#awaitCompletion(OpenRouterClient)}).
  */
 public final class OpenRouterVideoContentRequest
         extends OpenRouterRequest<OpenRouterVideoContentResponse> {

@@ -17,7 +17,7 @@ import java.util.List;
  * that can generate a video from image input alone and required by all other
  * models. The submission returns {@code 202} with the job id and a polling
  * URL - the job is then tracked with {@code client.videos().job(jobId)}
- * (or {@link OpenRouterVideoGenerationResponse#awaitCompletion()} on the
+ * (or {@link OpenRouterVideoGenerationResponse#awaitCompletion(OpenRouterClient)} on the
  * response).
  *
  * <p>Trap: {@code creativity} and {@code upscale_factor} are only supported

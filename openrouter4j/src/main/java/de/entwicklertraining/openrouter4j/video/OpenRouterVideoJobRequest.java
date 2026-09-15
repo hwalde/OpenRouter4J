@@ -12,7 +12,7 @@ import org.json.JSONObject;
  * <p>The response is the same {@link OpenRouterVideoGenerationResponse} shape
  * as the submission: once {@code status} is {@code completed}, the
  * {@code unsigned_urls} and the {@code usage} are present. The
- * {@link OpenRouterVideoGenerationResponse#awaitCompletion()} helper wraps
+ * {@link OpenRouterVideoGenerationResponse#awaitCompletion(OpenRouterClient)} helper wraps
  * repeated executions of this request.
  */
 public final class OpenRouterVideoJobRequest

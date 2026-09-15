@@ -19,7 +19,7 @@ import java.util.List;
  * inspect the raw response.
  *
  * <p>The submission response is {@code 202} with status {@code pending};
- * track the job with {@link #awaitCompletion()} or poll manually with
+ * track the job with {@link #awaitCompletion(OpenRouterClient)} or poll manually with
  * {@code client.videos().job(jobId)}.
  *
  * @param <T> the concrete request type this response belongs to (the
@@ -28,10 +28,10 @@ import java.util.List;
 public class OpenRouterVideoGenerationResponse<T extends OpenRouterRequest<?>>
         extends OpenRouterResponse<T> {
 
-    /** Poll interval of the {@link #awaitCompletion()} helper: 5 seconds. */
+    /** Poll interval of the {@link #awaitCompletion(OpenRouterClient)} helper: 5 seconds. */
     public static final long DEFAULT_POLL_INTERVAL_MILLIS = 5_000L;
 
-    /** Timeout of the {@link #awaitCompletion()} helper: 15 minutes. */
+    /** Timeout of the {@link #awaitCompletion(OpenRouterClient)} helper: 15 minutes. */
     public static final long DEFAULT_TIMEOUT_MILLIS = 15 * 60 * 1_000L;
 
     OpenRouterVideoGenerationResponse(JSONObject json, T request) {
