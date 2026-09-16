@@ -36,6 +36,10 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 * **Routing discovery**: `client.providers()` (`GET /providers` - the provider slugs the routing options accept, with datacenter/headquarters data) and `client.zdrEndpoints()` (`GET /endpoints/zdr` - the endpoint picture before enabling `zdr(true)`, with latency/throughput/uptime percentiles); both work with a normal inference key. The analytics meta companion `client.analyticsMeta()` (`GET /analytics/meta`, management key required) lists the metrics, dimensions, operators and granularities the `analyticsQuery()` builder accepts. Example: `OpenRouterRoutingDiscoveryExample`
 * **Public data**: read-only market endpoints working with any valid API key - `client.benchmarks()` (`GET /benchmarks`, unified benchmark rows from Artificial Analysis, Design Arena and OpenRouter's own evals), `client.datasets().appRankings()` / `.rankingsDaily()` / `.sessionCost()` (top apps by token usage, daily top-50 model totals with the reserved `other` row, cost per session by harness and model) and `client.taskClassifications()` (`GET /classifications/task`, task-classification market share). Example: `OpenRouterPublicDataExample`
 * **API key management**: `client.currentKey()` (`GET /key`, works with a normal inference key - limits, usage, whether it is a management key) and the `client.keys()` surface `list()` / `create()` / `get(hash)` / `update(hash)` / `delete(hash)` (management key required; `create()` returns the plaintext key exactly once and the response `toString()` never prints it). Example: `OpenRouterKeysManagementExample`
+* **Workspace and organization management**: the `client.workspaces()` surface - `list()` / `create()` (name plus URL-friendly `slug`, validated loudly) / `get(id)` / `update(id)` (`slug` renames the workspace) / `delete(id)`, the members endpoints `members(id)` / `addMembers(id)` / `removeMembers(id)`, and the budget endpoints `budgets(ref)` / `budget(ref, interval)` / `upsertBudget(ref, interval)` (limit in USD per `daily` / `weekly` / `monthly` / `lifetime`; `includeByokInBudgets` is a workspace-wide setting) / `deleteBudget(ref, interval)`; plus `client.organization().members()`. Example: `OpenRouterWorkspacesExample`
+* **Guardrails management**: the `client.guardrails()` surface - CRUD on the server-side request policy layer (allowed models/providers, data regions, spend limits, content filters, per-provider zero-data-retention) and the key/member assignment endpoints (`assignKeys` / `assignMembers` and their list/remove counterparts, global and per guardrail). Trap: a created guardrail enforces nothing until it is assigned to API keys or members. Example: `OpenRouterGuardrailsExample`
+* **BYOK credential management**: the `client.byok()` surface - `list()` / `create()` (provider and key required and validated loudly) / `get(id)` / `update(id)` (in-place key rotation) / `delete(id)`. The provider credential is a write-only secret: encrypted at rest, never returned by any response. Example: `OpenRouterByokExample`
+* **Observability destination management**: `client.observability().destinations()` - CRUD on the destinations the `trace(OpenRouterTraceConfig)` traces are broadcast to (Langfuse, Datadog, Weave, ...); the destination-type-specific `config` object is built with `config(JSONObject)` or the `configOption(key, value)` escape hatch. Example: `OpenRouterObservabilityExample`
 * Access to 200+ AI models through a single unified API
 * Provider selection for routing requests to specific providers
 * Vision capabilities for image understanding and analysis (optional per-image resolution tier `detail`: auto/low/high/original)
@@ -50,7 +54,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.19.0</version>
+    <version>1.20.0</version>
 </dependency>
 ```
 

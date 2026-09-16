@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j;
 
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
+import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -172,5 +173,57 @@ class OpenRouterClientEntryPointsTest {
         assertThat(client().keys().get("abc123").build().getRelativeUrl()).isEqualTo("/keys/abc123");
         assertThat(client().keys().update("abc123").disabled(true).build().getHttpMethod()).isEqualTo("PATCH");
         assertThat(client().keys().delete("abc123").build().getHttpMethod()).isEqualTo("DELETE");
+    }
+
+    @Test
+    void workspaceEntryPointsProduceTheManagementRequests() {
+        assertThat(client().workspaces().list().build().getRelativeUrl()).isEqualTo("/workspaces");
+        assertThat(client().workspaces().create().name("W").slug("w").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().workspaces().get("ws-1").build().getRelativeUrl()).isEqualTo("/workspaces/ws-1");
+        assertThat(client().workspaces().update("ws-1").name("N").build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().workspaces().delete("ws-1").build().getHttpMethod()).isEqualTo("DELETE");
+        assertThat(client().workspaces().members("ws-1").build().getRelativeUrl()).isEqualTo("/workspaces/ws-1/members");
+        assertThat(client().workspaces().addMembers("ws-1").addUserId("u1").build().getRelativeUrl()).isEqualTo("/workspaces/ws-1/members/add");
+        assertThat(client().workspaces().removeMembers("ws-1").addUserId("u1").build().getRelativeUrl()).isEqualTo("/workspaces/ws-1/members/remove");
+        assertThat(client().workspaces().budgets("ws-1").build().getRelativeUrl()).isEqualTo("/workspaces/ws-1/budgets");
+        assertThat(client().workspaces().budget("ws-1", "monthly").build().getRelativeUrl()).isEqualTo("/workspaces/ws-1/budgets/monthly");
+        assertThat(client().workspaces().upsertBudget("ws-1", "monthly").limitUsd(10.0).build().getHttpMethod()).isEqualTo("PUT");
+        assertThat(client().workspaces().deleteBudget("ws-1", "monthly").build().getHttpMethod()).isEqualTo("DELETE");
+        assertThat(client().organization().members().build().getRelativeUrl()).isEqualTo("/organization/members");
+    }
+
+    @Test
+    void guardrailsEntryPointsProduceTheManagementRequests() {
+        assertThat(client().guardrails().list().build().getRelativeUrl()).isEqualTo("/guardrails");
+        assertThat(client().guardrails().create().name("G").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().guardrails().get("g1").build().getRelativeUrl()).isEqualTo("/guardrails/g1");
+        assertThat(client().guardrails().update("g1").name("N").build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().guardrails().delete("g1").build().getHttpMethod()).isEqualTo("DELETE");
+        assertThat(client().guardrails().keyAssignments("g1").build().getRelativeUrl()).isEqualTo("/guardrails/g1/assignments/keys");
+        assertThat(client().guardrails().memberAssignments("g1").build().getRelativeUrl()).isEqualTo("/guardrails/g1/assignments/members");
+        assertThat(client().guardrails().allKeyAssignments().build().getRelativeUrl()).isEqualTo("/guardrails/assignments/keys");
+        assertThat(client().guardrails().allMemberAssignments().build().getRelativeUrl()).isEqualTo("/guardrails/assignments/members");
+        assertThat(client().guardrails().assignKeys("g1").addKeyHash("h1").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().guardrails().unassignKeys("g1").addKeyHash("h1").build().getRelativeUrl()).isEqualTo("/guardrails/g1/assignments/keys/remove");
+        assertThat(client().guardrails().assignMembers("g1").addMemberUserId("u1").build().getRelativeUrl()).isEqualTo("/guardrails/g1/assignments/members");
+        assertThat(client().guardrails().unassignMembers("g1").addMemberUserId("u1").build().getRelativeUrl()).isEqualTo("/guardrails/g1/assignments/members/remove");
+    }
+
+    @Test
+    void byokEntryPointsProduceTheManagementRequests() {
+        assertThat(client().byok().list().build().getRelativeUrl()).isEqualTo("/byok");
+        assertThat(client().byok().create().provider("openai").key("sk-secret").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().byok().get("b1").build().getRelativeUrl()).isEqualTo("/byok/b1");
+        assertThat(client().byok().update("b1").name("N").build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().byok().delete("b1").build().getHttpMethod()).isEqualTo("DELETE");
+    }
+
+    @Test
+    void observabilityEntryPointsProduceTheManagementRequests() {
+        assertThat(client().observability().destinations().list().build().getRelativeUrl()).isEqualTo("/observability/destinations");
+        assertThat(client().observability().destinations().create().type("langfuse").name("D").config(new JSONObject().put("baseUrl", "https://example.invalid")).build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().observability().destinations().get("d1").build().getRelativeUrl()).isEqualTo("/observability/destinations/d1");
+        assertThat(client().observability().destinations().update("d1").name("N").build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().observability().destinations().delete("d1").build().getHttpMethod()).isEqualTo("DELETE");
     }
 }

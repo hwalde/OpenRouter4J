@@ -8,6 +8,11 @@ import de.entwicklertraining.openrouter4j.activity.OpenRouterActivityRequest;
 import de.entwicklertraining.openrouter4j.activity.OpenRouterAnalyticsQueryRequest;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSpeechRequest;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSttRequest;
+import de.entwicklertraining.openrouter4j.byok.OpenRouterByokCreateRequest;
+import de.entwicklertraining.openrouter4j.byok.OpenRouterByokDeleteRequest;
+import de.entwicklertraining.openrouter4j.byok.OpenRouterByokGetRequest;
+import de.entwicklertraining.openrouter4j.byok.OpenRouterByokListRequest;
+import de.entwicklertraining.openrouter4j.byok.OpenRouterByokUpdateRequest;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest;
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsModelsRequest;
@@ -15,6 +20,19 @@ import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsRequest
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailAllKeyAssignmentsListRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailAllMemberAssignmentsListRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailCreateRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailDeleteRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailGetRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailKeyAssignmentsListRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailKeysAssignRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailKeysUnassignRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailMemberAssignmentsListRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailMembersAssignRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailMembersUnassignRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailUpdateRequest;
+import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailsListRequest;
 import de.entwicklertraining.openrouter4j.image.OpenRouterImageGenerationRequest;
 import de.entwicklertraining.openrouter4j.image.OpenRouterImageModelEndpointsRequest;
 import de.entwicklertraining.openrouter4j.image.OpenRouterImageModelsRequest;
@@ -30,6 +48,11 @@ import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsCountRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsListRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterUserModelsRequest;
+import de.entwicklertraining.openrouter4j.observability.OpenRouterObservabilityDestinationCreateRequest;
+import de.entwicklertraining.openrouter4j.observability.OpenRouterObservabilityDestinationDeleteRequest;
+import de.entwicklertraining.openrouter4j.observability.OpenRouterObservabilityDestinationGetRequest;
+import de.entwicklertraining.openrouter4j.observability.OpenRouterObservabilityDestinationUpdateRequest;
+import de.entwicklertraining.openrouter4j.observability.OpenRouterObservabilityDestinationsListRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterAuthorizationCodeExchangeRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterCreateAuthorizationCodeRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterWorkloadIdentityExchangeRequest;
@@ -45,6 +68,19 @@ import de.entwicklertraining.openrouter4j.video.OpenRouterVideoContentRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoGenerationRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoJobRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoModelsRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterOrganizationMembersListRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspacesListRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceBudgetDeleteRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceBudgetGetRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceBudgetsListRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceBudgetUpsertRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceCreateRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceDeleteRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceGetRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceMembersAddRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceMembersListRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceMembersRemoveRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceUpdateRequest;
 
 // Import exception classes
 import static de.entwicklertraining.api.base.ApiClient.HTTP_400_RequestRejectedException;
@@ -362,6 +398,63 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterKeys keys() {
         return new OpenRouterKeys(this);
+    }
+
+    /**
+     * Manages the workspaces and budgets of the account:
+     * GET/POST /workspaces, GET/PATCH/DELETE /workspaces/{id},
+     * the members endpoints under /workspaces/{id}/members and the budget
+     * endpoints under /workspaces/{ref}/budgets (management key required).
+     *
+     * @return the starting point for the workspace-management requests
+     */
+    public OpenRouterWorkspaces workspaces() {
+        return new OpenRouterWorkspaces(this);
+    }
+
+    /**
+     * Reads the organization of the account:
+     * GET /organization/members (management key required).
+     *
+     * @return the starting point for the organization requests
+     */
+    public OpenRouterOrganization organization() {
+        return new OpenRouterOrganization(this);
+    }
+
+    /**
+     * Manages the guardrails of the account:
+     * GET/POST /guardrails, GET/PATCH/DELETE /guardrails/{id} and the
+     * assignment endpoints under /guardrails/assignments and
+     * /guardrails/{id}/assignments (management key required).
+     *
+     * @return the starting point for the guardrail requests
+     */
+    public OpenRouterGuardrails guardrails() {
+        return new OpenRouterGuardrails(this);
+    }
+
+    /**
+     * Manages the BYOK provider credentials of the account:
+     * GET/POST /byok, GET/PATCH/DELETE /byok/{id} (management key required).
+     *
+     * @return the starting point for the BYOK requests
+     */
+    public OpenRouterByok byok() {
+        return new OpenRouterByok(this);
+    }
+
+    /**
+     * Manages the observability destinations the traces are broadcast to:
+     * GET/POST /observability/destinations, GET/PATCH/DELETE
+     * /observability/destinations/{id} (management key required). Requests
+     * opt into tracing via the {@code trace} request object
+     * ({@code OpenRouterTraceConfig}).
+     *
+     * @return the starting point for the observability requests
+     */
+    public OpenRouterObservability observability() {
+        return new OpenRouterObservability(this);
     }
 
     /**
@@ -756,6 +849,497 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterKeyDeleteRequest.Builder delete(String hash) {
             return new OpenRouterKeyDeleteRequest.Builder(client, hash);
+        }
+    }
+
+    /**
+     * Facade for the workspace-management endpoints (management key
+     * required): workspaces, their members and their budgets.
+     */
+    public static class OpenRouterWorkspaces {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterWorkspaces(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the workspaces of the account:
+         * GET /workspaces (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspacesListRequest.Builder list() {
+            return new OpenRouterWorkspacesListRequest.Builder(client);
+        }
+
+        /**
+         * Creates a new workspace:
+         * POST /workspaces (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceCreateRequest.Builder create() {
+            return new OpenRouterWorkspaceCreateRequest.Builder(client);
+        }
+
+        /**
+         * Gets a single workspace by id:
+         * GET /workspaces/{id} (management key required).
+         *
+         * @param id the id (UUID) of the workspace
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceGetRequest.Builder get(String id) {
+            return new OpenRouterWorkspaceGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Updates a workspace (renaming via {@code slug} included):
+         * PATCH /workspaces/{id} (management key required).
+         *
+         * @param id the id (UUID) of the workspace
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceUpdateRequest.Builder update(String id) {
+            return new OpenRouterWorkspaceUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes a workspace (permanent; deleting the default workspace
+         * needs {@code confirmDefaultWorkspaceDeletion(true)}):
+         * DELETE /workspaces/{id} (management key required).
+         *
+         * @param id the id (UUID) of the workspace
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceDeleteRequest.Builder delete(String id) {
+            return new OpenRouterWorkspaceDeleteRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the members of a workspace:
+         * GET /workspaces/{id}/members (management key required).
+         *
+         * @param id the id (UUID) of the workspace
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceMembersListRequest.Builder members(String id) {
+            return new OpenRouterWorkspaceMembersListRequest.Builder(client, id);
+        }
+
+        /**
+         * Adds organization members to a workspace:
+         * POST /workspaces/{id}/members/add (management key required).
+         *
+         * @param id the id (UUID) of the workspace
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceMembersAddRequest.Builder addMembers(String id) {
+            return new OpenRouterWorkspaceMembersAddRequest.Builder(client, id);
+        }
+
+        /**
+         * Removes members from a workspace:
+         * POST /workspaces/{id}/members/remove (management key required).
+         *
+         * @param id the id (UUID) of the workspace
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceMembersRemoveRequest.Builder removeMembers(String id) {
+            return new OpenRouterWorkspaceMembersRemoveRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the budgets of a workspace:
+         * GET /workspaces/{ref}/budgets (management key required).
+         *
+         * @param workspaceRef the workspace id or slug
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceBudgetsListRequest.Builder budgets(String workspaceRef) {
+            return new OpenRouterWorkspaceBudgetsListRequest.Builder(client, workspaceRef);
+        }
+
+        /**
+         * Gets one budget of a workspace:
+         * GET /workspaces/{ref}/budgets/{interval} (management key required).
+         *
+         * @param workspaceRef the workspace id or slug
+         * @param interval the budget interval ({@code daily}, {@code weekly},
+         *                 {@code monthly} or {@code lifetime})
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceBudgetGetRequest.Builder budget(String workspaceRef, String interval) {
+            return new OpenRouterWorkspaceBudgetGetRequest.Builder(client, workspaceRef, interval);
+        }
+
+        /**
+         * Creates or updates one budget of a workspace:
+         * PUT /workspaces/{ref}/budgets/{interval} (management key required).
+         *
+         * @param workspaceRef the workspace id or slug
+         * @param interval the budget interval ({@code daily}, {@code weekly},
+         *                 {@code monthly} or {@code lifetime})
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceBudgetUpsertRequest.Builder upsertBudget(String workspaceRef, String interval) {
+            return new OpenRouterWorkspaceBudgetUpsertRequest.Builder(client, workspaceRef, interval);
+        }
+
+        /**
+         * Deletes one budget of a workspace:
+         * DELETE /workspaces/{ref}/budgets/{interval} (management key required).
+         *
+         * @param workspaceRef the workspace id or slug
+         * @param interval the budget interval ({@code daily}, {@code weekly},
+         *                 {@code monthly} or {@code lifetime})
+         * @return the starting point for the request
+         */
+        public OpenRouterWorkspaceBudgetDeleteRequest.Builder deleteBudget(String workspaceRef, String interval) {
+            return new OpenRouterWorkspaceBudgetDeleteRequest.Builder(client, workspaceRef, interval);
+        }
+    }
+
+    /**
+     * Facade for the organization endpoints (management key required).
+     */
+    public static class OpenRouterOrganization {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterOrganization(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the members of the organization:
+         * GET /organization/members (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterOrganizationMembersListRequest.Builder members() {
+            return new OpenRouterOrganizationMembersListRequest.Builder(client);
+        }
+    }
+
+    /**
+     * Facade for the guardrail endpoints (management key required):
+     * CRUD plus key and member assignments.
+     */
+    public static class OpenRouterGuardrails {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterGuardrails(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the guardrails of the account:
+         * GET /guardrails (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailsListRequest.Builder list() {
+            return new OpenRouterGuardrailsListRequest.Builder(client);
+        }
+
+        /**
+         * Creates a new guardrail:
+         * POST /guardrails (management key required). A created guardrail
+         * enforces nothing until it is assigned to API keys or members.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailCreateRequest.Builder create() {
+            return new OpenRouterGuardrailCreateRequest.Builder(client);
+        }
+
+        /**
+         * Gets a single guardrail by id:
+         * GET /guardrails/{id} (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailGetRequest.Builder get(String id) {
+            return new OpenRouterGuardrailGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Updates a guardrail:
+         * PATCH /guardrails/{id} (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailUpdateRequest.Builder update(String id) {
+            return new OpenRouterGuardrailUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes a guardrail (permanent):
+         * DELETE /guardrails/{id} (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailDeleteRequest.Builder delete(String id) {
+            return new OpenRouterGuardrailDeleteRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the key assignments of one guardrail:
+         * GET /guardrails/{id}/assignments/keys (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailKeyAssignmentsListRequest.Builder keyAssignments(String id) {
+            return new OpenRouterGuardrailKeyAssignmentsListRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the member assignments of one guardrail:
+         * GET /guardrails/{id}/assignments/members (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailMemberAssignmentsListRequest.Builder memberAssignments(String id) {
+            return new OpenRouterGuardrailMemberAssignmentsListRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the key assignments of every guardrail:
+         * GET /guardrails/assignments/keys (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailAllKeyAssignmentsListRequest.Builder allKeyAssignments() {
+            return new OpenRouterGuardrailAllKeyAssignmentsListRequest.Builder(client);
+        }
+
+        /**
+         * Lists the member assignments of every guardrail:
+         * GET /guardrails/assignments/members (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailAllMemberAssignmentsListRequest.Builder allMemberAssignments() {
+            return new OpenRouterGuardrailAllMemberAssignmentsListRequest.Builder(client);
+        }
+
+        /**
+         * Assigns API keys to a guardrail:
+         * POST /guardrails/{id}/assignments/keys (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailKeysAssignRequest.Builder assignKeys(String id) {
+            return new OpenRouterGuardrailKeysAssignRequest.Builder(client, id);
+        }
+
+        /**
+         * Unassigns API keys from a guardrail:
+         * POST /guardrails/{id}/assignments/keys/remove (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailKeysUnassignRequest.Builder unassignKeys(String id) {
+            return new OpenRouterGuardrailKeysUnassignRequest.Builder(client, id);
+        }
+
+        /**
+         * Assigns members to a guardrail:
+         * POST /guardrails/{id}/assignments/members (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailMembersAssignRequest.Builder assignMembers(String id) {
+            return new OpenRouterGuardrailMembersAssignRequest.Builder(client, id);
+        }
+
+        /**
+         * Unassigns members from a guardrail:
+         * POST /guardrails/{id}/assignments/members/remove (management key required).
+         *
+         * @param id the id (UUID) of the guardrail
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailMembersUnassignRequest.Builder unassignMembers(String id) {
+            return new OpenRouterGuardrailMembersUnassignRequest.Builder(client, id);
+        }
+    }
+
+    /**
+     * Facade for the BYOK endpoints (management key required).
+     */
+    public static class OpenRouterByok {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterByok(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the BYOK provider credentials of the account:
+         * GET /byok (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterByokListRequest.Builder list() {
+            return new OpenRouterByokListRequest.Builder(client);
+        }
+
+        /**
+         * Creates a BYOK provider credential:
+         * POST /byok (management key required). The provider key travels
+         * only in the request - treat it as a secret.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterByokCreateRequest.Builder create() {
+            return new OpenRouterByokCreateRequest.Builder(client);
+        }
+
+        /**
+         * Gets a single BYOK provider credential by id:
+         * GET /byok/{id} (management key required).
+         *
+         * @param id the id (UUID) of the credential
+         * @return the starting point for the request
+         */
+        public OpenRouterByokGetRequest.Builder get(String id) {
+            return new OpenRouterByokGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Updates a BYOK provider credential (key rotation included):
+         * PATCH /byok/{id} (management key required).
+         *
+         * @param id the id (UUID) of the credential
+         * @return the starting point for the request
+         */
+        public OpenRouterByokUpdateRequest.Builder update(String id) {
+            return new OpenRouterByokUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes a BYOK provider credential (permanent):
+         * DELETE /byok/{id} (management key required).
+         *
+         * @param id the id (UUID) of the credential
+         * @return the starting point for the request
+         */
+        public OpenRouterByokDeleteRequest.Builder delete(String id) {
+            return new OpenRouterByokDeleteRequest.Builder(client, id);
+        }
+    }
+
+    /**
+     * Facade for the observability endpoints (management key required).
+     */
+    public static class OpenRouterObservability {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterObservability(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Manages the observability destinations the traces are broadcast
+         * to (the request side is {@code OpenRouterTraceConfig}).
+         *
+         * @return the starting point for the destination requests
+         */
+        public OpenRouterObservabilityDestinations destinations() {
+            return new OpenRouterObservabilityDestinations(client);
+        }
+    }
+
+    /**
+     * Facade for the observability destination endpoints (management key
+     * required): CRUD on the destinations traces are broadcast to.
+     */
+    public static class OpenRouterObservabilityDestinations {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterObservabilityDestinations(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the destinations:
+         * GET /observability/destinations (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterObservabilityDestinationsListRequest.Builder list() {
+            return new OpenRouterObservabilityDestinationsListRequest.Builder(client);
+        }
+
+        /**
+         * Creates a destination:
+         * POST /observability/destinations (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterObservabilityDestinationCreateRequest.Builder create() {
+            return new OpenRouterObservabilityDestinationCreateRequest.Builder(client);
+        }
+
+        /**
+         * Gets a single destination by id:
+         * GET /observability/destinations/{id} (management key required).
+         *
+         * @param id the id (UUID) of the destination
+         * @return the starting point for the request
+         */
+        public OpenRouterObservabilityDestinationGetRequest.Builder get(String id) {
+            return new OpenRouterObservabilityDestinationGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Updates a destination:
+         * PATCH /observability/destinations/{id} (management key required).
+         *
+         * @param id the id (UUID) of the destination
+         * @return the starting point for the request
+         */
+        public OpenRouterObservabilityDestinationUpdateRequest.Builder update(String id) {
+            return new OpenRouterObservabilityDestinationUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes a destination (permanent):
+         * DELETE /observability/destinations/{id} (management key required).
+         *
+         * @param id the id (UUID) of the destination
+         * @return the starting point for the request
+         */
+        public OpenRouterObservabilityDestinationDeleteRequest.Builder delete(String id) {
+            return new OpenRouterObservabilityDestinationDeleteRequest.Builder(client, id);
         }
     }
 
