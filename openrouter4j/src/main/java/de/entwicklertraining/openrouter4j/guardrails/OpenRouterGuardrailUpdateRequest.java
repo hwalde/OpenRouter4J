@@ -102,7 +102,9 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
     @Override
     public String getBody() {
         JSONObject body = new JSONObject();
-        body.put("name", name);
+        if (name != null) {
+            body.put("name", name);
+        }
         if (description != null) {
             body.put("description", description);
         }
@@ -218,8 +220,8 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
     }
 
     /**
- * Sets the body field {@code name} (required) - name for the new guardrail
- * (max 200 characters).
+ * Sets the body field {@code name} (optional on update) - new name for the
+ * guardrail (max 200 characters).
  */
     public Builder name(String name) {
         this.name = name;
@@ -431,7 +433,6 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
             throw new IllegalStateException("id is required");
         }
         if (name == null || name.isEmpty()) {
-            throw new IllegalStateException("name is required for guardrail creation");
         }
         if ((limitUsd == null) != (resetInterval == null)) {
             throw new IllegalStateException("limit_usd and reset_interval must be provided together");

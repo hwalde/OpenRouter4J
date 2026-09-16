@@ -103,6 +103,29 @@ class OpenRouterByokTest {
     }
 
     @Test
+    void updateRequestEmitsOnlyConfiguredFields() {
+        OpenRouterByokUpdateRequest request = new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .name("Updated OpenAI Key")
+                .isFallback(true)
+                .isRequired(false)
+                .isByokOnly(false)
+                .allowedModels(List.of("openai/gpt-5.2"))
+                .allowedUserIds(List.of("user_abc123"))
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.keySet()).containsExactlyInAnyOrder(
+                "name", "is_fallback", "is_required", "is_byok_only",
+                "allowed_models", "allowed_user_ids");
+        assertThat(body.get("name")).isEqualTo("Updated OpenAI Key");
+        assertThat(body.getBoolean("is_fallback")).isTrue();
+        assertThat(body.getBoolean("is_required")).isFalse();
+        assertThat(body.getJSONArray("allowed_models").toList()).containsExactly("openai/gpt-5.2");
+        // workspace_id does not exist on the update request
+        assertThat(body.has("workspace_id")).isFalse();
+    }
+
+    @Test
     void getAndDeleteRequestsUrlEncodeTheId() {
         assertThat(client().byok().get("id with space").build().getRelativeUrl())
                 .isEqualTo("/byok/id+with+space");

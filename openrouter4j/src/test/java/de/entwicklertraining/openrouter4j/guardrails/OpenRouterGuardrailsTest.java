@@ -94,6 +94,43 @@ class OpenRouterGuardrailsTest {
     }
 
     @Test
+    void updateRequestEmitsOnlyConfiguredFields() {
+        OpenRouterGuardrailUpdateRequest request = new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .name("Updated Guardrail Name")
+                .allowedModels(List.of("openai/gpt-5.2"))
+                .ignoredProviders(List.of("azure"))
+                .enforceZdr(true)
+                .enforceZdrOther(false)
+                .enableFreeModelPublication(false)
+                .modelCatalog(new JSONObject().put("sort", "explicit"))
+                .limitUsd(75.0)
+                .resetInterval("weekly")
+                .build();
+
+        assertThat(request.getRelativeUrl()).isEqualTo("/guardrails/g-1");
+        assertThat(request.getHttpMethod()).isEqualTo("PATCH");
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.keySet()).containsExactlyInAnyOrder(
+                "name", "allowed_models", "ignored_providers", "enforce_zdr",
+                "enforce_zdr_other", "enable_free_model_publication", "model_catalog",
+                "limit_usd", "reset_interval");
+        assertThat(body.get("name")).isEqualTo("Updated Guardrail Name");
+        assertThat(body.getJSONArray("allowed_models").toList()).containsExactly("openai/gpt-5.2");
+        assertThat(body.getBoolean("enforce_zdr")).isTrue();
+        assertThat(body.getJSONObject("model_catalog").getString("sort")).isEqualTo("explicit");
+        // workspace_id does not exist on the update request
+        assertThat(body.has("workspace_id")).isFalse();
+    }
+
+    @Test
+    void updateRequestRejectsLimitWithoutResetInterval() {
+        assertThatThrownBy(() -> new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .limitUsd(75.0).build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("together");
+    }
+
+    @Test
     void getAndDeleteRequestsUrlEncodeTheId() {
         assertThat(client().guardrails().get("id/with slash").build().getRelativeUrl())
                 .isEqualTo("/guardrails/id%2Fwith+slash");

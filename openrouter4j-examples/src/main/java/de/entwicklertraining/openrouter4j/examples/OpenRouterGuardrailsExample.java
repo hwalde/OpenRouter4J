@@ -56,6 +56,21 @@ public class OpenRouterGuardrailsExample {
         String id = created.data() != null ? created.data().id() : null;
         System.out.println("Created guardrail " + id);
 
+        // 3b. Custom regex content filters use the raw form: each object
+        //     carries action (block/redact/flag), pattern and an optional
+        //     label. Each variant gets its own request, so a broken variant
+        //     cannot hide behind the other.
+        OpenRouterGuardrailCreateResponse regexCreated = client.guardrails().create()
+                .name("Example Regex Guardrail")
+                .contentFilters(List.of(new org.json.JSONObject()
+                        .put("action", "redact")
+                        .put("pattern", "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+")
+                        .put("label", "[EMAIL]")))
+                .execute();
+        String regexId = regexCreated.data() != null ? regexCreated.data().id() : null;
+        System.out.println("Created regex-filter guardrail " + regexId);
+        client.guardrails().delete(regexId).execute();
+
         // 4. Assign an existing API key (by hash, see client.keys().list()).
         //    client.guardrails().assignKeys(id).addKeyHash("<key hash>").execute();
         //    ... and members by user id (see client.organization().members()):

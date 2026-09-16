@@ -108,15 +108,46 @@ class OpenRouterObservabilityTest {
                 new OpenRouterObservabilityDestinationUpdateRequest.Builder(client(), "d-1")
                         .name("Updated Langfuse")
                         .enabled(false)
+                        .regions(List.of("europe"))
+                        .samplingRate(0.5)
+                        .privacyMode(true)
+                        .filterRules(new JSONObject().put("enabled", false))
+                        .apiKeyHashes(List.of("c56454edb818d6b14bc0d61c46025f1450b0f4012d12304ab40aacb519fcbc93"))
+                        .broadcastGenerationCost(true)
+                        .broadcastGenerationIdentity(false)
+                        .broadcastGenerationRequestContext(false)
                         .configOption("baseUrl", "https://eu.cloud.langfuse.com")
                         .build();
 
         assertThat(request.getRelativeUrl()).isEqualTo("/observability/destinations/d-1");
         assertThat(request.getHttpMethod()).isEqualTo("PATCH");
         JSONObject body = new JSONObject(request.getBody());
-        assertThat(body.keySet()).containsExactlyInAnyOrder("name", "enabled", "config");
+        assertThat(body.keySet()).containsExactlyInAnyOrder(
+                "name", "enabled", "regions", "sampling_rate", "privacy_mode",
+                "filter_rules", "api_key_hashes", "broadcast_generation_cost",
+                "broadcast_generation_identity", "broadcast_generation_request_context",
+                "config");
         assertThat(body.getBoolean("enabled")).isFalse();
+        assertThat(body.getJSONArray("regions").toList()).containsExactly("europe");
+        assertThat(body.getDouble("sampling_rate")).isEqualTo(0.5);
+        assertThat(body.getJSONObject("filter_rules").getBoolean("enabled")).isFalse();
         assertThat(body.getJSONObject("config").getString("baseUrl")).isEqualTo("https://eu.cloud.langfuse.com");
+        // no generation artifact keys
+        assertThat(body.has("None")).isFalse();
+    }
+
+    @Test
+    void createRequestNeverEmitsArtifactKeys() {
+        OpenRouterObservabilityDestinationCreateRequest request =
+                new OpenRouterObservabilityDestinationCreateRequest.Builder(client())
+                        .type("langfuse")
+                        .name("D")
+                        .config(new JSONObject().put("secretKey", "sk-lf-example"))
+                        .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.keySet()).containsExactlyInAnyOrder("type", "name", "config");
+        assertThat(body.has("None")).isFalse();
     }
 
     @Test

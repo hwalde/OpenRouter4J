@@ -92,9 +92,12 @@ public final class OpenRouterWorkspaceDeleteRequest extends OpenRouterRequest<Op
     }
 
     /**
-     * Sets the query key {@code confirm_default_workspace_deletion}.
+     * Sets the query key {@code confirm_default_workspace_deletion} -
+     * confirms the deletion of the account's <em>default</em> workspace: the
+     * API rejects deleting that workspace unless this query parameter is set
+     * to {@code true}. Leave unset for any other workspace.
      *
-     * @param confirmDefaultWorkspaceDeletion the value for the query key
+     * @param confirmDefaultWorkspaceDeletion whether to confirm the default-workspace deletion
      * @return this builder
      */
     public Builder confirmDefaultWorkspaceDeletion(Boolean confirmDefaultWorkspaceDeletion) {

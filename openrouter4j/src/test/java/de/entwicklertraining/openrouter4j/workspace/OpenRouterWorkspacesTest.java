@@ -103,6 +103,23 @@ class OpenRouterWorkspacesTest {
     }
 
     @Test
+    void updateRequestEmitsOnlyConfiguredFields() {
+        OpenRouterWorkspaceUpdateRequest request = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .name("Updated Workspace")
+                .slug("updated-workspace")
+                .isObservabilityBroadcastEnabled(true)
+                .build();
+
+        assertThat(request.getHttpMethod()).isEqualTo("PATCH");
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.keySet()).containsExactlyInAnyOrder(
+                "name", "slug", "is_observability_broadcast_enabled");
+        assertThat(body.get("slug")).isEqualTo("updated-workspace");
+        assertThat(body.has("description")).isFalse();
+        assertThat(body.has("default_text_model")).isFalse();
+    }
+
+    @Test
     void updateRequestRejectsEmptyId() {
         assertThatThrownBy(() -> client().workspaces().update("").build())
                 .isInstanceOf(IllegalStateException.class)
@@ -122,6 +139,14 @@ class OpenRouterWorkspacesTest {
         assertThat(new JSONObject(add.getBody()).getJSONArray("user_ids").toList())
                 .containsExactly("user_abc123", "user_def456");
         assertThat(add.getRelativeUrl()).isEqualTo("/workspaces/ws-1/members/add");
+
+        OpenRouterWorkspaceMembersRemoveRequest remove = client().workspaces().removeMembers("ws-1")
+                .addUserId("user_abc123")
+                .build();
+        assertThat(remove.getRelativeUrl()).isEqualTo("/workspaces/ws-1/members/remove");
+        assertThat(new JSONObject(remove.getBody()).getJSONArray("user_ids").toList())
+                .containsExactly("user_abc123");
+        assertThat(new JSONObject(remove.getBody()).has("member_user_ids")).isFalse();
 
         assertThatThrownBy(() -> {
             OpenRouterWorkspaceMembersAddRequest.Builder builder = client().workspaces().addMembers("ws-1");

@@ -27,7 +27,6 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
     private final String type;
     private final String name;
     private final JSONObject config;
-    private final JSONObject configOption;
     private final Boolean enabled;
     private final List<String> regions;
     private final Double samplingRate;
@@ -45,7 +44,6 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
         this.type = builder.type;
         this.name = builder.name;
         this.config = builder.config;
-        this.configOption = builder.configOption;
         this.enabled = builder.enabled;
         this.regions = builder.regions;
         this.samplingRate = builder.samplingRate;
@@ -81,9 +79,6 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
         body.put("type", type);
         body.put("name", name);
         body.put("config", config);
-        if (configOption != null) {
-            body.put("None", configOption);
-        }
         if (enabled != null) {
             body.put("enabled", enabled);
         }
@@ -131,7 +126,6 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
     private String type;
     private String name;
     private JSONObject config;
-    private JSONObject configOption;
     private Boolean enabled;
     private List<String> regions;
     private Double samplingRate;
@@ -200,13 +194,6 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
             this.config = new JSONObject();
         }
         this.config.put(key, value);
-        return this;
-    }
-    /**
- *
- */
-    public Builder configOption(JSONObject configOption) {
-        this.configOption = configOption;
         return this;
     }
     /**
