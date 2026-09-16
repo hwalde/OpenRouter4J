@@ -7,6 +7,9 @@ import org.json.JSONObject;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * A request to read the task-classification market share:
@@ -19,23 +22,40 @@ import java.nio.charset.StandardCharsets;
  * OpenRouter API key; rate-limited. Data is licensed under CC BY 4.0 -
  * republish with attribution to OpenRouter.
  */
-public final class OpenRouterTaskClassificationsRequest extends OpenRouterRequest<OpenRouterTaskClassificationsResponse> {
+public final class OpenRouterTaskClassificationsRequest
+        extends OpenRouterRequest<OpenRouterTaskClassificationsResponse> {
 
     private final OpenRouterClient client;
-    private final String window;
+    private final Map<String, String> queryParams;
 
     private OpenRouterTaskClassificationsRequest(Builder builder) {
         super(builder);
         this.client = builder.client;
-        this.window = builder.window;
+        this.queryParams = Collections.unmodifiableMap(new LinkedHashMap<>(builder.queryParams));
+    }
+
+    /**
+     * @return the query parameters this request sends, in insertion order
+     */
+    public Map<String, String> queryParams() {
+        return queryParams;
     }
 
     @Override
     public String getRelativeUrl() {
-        StringBuilder sb = new StringBuilder("/classifications/task");
-        if (window != null && !window.isEmpty()) {
-            sb.append("?window=")
-                    .append(URLEncoder.encode(window, StandardCharsets.UTF_8));
+        return appendQuery("/classifications/task");
+    }
+
+    private String appendQuery(String path) {
+        if (queryParams.isEmpty()) {
+            return path;
+        }
+        StringBuilder sb = new StringBuilder(path);
+        for (Map.Entry<String, String> entry : queryParams.entrySet()) {
+            sb.append(sb.indexOf("?") < 0 ? '?' : '&');
+            sb.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+            sb.append('=');
+            sb.append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
         }
         return sb.toString();
     }
@@ -66,7 +86,7 @@ public final class OpenRouterTaskClassificationsRequest extends OpenRouterReques
     public static final class Builder extends ApiRequestBuilderBase<Builder, OpenRouterTaskClassificationsRequest> {
 
         private final OpenRouterClient client;
-        private String window;
+        private final Map<String, String> queryParams = new LinkedHashMap<>();
 
         /**
          * Creates a builder bound to the given client.
@@ -86,7 +106,22 @@ public final class OpenRouterTaskClassificationsRequest extends OpenRouterReques
          * @return this builder
          */
         public Builder window(String window) {
-            this.window = window;
+            return queryParam("window", window);
+        }
+
+        /**
+         * Adds any documented query parameter verbatim, for parameters
+         * OpenRouter adds later. The value is sent URL-encoded; {@code null}
+         * values are ignored.
+         *
+         * @param name the query parameter name
+         * @param value the query parameter value
+         * @return this builder
+         */
+        public Builder queryParam(String name, Object value) {
+            if (name != null && !name.isEmpty() && value != null) {
+                queryParams.put(name, String.valueOf(value));
+            }
             return this;
         }
 

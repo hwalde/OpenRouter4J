@@ -92,7 +92,7 @@ class OpenRouterProvidersTest {
                       "supports_implicit_caching": true,
                       "supports_voice_cloning": false,
                       "tag": "openai",
-                      "throughput_last_30m": {"p50": 45.2, "p75": 38.5},
+                      "throughput_last_30m": {"p50": 45.2, "p75": 38.5, "p90": 52.1},
                       "uptime_last_1d": 99.8,
                       "uptime_last_30m": 99.5,
                       "uptime_last_5m": 100
@@ -123,9 +123,14 @@ class OpenRouterProvidersTest {
         assertThat(endpoint.uptimeLast30m()).isEqualTo(99.5);
         assertThat(endpoint.uptimeLast1d()).isEqualTo(99.8);
         assertThat(endpoint.latencyP50()).isEqualTo(0.25);
+        assertThat(endpoint.latencyP75()).isEqualTo(0.35);
+        assertThat(endpoint.latencyP90()).isEqualTo(0.48);
         assertThat(endpoint.latencyP99()).isEqualTo(0.85);
         assertThat(endpoint.throughputP50()).isEqualTo(45.2);
+        assertThat(endpoint.throughputP75()).isEqualTo(38.5);
+        assertThat(endpoint.throughputP90()).isEqualTo(52.1);
         assertThat(endpoint.throughputP99()).isNull();
+        assertThat(endpoint.json().has("name")).isTrue();
     }
 
     @Test

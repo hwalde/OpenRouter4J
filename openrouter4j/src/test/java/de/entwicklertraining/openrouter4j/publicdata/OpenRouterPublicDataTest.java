@@ -281,6 +281,45 @@ class OpenRouterPublicDataTest {
     }
 
     @Test
+    void publicDataBuildersSupportTheVerbatimQueryParameterEscapeHatch() {
+        OpenRouterBenchmarksRequest benchmarks =
+                new OpenRouterBenchmarksRequest.Builder(client())
+                        .queryParam("min_age_days", 30)
+                        .build();
+        assertThat(benchmarks.getRelativeUrl()).isEqualTo("/benchmarks?min_age_days=30");
+
+        OpenRouterAppRankingsRequest appRankings =
+                new OpenRouterAppRankingsRequest.Builder(client())
+                        .queryParam("future_param", "value")
+                        .queryParam("ignored", null)
+                        .build();
+        assertThat(appRankings.getRelativeUrl())
+                .isEqualTo("/datasets/app-rankings?future_param=value");
+
+        OpenRouterRankingsDailyRequest rankingsDaily =
+                new OpenRouterRankingsDailyRequest.Builder(client())
+                        .queryParam("future_param", "value")
+                        .build();
+        assertThat(rankingsDaily.getRelativeUrl())
+                .isEqualTo("/datasets/rankings-daily?future_param=value");
+
+        OpenRouterSessionCostRequest sessionCost =
+                new OpenRouterSessionCostRequest.Builder(client())
+                        .queryParam("future_param", "value")
+                        .build();
+        assertThat(sessionCost.getRelativeUrl())
+                .isEqualTo("/datasets/session-cost?future_param=value");
+
+        OpenRouterTaskClassificationsRequest classifications =
+                new OpenRouterTaskClassificationsRequest.Builder(client())
+                        .queryParam("future_param", "value")
+                        .queryParam("ignored", null)
+                        .build();
+        assertThat(classifications.getRelativeUrl())
+                .isEqualTo("/classifications/task?future_param=value");
+    }
+
+    @Test
     void taskClassificationsResponseSurfacesClassificationsAndMacroCategories() {
         OpenRouterTaskClassificationsResponse response = classificationsResponseOf("""
                 {
