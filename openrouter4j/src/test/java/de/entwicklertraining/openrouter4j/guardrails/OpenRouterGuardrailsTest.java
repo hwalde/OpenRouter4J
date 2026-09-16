@@ -128,6 +128,21 @@ class OpenRouterGuardrailsTest {
                 .limitUsd(75.0).build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("together");
+        assertThatThrownBy(() -> new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .resetInterval("monthly").build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("together");
+    }
+
+    @Test
+    void updateRequestWithoutNameOmitsTheNameField() {
+        OpenRouterGuardrailUpdateRequest request = new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .description("New description")
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.keySet()).containsExactly("description");
+        assertThat(body.has("name")).isFalse();
     }
 
     @Test

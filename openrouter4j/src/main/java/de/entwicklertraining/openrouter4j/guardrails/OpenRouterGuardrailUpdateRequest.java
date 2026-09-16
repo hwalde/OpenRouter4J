@@ -85,7 +85,7 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
 
     @Override
     public String getRelativeUrl() {
-        return "/guardrails/" + URLEncoder.encode(id, StandardCharsets.UTF_8) + "";
+        return "/guardrails/" + URLEncoder.encode(id, StandardCharsets.UTF_8);
     }
 
     @Override
@@ -431,8 +431,6 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
         public OpenRouterGuardrailUpdateRequest build() {
         if (id == null || id.isEmpty()) {
             throw new IllegalStateException("id is required");
-        }
-        if (name == null || name.isEmpty()) {
         }
         if ((limitUsd == null) != (resetInterval == null)) {
             throw new IllegalStateException("limit_usd and reset_interval must be provided together");
