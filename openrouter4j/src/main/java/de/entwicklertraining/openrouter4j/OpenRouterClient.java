@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j;
 import de.entwicklertraining.api.base.ApiClient;
 import de.entwicklertraining.api.base.ApiClientSettings;
 import de.entwicklertraining.api.base.ApiHttpConfiguration;
+import de.entwicklertraining.openrouter4j.activity.OpenRouterAnalyticsMetaRequest;
 import de.entwicklertraining.openrouter4j.activity.OpenRouterActivityRequest;
 import de.entwicklertraining.openrouter4j.activity.OpenRouterAnalyticsQueryRequest;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSpeechRequest;
@@ -17,6 +18,12 @@ import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest
 import de.entwicklertraining.openrouter4j.image.OpenRouterImageGenerationRequest;
 import de.entwicklertraining.openrouter4j.image.OpenRouterImageModelEndpointsRequest;
 import de.entwicklertraining.openrouter4j.image.OpenRouterImageModelsRequest;
+import de.entwicklertraining.openrouter4j.keys.OpenRouterKeyCreateRequest;
+import de.entwicklertraining.openrouter4j.keys.OpenRouterKeyDeleteRequest;
+import de.entwicklertraining.openrouter4j.keys.OpenRouterKeyGetRequest;
+import de.entwicklertraining.openrouter4j.keys.OpenRouterKeyUpdateRequest;
+import de.entwicklertraining.openrouter4j.keys.OpenRouterKeysListRequest;
+import de.entwicklertraining.openrouter4j.keys.OpenRouterCurrentKeyRequest;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelEndpointsRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
@@ -26,6 +33,13 @@ import de.entwicklertraining.openrouter4j.models.OpenRouterUserModelsRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterAuthorizationCodeExchangeRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterCreateAuthorizationCodeRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterWorkloadIdentityExchangeRequest;
+import de.entwicklertraining.openrouter4j.providers.OpenRouterProvidersRequest;
+import de.entwicklertraining.openrouter4j.providers.OpenRouterZdrEndpointsRequest;
+import de.entwicklertraining.openrouter4j.publicdata.OpenRouterAppRankingsRequest;
+import de.entwicklertraining.openrouter4j.publicdata.OpenRouterBenchmarksRequest;
+import de.entwicklertraining.openrouter4j.publicdata.OpenRouterRankingsDailyRequest;
+import de.entwicklertraining.openrouter4j.publicdata.OpenRouterSessionCostRequest;
+import de.entwicklertraining.openrouter4j.publicdata.OpenRouterTaskClassificationsRequest;
 import de.entwicklertraining.openrouter4j.rerank.OpenRouterRerankRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoContentRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoGenerationRequest;
@@ -262,6 +276,92 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterAnalyticsQueryRequest.Builder analyticsQuery() {
         return new OpenRouterAnalyticsQueryRequest.Builder(this);
+    }
+
+    /**
+     * Reads the metrics, dimensions, filter operators and granularities the
+     * analytics query engine accepts:
+     * GET /analytics/meta (management key required).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterAnalyticsMetaRequest.Builder analyticsMeta() {
+        return new OpenRouterAnalyticsMetaRequest.Builder(this);
+    }
+
+    /**
+     * Lists all providers integrated on OpenRouter:
+     * GET /providers - the discovery counterpart of the provider-routing
+     * options.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterProvidersRequest.Builder providers() {
+        return new OpenRouterProvidersRequest.Builder(this);
+    }
+
+    /**
+     * Previews the impact of zero-data-retention on the available endpoints:
+     * GET /endpoints/zdr - the documented way to check before
+     * {@code zdr(true)} that enough ZDR endpoints remain.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterZdrEndpointsRequest.Builder zdrEndpoints() {
+        return new OpenRouterZdrEndpointsRequest.Builder(this);
+    }
+
+    /**
+     * Reads the unified benchmark data:
+     * GET /benchmarks (works with any valid API key).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterBenchmarksRequest.Builder benchmarks() {
+        return new OpenRouterBenchmarksRequest.Builder(this);
+    }
+
+    /**
+     * Reads the public market datasets: top apps by token usage
+     * (GET /datasets/app-rankings), daily token totals for the top 50 models
+     * (GET /datasets/rankings-daily) and cost per session by harness and
+     * model (GET /datasets/session-cost).
+     *
+     * @return the starting point for the dataset requests
+     */
+    public OpenRouterDatasets datasets() {
+        return new OpenRouterDatasets(this);
+    }
+
+    /**
+     * Reads the task-classification market share:
+     * GET /classifications/task (works with any valid API key).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterTaskClassificationsRequest.Builder taskClassifications() {
+        return new OpenRouterTaskClassificationsRequest.Builder(this);
+    }
+
+    /**
+     * Reads the data of the API key making the call:
+     * GET /key (works with a normal inference key).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterCurrentKeyRequest.Builder currentKey() {
+        return new OpenRouterCurrentKeyRequest.Builder(this);
+    }
+
+    /**
+     * Manages the API keys of the account:
+     * GET /keys, POST /keys, GET /keys/{hash}, PATCH /keys/{hash},
+     * DELETE /keys/{hash} (management key required).
+     *
+     * @return the starting point for the key-management requests
+     */
+    public OpenRouterKeys keys() {
+        return new OpenRouterKeys(this);
     }
 
     /**
@@ -542,6 +642,120 @@ public final class OpenRouterClient extends ApiClient {
             }
             return new OpenRouterImageModelEndpointsRequest.Builder(client,
                     modelId.substring(0, slash), modelId.substring(slash + 1));
+        }
+    }
+
+    /**
+     * Entry point for the public market datasets: app rankings, daily model
+     * rankings and per-session costs.
+     */
+    public static class OpenRouterDatasets {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterDatasets(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Reads the top public apps ranked by token usage:
+         * GET /datasets/app-rankings.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterAppRankingsRequest.Builder appRankings() {
+            return new OpenRouterAppRankingsRequest.Builder(client);
+        }
+
+        /**
+         * Reads the daily token totals for the top 50 public models:
+         * GET /datasets/rankings-daily.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterRankingsDailyRequest.Builder rankingsDaily() {
+            return new OpenRouterRankingsDailyRequest.Builder(client);
+        }
+
+        /**
+         * Reads the aggregated cost per session by harness and model:
+         * GET /datasets/session-cost.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterSessionCostRequest.Builder sessionCost() {
+            return new OpenRouterSessionCostRequest.Builder(client);
+        }
+    }
+
+    /**
+     * Entry point for the API key management endpoints: list, create, get,
+     * update and delete keys.
+     */
+    public static class OpenRouterKeys {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterKeys(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the API keys of the account:
+         * GET /keys (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterKeysListRequest.Builder list() {
+            return new OpenRouterKeysListRequest.Builder(client);
+        }
+
+        /**
+         * Creates a new API key:
+         * POST /keys (management key required). The plaintext key travels
+         * only in the response - treat it as a secret.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterKeyCreateRequest.Builder create() {
+            return new OpenRouterKeyCreateRequest.Builder(client);
+        }
+
+        /**
+         * Gets a single API key by hash:
+         * GET /keys/{hash} (management key required).
+         *
+         * @param hash the hash identifier of the key
+         * @return the starting point for the request
+         */
+        public OpenRouterKeyGetRequest.Builder get(String hash) {
+            return new OpenRouterKeyGetRequest.Builder(client, hash);
+        }
+
+        /**
+         * Updates an API key:
+         * PATCH /keys/{hash} (management key required).
+         *
+         * @param hash the hash identifier of the key
+         * @return the starting point for the request
+         */
+        public OpenRouterKeyUpdateRequest.Builder update(String hash) {
+            return new OpenRouterKeyUpdateRequest.Builder(client, hash);
+        }
+
+        /**
+         * Deletes an API key:
+         * DELETE /keys/{hash} (management key required, permanent).
+         *
+         * @param hash the hash identifier of the key
+         * @return the starting point for the request
+         */
+        public OpenRouterKeyDeleteRequest.Builder delete(String hash) {
+            return new OpenRouterKeyDeleteRequest.Builder(client, hash);
         }
     }
 

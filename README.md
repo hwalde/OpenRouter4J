@@ -33,6 +33,9 @@ and convenient way to access hundreds of AI models through OpenRouter from Java,
 * **Image generation**: `client.images().generate()` issues `POST /images` (aspect ratio, quality, resolution/size, n, output format, up to 16 `input_references` for image-to-image) and the response decodes the base64 `b64_json` into bytes (`firstImage().bytes()`); model discovery via `client.images().models()` and `client.images().modelEndpoints("author/slug")` (per-endpoint parameters and pricing). Trap (observed live 2026-09-15): the endpoint currently returns `created: 0`. Example: `OpenRouterImageGenerationExample`
 * **Video generation**: `client.videos().generate()` submits `POST /videos` (aspect ratio, resolution/size, duration, audio, first/last frame images, reference assets), the shared job response offers `awaitCompletion(client)` polling and `executeAndAwaitCompletion()`, and `client.videos().jobContent(jobId)` downloads the raw video bytes (binary endpoint). Model discovery via `client.videos().models()`. Example: `OpenRouterVideoGenerationExample`
 * **Speech-to-text / text-to-speech**: `client.audio().transcriptions()` issues `POST /audio/transcriptions` (JSON body with base64 audio via `audioByBase64`/`audioByPath`, or the schema's multipart form via `audioByFile`; optional language, `verbose_json` with segment/word timestamps) and `client.audio().speech()` issues `POST /audio/speech` (voice, speed, voice-cloning references; the response holds the raw mp3/pcm audio bytes). Example: `OpenRouterAudioExample`
+* **Routing discovery**: `client.providers()` (`GET /providers` - the provider slugs the routing options accept, with datacenter/headquarters data) and `client.zdrEndpoints()` (`GET /endpoints/zdr` - the endpoint picture before enabling `zdr(true)`, with latency/throughput/uptime percentiles); both work with a normal inference key. The analytics meta companion `client.analyticsMeta()` (`GET /analytics/meta`, management key required) lists the metrics, dimensions, operators and granularities the `analyticsQuery()` builder accepts. Example: `OpenRouterRoutingDiscoveryExample`
+* **Public data**: read-only market endpoints working with any valid API key - `client.benchmarks()` (`GET /benchmarks`, unified benchmark rows from Artificial Analysis, Design Arena and OpenRouter's own evals), `client.datasets().appRankings()` / `.rankingsDaily()` / `.sessionCost()` (top apps by token usage, daily top-50 model totals with the reserved `other` row, cost per session by harness and model) and `client.taskClassifications()` (`GET /classifications/task`, task-classification market share). Example: `OpenRouterPublicDataExample`
+* **API key management**: `client.currentKey()` (`GET /key`, works with a normal inference key - limits, usage, whether it is a management key) and the `client.keys()` surface `list()` / `create()` / `get(hash)` / `update(hash)` / `delete(hash)` (management key required; `create()` returns the plaintext key exactly once and the response `toString()` never prints it). Example: `OpenRouterKeysManagementExample`
 * Access to 200+ AI models through a single unified API
 * Provider selection for routing requests to specific providers
 * Vision capabilities for image understanding and analysis (optional per-image resolution tier `detail`: auto/low/high/original)
@@ -47,7 +50,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.18.0</version>
+    <version>1.19.0</version>
 </dependency>
 ```
 

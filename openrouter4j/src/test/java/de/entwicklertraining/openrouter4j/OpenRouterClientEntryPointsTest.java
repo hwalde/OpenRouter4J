@@ -133,4 +133,44 @@ class OpenRouterClientEntryPointsTest {
                 .federationPolicyId("4b2f7d1e-8c3a-4e5f-9a6b-1c2d3e4f5a6b")
                 .build().getHttpMethod()).isEqualTo("POST");
     }
+
+    @Test
+    void routingDiscoveryEntryPointsProduceTheReadRequests() {
+        assertThat(client().providers().build().getRelativeUrl()).isEqualTo("/providers");
+        assertThat(client().providers().build().getHttpMethod()).isEqualTo("GET");
+        assertThat(client().zdrEndpoints().build().getRelativeUrl()).isEqualTo("/endpoints/zdr");
+        assertThat(client().zdrEndpoints().build().getHttpMethod()).isEqualTo("GET");
+    }
+
+    @Test
+    void analyticsMetaEntryPointProducesTheMetaRequest() {
+        assertThat(client().analyticsMeta().build().getRelativeUrl()).isEqualTo("/analytics/meta");
+        assertThat(client().analyticsMeta().build().getHttpMethod()).isEqualTo("GET");
+    }
+
+    @Test
+    void publicDataEntryPointsProduceTheDatasetRequests() {
+        assertThat(client().benchmarks().source("openrouter").build().getRelativeUrl())
+                .isEqualTo("/benchmarks?source=openrouter");
+        assertThat(client().benchmarks().build().getHttpMethod()).isEqualTo("GET");
+        assertThat(client().datasets().appRankings().limit(10).build().getRelativeUrl())
+                .isEqualTo("/datasets/app-rankings?limit=10");
+        assertThat(client().datasets().rankingsDaily().period("week").build().getRelativeUrl())
+                .isEqualTo("/datasets/rankings-daily?period=week");
+        assertThat(client().datasets().sessionCost().appSlug("hermes-agent").build().getRelativeUrl())
+                .isEqualTo("/datasets/session-cost?app_slug=hermes-agent");
+        assertThat(client().taskClassifications().window("7d").build().getRelativeUrl())
+                .isEqualTo("/classifications/task?window=7d");
+    }
+
+    @Test
+    void keysEntryPointsProduceTheManagementRequests() {
+        assertThat(client().currentKey().build().getRelativeUrl()).isEqualTo("/key");
+        assertThat(client().keys().list().build().getRelativeUrl()).isEqualTo("/keys");
+        assertThat(client().keys().create().name("My Key").build().getRelativeUrl()).isEqualTo("/keys");
+        assertThat(client().keys().create().name("My Key").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().keys().get("abc123").build().getRelativeUrl()).isEqualTo("/keys/abc123");
+        assertThat(client().keys().update("abc123").disabled(true).build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().keys().delete("abc123").build().getHttpMethod()).isEqualTo("DELETE");
+    }
 }
