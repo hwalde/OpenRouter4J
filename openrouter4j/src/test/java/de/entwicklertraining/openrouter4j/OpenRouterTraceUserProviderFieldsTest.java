@@ -123,18 +123,37 @@ class OpenRouterTraceUserProviderFieldsTest {
     }
 
     @Test
+    void sttMultipartFormNeverCarriesAProviderFormField() throws Exception {
+        Path wav = Files.createTempFile("provider-test", ".wav");
+        Files.write(wav, "fake-wav".getBytes(StandardCharsets.UTF_8));
+
+        OpenRouterSttRequest request = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByFile(wav)
+                .providerOption("openai", new JSONObject().put("prompt", "greeting"))
+                .build();
+
+        // The multipart form schema has no provider field - the passthrough
+        // is JSON-mode only and must not leak into the byte stream.
+        assertThat(request.isMultipart()).isTrue();
+        assertThat(new String(request.getBodyBytes(), StandardCharsets.UTF_8))
+                .doesNotContain("name=\"provider\"");
+    }
+
+    @Test
     void speechEmitsTraceUserAndProviderOptionsWhenSet() {
         JSONObject body = new JSONObject(new OpenRouterSpeechRequest.Builder(client())
                 .model("mistralai/voxtral-mini-tts-2603")
                 .input("Hello")
                 .trace(trace())
                 .user("user-1")
-                .providerOption("openai", new JSONObject())
+                .providerOption("openai", new JSONObject().put("style", "warm"))
                 .build()
                 .getBody());
         assertThat(body.getJSONObject("trace").getString("trace_id")).isEqualTo("trace-1");
         assertThat(body.getString("user")).isEqualTo("user-1");
-        assertThat(body.getJSONObject("provider").has("options")).isTrue();
+        assertThat(body.getJSONObject("provider").getJSONObject("options")
+                .getJSONObject("openai").getString("style")).isEqualTo("warm");
 
         JSONObject unset = new JSONObject(new OpenRouterSpeechRequest.Builder(client())
                 .model("mistralai/voxtral-mini-tts-2603")

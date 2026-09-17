@@ -631,4 +631,39 @@ class OpenRouterMessagesTest {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
                 () -> OpenRouterContextManagementEdit.raw(new JSONObject().put("x", 1)));
     }
+
+    @Test
+    void contextManagementAddAccumulatesInsteadOfReplacing() {
+        OpenRouterMessagesRequest request = minimalBuilder()
+                .addContextManagement(OpenRouterClearThinkingEdit.builder().keepAll().build())
+                .addContextManagement(OpenRouterCompactEdit.builder()
+                        .triggerInputTokens(100000)
+                        .build())
+                .build();
+
+        assertThat(request.contextManagement()).hasSize(2);
+        JSONArray edits = new JSONObject(request.getBody())
+                .getJSONObject("context_management").getJSONArray("edits");
+        assertThat(edits).hasSize(2);
+        assertThat(edits.getJSONObject(0).getString("type")).isEqualTo("clear_thinking_20251015");
+        assertThat(edits.getJSONObject(1).getString("type")).isEqualTo("compact_20260112");
+    }
+
+    @Test
+    void contextManagementSetterCanBeMixedWithAdd() {
+        OpenRouterMessagesRequest request = minimalBuilder()
+                .contextManagement(List.of(
+                        OpenRouterClearToolUsesEdit.builder().triggerToolUses(10).build()))
+                .addContextManagement(OpenRouterCompactEdit.builder()
+                        .triggerInputTokens(100000)
+                        .build())
+                .build();
+
+        assertThat(request.contextManagement()).hasSize(2);
+        JSONArray edits = new JSONObject(request.getBody())
+                .getJSONObject("context_management").getJSONArray("edits");
+        assertThat(edits).hasSize(2);
+        assertThat(edits.getJSONObject(0).getString("type")).isEqualTo("clear_tool_uses_20250919");
+        assertThat(edits.getJSONObject(1).getString("type")).isEqualTo("compact_20260112");
+    }
 }

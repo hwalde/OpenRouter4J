@@ -1168,12 +1168,19 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * Adds a single strategy entry to {@code context_management.edits}
          * (see
          * {@link #contextManagement(OpenRouterContextManagementEdit...)}).
+         * Unlike the setter, this accumulates: repeated calls append one
+         * entry each, following the {@code addPlugin} / {@code addTool}
+         * convention of this builder.
          *
          * @param edit the strategy entry
          * @return this builder
          */
         public Builder addContextManagement(OpenRouterContextManagementEdit edit) {
-            return contextManagement(edit);
+            if (edit == null) {
+                throw new IllegalArgumentException("context management edit must not be null");
+            }
+            contextManagementEdits.add(edit);
+            return this;
         }
 
         /**

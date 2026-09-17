@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbedding;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsModelsResponse;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsResponse;
@@ -33,6 +34,8 @@ public class OpenRouterEmbeddingsExample {
                         "Paris is the capital of France.",
                         "Berlin is the capital of Germany."))
                 .inputType("search_document")
+                // Broadcast trace metadata (the embeddings request also has user(...)).
+                .trace(OpenRouterTraceConfig.builder().traceId("embedding-jobs").build())
                 .execute();
 
         System.out.println("Model:            " + response.model());

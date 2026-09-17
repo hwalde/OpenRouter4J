@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import de.entwicklertraining.openrouter4j.rerank.OpenRouterRerankResponse;
 import de.entwicklertraining.openrouter4j.rerank.OpenRouterRerankResult;
 
@@ -21,6 +22,9 @@ public class OpenRouterRerankExample {
                 .addDocument("Berlin is the capital of Germany.")
                 .addDocument("The Eiffel Tower is in Paris.", "https://example.com/eiffel-tower.png")
                 .topN(2)
+                // Observability: end-user id and broadcast trace metadata.
+                .user("end-user-42")
+                .trace(OpenRouterTraceConfig.builder().traceId("rerank-jobs").build())
                 .execute();
 
         System.out.println("Model:        " + response.model());
