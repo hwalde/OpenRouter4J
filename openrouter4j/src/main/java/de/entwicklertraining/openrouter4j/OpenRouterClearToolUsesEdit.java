@@ -227,7 +227,10 @@ public final class OpenRouterClearToolUsesEdit implements OpenRouterContextManag
         /**
          * Sets {@code clear_tool_inputs} to the array form: only the inputs
          * of the named tools are cleared. Calling this clears a previously
-         * set {@link #clearToolInputs(boolean)}.
+         * set {@link #clearToolInputs(boolean)}. Trap: a call as
+         * {@code clearToolInputs(null)} resolves to the boolean overload
+         * and fails there - pass a {@code String[]} or use the boolean form
+         * explicitly.
          *
          * @param toolNames the tool names whose inputs are cleared
          * @return this builder

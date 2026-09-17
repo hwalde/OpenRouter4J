@@ -666,4 +666,20 @@ class OpenRouterMessagesTest {
         assertThat(edits.getJSONObject(0).getString("type")).isEqualTo("clear_tool_uses_20250919");
         assertThat(edits.getJSONObject(1).getString("type")).isEqualTo("compact_20260112");
     }
+
+    @Test
+    void contextManagementSetterReplacesPreviouslyAddedEdits() {
+        OpenRouterMessagesRequest request = minimalBuilder()
+                .addContextManagement(OpenRouterClearThinkingEdit.builder().keepAll().build())
+                .contextManagement(List.of(
+                        OpenRouterCompactEdit.builder().triggerInputTokens(100000).build()))
+                .build();
+
+        // The setter form replaces: the earlier add is gone.
+        assertThat(request.contextManagement()).hasSize(1);
+        JSONArray edits = new JSONObject(request.getBody())
+                .getJSONObject("context_management").getJSONArray("edits");
+        assertThat(edits).hasSize(1);
+        assertThat(edits.getJSONObject(0).getString("type")).isEqualTo("compact_20260112");
+    }
 }

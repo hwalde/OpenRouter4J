@@ -44,6 +44,16 @@ public final class OpenRouterFile {
 
     private final JSONObject json;
 
+    /**
+     * Creates a view over the given Files-API document JSON. The accessors
+     * read the passed object (which shape it carries is decided by the
+     * {@code _shape} field); the normal route to an instance is via the
+     * response types ({@code file()} on the upload/get/list/promote
+     * responses) - this constructor exists for callers that hold the raw
+     * JSON from elsewhere.
+     *
+     * @param json the raw document JSON (not copied; accessors read it live)
+     */
     public OpenRouterFile(JSONObject json) {
         this.json = json;
     }

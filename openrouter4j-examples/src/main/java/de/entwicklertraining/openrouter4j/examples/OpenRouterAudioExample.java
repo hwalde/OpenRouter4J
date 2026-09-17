@@ -4,6 +4,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSpeechResponse;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSttResponse;
+import org.json.JSONObject;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +35,10 @@ public class OpenRouterAudioExample {
                         .traceId("support-call-4711")
                         .generationName("transcription")
                         .build())
+                // Provider passthrough (JSON body mode only - the multipart
+                // form has no provider field): options reach only the
+                // provider that serves the request.
+                .providerOption("openai", new JSONObject().put("prompt", "Meeting transcript"))
                 // verbose_json additionally returns segments (and words with
                 // addTimestampGranularity("word")) on OpenAI-compatible providers:
                 // .responseFormat("verbose_json")
@@ -58,6 +63,7 @@ public class OpenRouterAudioExample {
                         .traceId("support-call-4711")
                         .generationName("greeting-speech")
                         .build())
+                .providerOption("openai", new JSONObject())
                 .execute();
 
         Path out = Path.of("generated-speech.mp3");

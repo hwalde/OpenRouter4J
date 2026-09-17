@@ -12,7 +12,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterClient;
  * server-tool result (e.g. {@code sess_abc123}; a restarted session carries
  * its own {@code -r<nonce>}-suffixed id).
  */
-public class OpenRouterContainers {
+public final class OpenRouterContainers {
     private final OpenRouterClient client;
 
     /**
