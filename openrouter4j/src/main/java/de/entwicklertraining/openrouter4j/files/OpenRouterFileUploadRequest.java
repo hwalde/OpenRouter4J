@@ -27,7 +27,12 @@ import java.util.UUID;
  *
  * <p>Traps: empty files are rejected by the API with HTTP 413 - the builder
  * rejects them already. The API accepts at most 100 MB per file; larger
- * files are rejected at {@code build()} time. The {@code provider} query
+ * files are rejected at {@code build()} time. The file type is determined
+ * from the file <b>contents</b>, not the filename or the declared content
+ * type - only PDF, PNG/JPEG/GIF/WebP images, DOCX/XLSX/PPTX documents,
+ * MP3/WAV/FLAC/OGG audio or UTF-8 text are accepted, and an unsupported
+ * content type is rejected by the API regardless of the filename. The
+ * {@code provider} query
  * parameter is free-form: the API documents {@code openai} and
  * {@code anthropic} but accepts unknown values, so the builder does not
  * validate against an enum.
@@ -177,7 +182,9 @@ public final class OpenRouterFileUploadRequest
          * Reads a local file and provides it as the required multipart
          * {@code file} part; the file name is taken from the path.
          * Clears a previously set file
-         * ({@link #fileByBytes(byte[], String)}).
+         * ({@link #fileByBytes(byte[], String)}). Trap: the API determines
+         * the file type from the contents, not the extension - unsupported
+         * content is rejected regardless of the filename.
          *
          * @param path the local file to upload
          * @return this builder
@@ -198,7 +205,10 @@ public final class OpenRouterFileUploadRequest
 
         /**
          * Provides the required multipart {@code file} part from raw bytes.
-         * Clears a previously set file ({@link #fileByPath(Path)}).
+         * Clears a previously set file ({@link #fileByPath(Path)}). Trap:
+         * the API determines the file type from the contents, not the
+         * filename - unsupported content (anything but PDF, image, document,
+         * audio or UTF-8 text) is rejected regardless of the filename.
          *
          * @param bytes the file content
          * @param filename the file name sent in the {@code file} part
