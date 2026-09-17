@@ -318,15 +318,125 @@ public final class OpenRouterModelsListRequest extends OpenRouterRequest<OpenRou
         }
 
         /**
-         * Adds any documented query parameter verbatim, for the filters that
-         * have no typed method above (the age filters {@code min_age_days} /
-         * {@code max_age_days} and the Artificial Analysis index filters
-         * {@code min_intelligence_index} / {@code max_intelligence_index} /
-         * {@code min_coding_index} / {@code max_coding_index} /
-         * {@code min_agentic_index} / {@code max_agentic_index} /
-         * {@code min_tool_success_rate} / {@code max_tool_success_rate}) and
-         * for any parameter OpenRouter adds later. The value is sent
-         * URL-encoded; {@code null} values are ignored.
+         * Sets the query key {@code min_age_days} - only models at least this
+         * many days old (days since creation) are returned.
+         *
+         * @param days the minimum age in days
+         * @return this builder
+         */
+        public Builder minAgeDays(Integer days) {
+            return queryParam("min_age_days", days);
+        }
+
+        /**
+         * Sets the query key {@code max_age_days} - only models at most this
+         * many days old (days since creation) are returned.
+         *
+         * @param days the maximum age in days
+         * @return this builder
+         */
+        public Builder maxAgeDays(Integer days) {
+            return queryParam("max_age_days", days);
+        }
+
+        /**
+         * Sets the query key {@code min_intelligence_index} - only models
+         * with at least this Artificial Analysis intelligence index are
+         * returned.
+         *
+         * @param index the minimum intelligence index
+         * @return this builder
+         */
+        public Builder minIntelligenceIndex(Double index) {
+            return queryParam("min_intelligence_index", index);
+        }
+
+        /**
+         * Sets the query key {@code max_intelligence_index} - only models
+         * with at most this Artificial Analysis intelligence index are
+         * returned.
+         *
+         * @param index the maximum intelligence index
+         * @return this builder
+         */
+        public Builder maxIntelligenceIndex(Double index) {
+            return queryParam("max_intelligence_index", index);
+        }
+
+        /**
+         * Sets the query key {@code min_coding_index} - only models with at
+         * least this Artificial Analysis coding index are returned.
+         *
+         * @param index the minimum coding index
+         * @return this builder
+         */
+        public Builder minCodingIndex(Double index) {
+            return queryParam("min_coding_index", index);
+        }
+
+        /**
+         * Sets the query key {@code max_coding_index} - only models with at
+         * most this Artificial Analysis coding index are returned.
+         *
+         * @param index the maximum coding index
+         * @return this builder
+         */
+        public Builder maxCodingIndex(Double index) {
+            return queryParam("max_coding_index", index);
+        }
+
+        /**
+         * Sets the query key {@code min_agentic_index} - only models with at
+         * least this Artificial Analysis agentic index are returned.
+         *
+         * @param index the minimum agentic index
+         * @return this builder
+         */
+        public Builder minAgenticIndex(Double index) {
+            return queryParam("min_agentic_index", index);
+        }
+
+        /**
+         * Sets the query key {@code max_agentic_index} - only models with at
+         * most this Artificial Analysis agentic index are returned.
+         *
+         * @param index the maximum agentic index
+         * @return this builder
+         */
+        public Builder maxAgenticIndex(Double index) {
+            return queryParam("max_agentic_index", index);
+        }
+
+        /**
+         * Sets the query key {@code min_tool_success_rate} - only models with
+         * at least this tool-calling success rate are returned. The rate is a
+         * fraction in {@code [0, 1]} (e.g. {@code 0.85} for 85%).
+         *
+         * @param rate the minimum tool-calling success rate
+         * @return this builder
+         */
+        public Builder minToolSuccessRate(Double rate) {
+            return queryParam("min_tool_success_rate", rate);
+        }
+
+        /**
+         * Sets the query key {@code max_tool_success_rate} - only models with
+         * at most this tool-calling success rate are returned. The rate is a
+         * fraction in {@code [0, 1]} (e.g. {@code 0.85} for 85%).
+         *
+         * @param rate the maximum tool-calling success rate
+         * @return this builder
+         */
+        public Builder maxToolSuccessRate(Double rate) {
+            return queryParam("max_tool_success_rate", rate);
+        }
+
+        /**
+         * Adds any documented query parameter verbatim, for filters without a
+         * typed method above (see the other builder methods - the documented
+         * filter keys are typed there) and for any parameter OpenRouter adds
+         * later. The value is sent URL-encoded; {@code null} values are
+         * ignored.
          *
          * @param name the query parameter name
          * @param value the query parameter value

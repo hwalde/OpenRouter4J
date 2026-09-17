@@ -85,11 +85,58 @@ class OpenRouterModelsTest {
     @Test
     void listRequestSupportsVerbatimEscapeHatchAndIgnoresNulls() {
         OpenRouterModelsListRequest request = new OpenRouterModelsListRequest.Builder(client())
-                .queryParam("min_intelligence_index", 50)
+                .queryParam("some_future_filter", "x")
                 .queryParam("region", null)
                 .build();
 
-        assertThat(request.queryParams()).containsOnlyKeys("min_intelligence_index");
+        assertThat(request.queryParams()).containsOnlyKeys("some_future_filter");
+    }
+
+    @Test
+    void listRequestEmitsTheTenNewFiltersOnlyWhenSet() {
+        OpenRouterModelsListRequest request = new OpenRouterModelsListRequest.Builder(client())
+                .minAgeDays(30)
+                .maxAgeDays(365)
+                .minIntelligenceIndex(40.5)
+                .maxIntelligenceIndex(60.0)
+                .minCodingIndex(35.0)
+                .maxCodingIndex(55.5)
+                .minAgenticIndex(20.0)
+                .maxAgenticIndex(45.0)
+                .minToolSuccessRate(0.5)
+                .maxToolSuccessRate(0.95)
+                .build();
+
+        Map<String, String> params = request.queryParams();
+        assertThat(params).containsOnlyKeys(
+                "min_age_days", "max_age_days",
+                "min_intelligence_index", "max_intelligence_index",
+                "min_coding_index", "max_coding_index",
+                "min_agentic_index", "max_agentic_index",
+                "min_tool_success_rate", "max_tool_success_rate");
+        assertThat(params.get("min_age_days")).isEqualTo("30");
+        assertThat(params.get("max_age_days")).isEqualTo("365");
+        assertThat(params.get("min_intelligence_index")).isEqualTo("40.5");
+        assertThat(params.get("max_intelligence_index")).isEqualTo("60.0");
+        assertThat(params.get("min_coding_index")).isEqualTo("35.0");
+        assertThat(params.get("max_coding_index")).isEqualTo("55.5");
+        assertThat(params.get("min_agentic_index")).isEqualTo("20.0");
+        assertThat(params.get("max_agentic_index")).isEqualTo("45.0");
+        assertThat(params.get("min_tool_success_rate")).isEqualTo("0.5");
+        assertThat(params.get("max_tool_success_rate")).isEqualTo("0.95");
+
+        assertThat(request.getRelativeUrl())
+                .startsWith("/models?")
+                .contains("min_age_days=30")
+                .contains("min_tool_success_rate=0.5");
+    }
+
+    @Test
+    void listRequestOmitsUnsetNewFilters() {
+        OpenRouterModelsListRequest request = new OpenRouterModelsListRequest.Builder(client()).build();
+
+        assertThat(request.queryParams()).isEmpty();
+        assertThat(request.getRelativeUrl()).isEqualTo("/models");
     }
 
     @Test
@@ -170,6 +217,115 @@ class OpenRouterModelsTest {
 
         assertThat(response.models()).isEmpty();
         assertThat(response.model("openai/gpt-4")).isNull();
+    }
+
+    @Test
+    void listResponseSurfacesAliasLinksDefaultParametersPerRequestLimitsReasoningAndBenchmarks() {
+        OpenRouterModelsListResponse response = listResponseOf("""
+                {
+                  "data": [
+                    {
+                      "id": "~anthropic/claude-sonnet-latest",
+                      "canonical_slug": "anthropic/claude-sonnet-4.5",
+                      "name": "Claude Sonnet (latest)",
+                      "created": 1692901234,
+                      "alias_target": {"slug": "anthropic/claude-sonnet-4.5", "name": "Claude Sonnet 4.5"},
+                      "links": {"details": "/api/v1/models/anthropic/claude-sonnet-4.5/endpoints"},
+                      "default_parameters": {"temperature": 0.7, "top_p": 0.9, "top_k": 0,
+                                             "frequency_penalty": 0, "presence_penalty": 0,
+                                             "repetition_penalty": 1},
+                      "per_request_limits": {"prompt_tokens": 1000, "completion_tokens": 1000},
+                      "reasoning": {"default_effort": "medium", "default_enabled": true,
+                                    "mandatory": false, "supported_efforts": ["high", "medium", "low", "minimal"],
+                                    "supports_max_tokens": true},
+                      "benchmarks": {
+                        "artificial_analysis": {"intelligence_index": 71.4, "coding_index": 63.2, "agentic_index": 55.8},
+                        "design_arena": [
+                          {"arena": "models", "category": "website", "elo": 1385.2, "rank": 5, "win_rate": 62.5}
+                        ]
+                      }
+                    }
+                  ]
+                }
+                """);
+
+        List<OpenRouterModel> aliasModels = response.models();
+        OpenRouterModel model = aliasModels.get(0);
+
+        assertThat(model.aliasTargetSlug()).isEqualTo("anthropic/claude-sonnet-4.5");
+        assertThat(model.aliasTargetName()).isEqualTo("Claude Sonnet 4.5");
+        assertThat(model.aliasTarget()).isNotNull();
+        assertThat(model.detailsLink())
+                .isEqualTo("/api/v1/models/anthropic/claude-sonnet-4.5/endpoints");
+        assertThat(model.links()).isNotNull();
+        assertThat(model.defaultParameters().optDouble("temperature")).isEqualTo(0.7);
+        assertThat(model.defaultParameters().optInt("top_k")).isEqualTo(0);
+        assertThat(model.perRequestLimitPromptTokens()).isEqualTo(1000.0);
+        assertThat(model.perRequestLimitCompletionTokens()).isEqualTo(1000.0);
+        assertThat(model.perRequestLimits()).isNotNull();
+
+        OpenRouterModel.Reasoning reasoning = model.reasoning();
+        assertThat(reasoning).isNotNull();
+        assertThat(reasoning.defaultEffort()).isEqualTo("medium");
+        assertThat(reasoning.defaultEnabled()).isTrue();
+        assertThat(reasoning.mandatory()).isFalse();
+        assertThat(reasoning.supportedEfforts()).containsExactly("high", "medium", "low", "minimal");
+        assertThat(reasoning.supportsMaxTokens()).isTrue();
+
+        OpenRouterModel.Benchmarks benchmarks = model.benchmarks();
+        assertThat(benchmarks).isNotNull();
+        assertThat(benchmarks.intelligenceIndex()).isEqualTo(71.4);
+        assertThat(benchmarks.codingIndex()).isEqualTo(63.2);
+        assertThat(benchmarks.agenticIndex()).isEqualTo(55.8);
+        assertThat(benchmarks.designArenaEntries()).hasSize(1);
+        OpenRouterModel.DesignArenaEntry entry = benchmarks.designArenaEntries().get(0);
+        assertThat(entry.arena()).isEqualTo("models");
+        assertThat(entry.category()).isEqualTo("website");
+        assertThat(entry.elo()).isEqualTo(1385.2);
+        assertThat(entry.rank()).isEqualTo(5L);
+        assertThat(entry.winRate()).isEqualTo(62.5);
+    }
+
+    @Test
+    void newModelAccessorsReturnNullWhenFieldsAbsent() {
+        OpenRouterModelsListResponse response = listResponseOf("""
+                {
+                  "data": [
+                    {
+                      "id": "openai/gpt-4",
+                      "canonical_slug": "openai/gpt-4",
+                      "name": "GPT-4",
+                      "created": 1692901234,
+                      "reasoning": {"mandatory": false},
+                      "benchmarks": {"design_arena": []}
+                    }
+                  ]
+                }
+                """);
+
+        List<OpenRouterModel> plainModels = response.models();
+        OpenRouterModel model = plainModels.get(0);
+
+        assertThat(model.aliasTarget()).isNull();
+        assertThat(model.aliasTargetSlug()).isNull();
+        assertThat(model.aliasTargetName()).isNull();
+        assertThat(model.links()).isNull();
+        assertThat(model.detailsLink()).isNull();
+        assertThat(model.defaultParameters()).isNull();
+        assertThat(model.perRequestLimits()).isNull();
+        assertThat(model.perRequestLimitPromptTokens()).isNull();
+        assertThat(model.perRequestLimitCompletionTokens()).isNull();
+
+        assertThat(model.reasoning().defaultEffort()).isNull();
+        assertThat(model.reasoning().defaultEnabled()).isNull();
+        assertThat(model.reasoning().mandatory()).isFalse();
+        assertThat(model.reasoning().supportedEfforts()).isEmpty();
+        assertThat(model.reasoning().supportsMaxTokens()).isNull();
+
+        assertThat(model.benchmarks().intelligenceIndex()).isNull();
+        assertThat(model.benchmarks().codingIndex()).isNull();
+        assertThat(model.benchmarks().agenticIndex()).isNull();
+        assertThat(model.benchmarks().designArenaEntries()).isEmpty();
     }
 
     @Test

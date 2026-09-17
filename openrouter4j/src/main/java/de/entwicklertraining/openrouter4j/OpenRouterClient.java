@@ -55,6 +55,7 @@ import de.entwicklertraining.openrouter4j.observability.OpenRouterObservabilityD
 import de.entwicklertraining.openrouter4j.observability.OpenRouterObservabilityDestinationsListRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterAuthorizationCodeExchangeRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterCreateAuthorizationCodeRequest;
+import de.entwicklertraining.openrouter4j.oauth.OpenRouterJwksRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterWorkloadIdentityExchangeRequest;
 import de.entwicklertraining.openrouter4j.providers.OpenRouterProvidersRequest;
 import de.entwicklertraining.openrouter4j.providers.OpenRouterZdrEndpointsRequest;
@@ -563,6 +564,19 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterWorkloadIdentityExchangeRequest.Builder exchangeWorkloadIdentityToken() {
         return new OpenRouterWorkloadIdentityExchangeRequest.Builder(this);
+    }
+
+    /**
+     * Reads the public signing keys of OpenRouter access tokens:
+     * GET /oauth/jwks - an RFC 7517 JWK Set. The counterpart needed to verify
+     * the access tokens the exchange endpoints hand out (notably
+     * {@link #exchangeWorkloadIdentityToken()}, which returns a short-lived
+     * access token whose signature can only be checked against these keys).
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterJwksRequest.Builder oauthJwks() {
+        return new OpenRouterJwksRequest.Builder(this);
     }
 
     /**

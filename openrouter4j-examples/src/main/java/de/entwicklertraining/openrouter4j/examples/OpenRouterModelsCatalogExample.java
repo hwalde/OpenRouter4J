@@ -45,16 +45,30 @@ public class OpenRouterModelsCatalogExample {
                     model.outputModalities());
         }
 
-        // 2. Count.
+        // 2. Filter by quality signals: recent models with a tool-calling
+        //    success rate of at least 80% (fraction in [0,1]) and a minimum
+        //    Artificial Analysis agentic index.
+        OpenRouterModelsListResponse<?> capable = client.models()
+                .minToolSuccessRate(0.8)
+                .minAgenticIndex(30.0)
+                .maxAgeDays(365)
+                .limit(10)
+                .execute();
+        System.out.println("Recent capable models (first " + capable.models().size() + "):");
+        for (OpenRouterModel m : capable.models()) {
+            System.out.println("  " + m.id() + " / " + m.name());
+        }
+
+        // 3. Count.
         OpenRouterModelsCountResponse count = client.modelsCount().execute();
         System.out.println("Catalog size: " + count.count());
 
-        // 3. The models this account may use.
+        // 4. The models this account may use.
         OpenRouterModelsListResponse<?> userModels = client.userModels().limit(5).execute();
         System.out.println("First user models: "
                 + userModels.models().stream().map(OpenRouterModel::id).toList());
 
-        // 4. One entry with its typed pricing and architecture data.
+        // 5. One entry with its typed pricing and architecture data.
         OpenRouterModelResponse one = client.model("deepseek/deepseek-v4-flash-0731").execute();
         OpenRouterModel model = one.model();
         if (model != null) {
@@ -62,9 +76,22 @@ public class OpenRouterModelsCatalogExample {
             System.out.println("  context length: " + model.contextLength());
             System.out.println("  supported parameters: " + model.supportedParameters());
             System.out.println("  top provider moderated: " + model.topProviderIsModerated());
+            System.out.println("  default parameters: " + model.defaultParameters());
+            System.out.println("  per-request limits: " + model.perRequestLimits());
+            if (model.reasoning() != null) {
+                System.out.println("  reasoning: default effort " + model.reasoning().defaultEffort()
+                        + ", mandatory " + model.reasoning().mandatory()
+                        + ", supported efforts " + model.reasoning().supportedEfforts());
+            }
+            if (model.benchmarks() != null) {
+                System.out.println("  benchmarks: intelligence index " + model.benchmarks().intelligenceIndex()
+                        + ", coding index " + model.benchmarks().codingIndex()
+                        + ", agentic index " + model.benchmarks().agenticIndex()
+                        + ", design-arena rows " + model.benchmarks().designArenaEntries().size());
+            }
         }
 
-        // 5. The serving endpoints of that model (per-provider picture; the
+        // 6. The serving endpoints of that model (per-provider picture; the
         //    typed view covers provider/model/selected, everything else is
         //    available through json()).
         OpenRouterModelEndpointsResponse endpoints =

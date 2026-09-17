@@ -309,6 +309,381 @@ public final class OpenRouterModel {
         return stringList(json.optJSONArray("supported_voices"));
     }
 
+    /**
+     * JSON path: {@code alias_target} - the concrete model a
+     * tilde-latest alias (e.g. {@code ~anthropic/claude-sonnet-latest})
+     * resolves to.
+     *
+     * @return the raw {@code alias_target} object, or {@code null} when the
+     *         model is not an alias
+     */
+    public JSONObject aliasTarget() {
+        return json.optJSONObject("alias_target");
+    }
+
+    /**
+     * JSON path: {@code alias_target.slug} - the routable model id of the
+     * concrete alias target, matching that model row's {@code id}.
+     *
+     * @return the value, or {@code null} when the model is not an alias
+     */
+    public String aliasTargetSlug() {
+        return nestedString("alias_target", "slug");
+    }
+
+    /**
+     * JSON path: {@code alias_target.name} - the human-readable name of the
+     * concrete alias target.
+     *
+     * @return the value, or {@code null} when the model is not an alias
+     */
+    public String aliasTargetName() {
+        return nestedString("alias_target", "name");
+    }
+
+    /**
+     * JSON path: {@code links} - related API endpoints and resources of the
+     * model. The schema currently documents a single {@code details} field
+     * (see {@link #detailsLink()}); the raw object is the escape hatch for
+     * fields OpenRouter adds later.
+     *
+     * @return the raw {@code links} object, or {@code null} when absent
+     */
+    public JSONObject links() {
+        return json.optJSONObject("links");
+    }
+
+    /**
+     * JSON path: {@code links.details} - URL for the model
+     * details/endpoints API (a relative {@code /api/v1/...} path).
+     *
+     * @return the value, or {@code null} when absent
+     */
+    public String detailsLink() {
+        return nestedString("links", "details");
+    }
+
+    /**
+     * JSON path: {@code default_parameters} - the default parameter values of
+     * the model (e.g. {@code temperature}, {@code top_p}, {@code top_k},
+     * {@code repetition_penalty}). Deliberately a raw {@link JSONObject}
+     * passthrough: it is a loose bag of numeric defaults whose useful form is
+     * a per-key read, not a typed view of fixed fields.
+     *
+     * @return the raw {@code default_parameters} object, or {@code null} when absent
+     */
+    public JSONObject defaultParameters() {
+        return json.optJSONObject("default_parameters");
+    }
+
+    /**
+     * JSON path: {@code per_request_limits} - the per-request rate limits of
+     * the model for BYOK keys.
+     *
+     * @return the raw {@code per_request_limits} object, or {@code null} when absent
+     */
+    public JSONObject perRequestLimits() {
+        return json.optJSONObject("per_request_limits");
+    }
+
+    /**
+     * JSON path: {@code per_request_limits.prompt_tokens} - the maximum
+     * prompt tokens per request.
+     *
+     * @return the value, or {@code null} when absent
+     */
+    public Double perRequestLimitPromptTokens() {
+        return nestedDouble("per_request_limits", "prompt_tokens");
+    }
+
+    /**
+     * JSON path: {@code per_request_limits.completion_tokens} - the maximum
+     * completion tokens per request.
+     *
+     * @return the value, or {@code null} when absent
+     */
+    public Double perRequestLimitCompletionTokens() {
+        return nestedDouble("per_request_limits", "completion_tokens");
+    }
+
+    /**
+     * JSON path: {@code reasoning} - the reasoning capability flags of the
+     * model. Omitted by the API for non-reasoning and dynamic router models.
+     *
+     * @return the typed view, or {@code null} when absent
+     */
+    public Reasoning reasoning() {
+        JSONObject reasoning = json.optJSONObject("reasoning");
+        return reasoning != null ? new Reasoning(reasoning) : null;
+    }
+
+    /**
+     * JSON path: {@code benchmarks} - third-party benchmark rankings of the
+     * model (Artificial Analysis indices, Design Arena ELO rows). Omitted by
+     * the API when no benchmark data is available.
+     *
+     * @return the typed view, or {@code null} when absent
+     */
+    public Benchmarks benchmarks() {
+        JSONObject benchmarks = json.optJSONObject("benchmarks");
+        return benchmarks != null ? new Benchmarks(benchmarks) : null;
+    }
+
+    private String nestedString(String object, String key) {
+        JSONObject nested = json.optJSONObject(object);
+        return nested != null ? nested.optString(key, null) : null;
+    }
+
+    private Double nestedDouble(String object, String key) {
+        JSONObject nested = json.optJSONObject(object);
+        if (nested == null || !nested.has(key) || nested.isNull(key)) {
+            return null;
+        }
+        Object value = nested.opt(key);
+        return value instanceof Number number ? number.doubleValue() : null;
+    }
+
+    /**
+     * Typed view of the {@code reasoning} object of a catalog entry: the
+     * reasoning-effort configuration of the model.
+     */
+    public static final class Reasoning {
+
+        private final JSONObject json;
+
+        private Reasoning(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the raw {@code reasoning} object
+         */
+        public JSONObject json() {
+            return json;
+        }
+
+        /**
+         * JSON path: {@code reasoning.default_effort} - the effort applied
+         * when the client enables reasoning without specifying one; maps to
+         * {@code reasoning.effort} in chat requests (e.g. {@code medium}).
+         * When {@code none}, prefer omitting effort unless explicitly
+         * disabling reasoning.
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public String defaultEffort() {
+            return json.optString("default_effort", null);
+        }
+
+        /**
+         * JSON path: {@code reasoning.default_enabled}.
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public Boolean defaultEnabled() {
+            return optBoolean("default_enabled");
+        }
+
+        /**
+         * JSON path: {@code reasoning.mandatory} - when {@code true},
+         * reasoning cannot be disabled and effort {@code none} is rejected.
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public Boolean mandatory() {
+            return optBoolean("mandatory");
+        }
+
+        /**
+         * JSON path: {@code reasoning.supported_efforts} - the allowed
+         * effort values in descending effort order. {@code null} in the API
+         * means no allowlist (all effort values are accepted) and yields an
+         * empty list here.
+         *
+         * @return the values, empty when absent
+         */
+        public List<String> supportedEfforts() {
+            return stringList(json.optJSONArray("supported_efforts"));
+        }
+
+        /**
+         * JSON path: {@code reasoning.supports_max_tokens} - present and
+         * {@code true} when the model accepts {@code reasoning.max_tokens}
+         * (Anthropic-style) instead of or in addition to
+         * {@code reasoning.effort}.
+         *
+         * @return the value, or {@code null} when the field is absent
+         */
+        public Boolean supportsMaxTokens() {
+            return optBoolean("supports_max_tokens");
+        }
+
+        private Boolean optBoolean(String key) {
+            if (!json.has(key) || json.isNull(key)) {
+                return null;
+            }
+            return json.optBoolean(key);
+        }
+    }
+
+    /**
+     * Typed view of the {@code benchmarks} object of a catalog entry:
+     * third-party benchmark rankings for the model.
+     */
+    public static final class Benchmarks {
+
+        private final JSONObject json;
+
+        private Benchmarks(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the raw {@code benchmarks} object
+         */
+        public JSONObject json() {
+            return json;
+        }
+
+        /**
+         * JSON path: {@code benchmarks.artificial_analysis.intelligence_index}.
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public Double intelligenceIndex() {
+            return aaIndex("intelligence_index");
+        }
+
+        /**
+         * JSON path: {@code benchmarks.artificial_analysis.coding_index}.
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public Double codingIndex() {
+            return aaIndex("coding_index");
+        }
+
+        /**
+         * JSON path: {@code benchmarks.artificial_analysis.agentic_index}.
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public Double agenticIndex() {
+            return aaIndex("agentic_index");
+        }
+
+        /**
+         * JSON path: {@code benchmarks.design_arena[]} - the Design Arena
+         * ELO rows across arena+category pairs.
+         *
+         * @return the entries, empty when absent
+         */
+        public List<DesignArenaEntry> designArenaEntries() {
+            List<DesignArenaEntry> result = new ArrayList<>();
+            JSONArray array = json.optJSONArray("design_arena");
+            if (array != null) {
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject entry = array.optJSONObject(i);
+                    if (entry != null) {
+                        result.add(new DesignArenaEntry(entry));
+                    }
+                }
+            }
+            return result;
+        }
+
+        private Double aaIndex(String key) {
+            JSONObject aa = json.optJSONObject("artificial_analysis");
+            if (aa == null || !aa.has(key) || aa.isNull(key)) {
+                return null;
+            }
+            Object value = aa.opt(key);
+            return value instanceof Number number ? number.doubleValue() : null;
+        }
+    }
+
+    /**
+     * Typed view of one Design Arena benchmark entry (one arena+category
+     * pair) inside {@code benchmarks.design_arena[]}.
+     */
+    public static final class DesignArenaEntry {
+
+        private final JSONObject json;
+
+        private DesignArenaEntry(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the raw entry object
+         */
+        public JSONObject json() {
+            return json;
+        }
+
+        /**
+         * JSON path: {@code arena} - the arena type (e.g. {@code models},
+         * {@code builders}, {@code agents}).
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public String arena() {
+            return json.optString("arena", null);
+        }
+
+        /**
+         * JSON path: {@code category} - the category within the arena
+         * (e.g. {@code website}, {@code gamedev}, {@code uicomponent}).
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public String category() {
+            return json.optString("category", null);
+        }
+
+        /**
+         * JSON path: {@code elo} - the ELO rating from head-to-head arena
+         * battles.
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public Double elo() {
+            return optDouble("elo");
+        }
+
+        /**
+         * JSON path: {@code rank} - the rank within this arena+category
+         * among models on OpenRouter (1 = highest ELO).
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public Long rank() {
+            if (!json.has("rank") || json.isNull("rank")) {
+                return null;
+            }
+            Object value = json.opt("rank");
+            return value instanceof Number number ? number.longValue() : null;
+        }
+
+        /**
+         * JSON path: {@code win_rate} - the win-rate percentage in arena
+         * battles.
+         *
+         * @return the value, or {@code null} when absent
+         */
+        public Double winRate() {
+            return optDouble("win_rate");
+        }
+
+        private Double optDouble(String key) {
+            if (!json.has(key) || json.isNull(key)) {
+                return null;
+            }
+            Object value = json.opt(key);
+            return value instanceof Number number ? number.doubleValue() : null;
+        }
+    }
+
     private JSONArray nestedArray(String key) {
         JSONObject architecture = json.optJSONObject("architecture");
         return architecture != null ? architecture.optJSONArray(key) : null;

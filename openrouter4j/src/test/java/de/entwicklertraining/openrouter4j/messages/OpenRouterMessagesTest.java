@@ -4,6 +4,7 @@ import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterModerationPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,7 @@ class OpenRouterMessagesTest {
         assertThat(body.has("tools")).isFalse();
         assertThat(body.has("tool_choice")).isFalse();
         assertThat(body.has("plugins")).isFalse();
+        assertThat(body.has("stop_server_tools_when")).isFalse();
         assertThat(body.has("trace")).isFalse();
         assertThat(body.has("provider")).isFalse();
     }
@@ -497,6 +499,43 @@ class OpenRouterMessagesTest {
         assertThat(response.toolUseBlocks()).isEmpty();
         assertThat(response.usage()).isNull();
         assertThat(response.cost()).isNull();
+    }
+
+    @Test
+    void stopServerToolsWhenIsEmittedOnlyWhenSet() {
+        OpenRouterStopCondition condition = OpenRouterStopCondition.stepCountIs(3);
+
+        JSONObject bodyWith = new JSONObject(minimalBuilder()
+                .stopServerToolsWhen(
+                        OpenRouterStopCondition.stepCountIs(5),
+                        OpenRouterStopCondition.hasToolCall("finalize"),
+                        OpenRouterStopCondition.maxTokensUsed(10_000),
+                        OpenRouterStopCondition.maxCost(0.5),
+                        OpenRouterStopCondition.finishReasonIs("length"))
+                .build()
+                .getBody());
+
+        assertThat(bodyWith.has("stop_server_tools_when")).isTrue();
+        org.json.JSONArray conditions = bodyWith.getJSONArray("stop_server_tools_when");
+        assertThat(conditions.length()).isEqualTo(5);
+        assertThat(conditions.getJSONObject(0).getString("type")).isEqualTo("step_count_is");
+        assertThat(conditions.getJSONObject(0).getInt("step_count")).isEqualTo(5);
+        assertThat(conditions.getJSONObject(1).getString("type")).isEqualTo("has_tool_call");
+        assertThat(conditions.getJSONObject(1).getString("tool_name")).isEqualTo("finalize");
+        assertThat(conditions.getJSONObject(2).getString("type")).isEqualTo("max_tokens_used");
+        assertThat(conditions.getJSONObject(2).getLong("max_tokens")).isEqualTo(10_000L);
+        assertThat(conditions.getJSONObject(3).getString("type")).isEqualTo("max_cost");
+        assertThat(conditions.getJSONObject(3).getDouble("max_cost_in_dollars")).isEqualTo(0.5);
+        assertThat(conditions.getJSONObject(4).getString("type")).isEqualTo("finish_reason_is");
+        assertThat(conditions.getJSONObject(4).getString("reason")).isEqualTo("length");
+
+        assertThat(minimalBuilder().addStopServerToolsWhen(condition).build()
+                .stopServerToolsWhen()).hasSize(1);
+        assertThat(minimalBuilder().stopServerToolsWhen(List.of(condition)).build()
+                .stopServerToolsWhen()).hasSize(1);
+        assertThat(minimalBuilder().build().stopServerToolsWhen()).isEmpty();
+        assertThat(new JSONObject(minimalBuilder().build().getBody())
+                .has("stop_server_tools_when")).isFalse();
     }
 
     @Test

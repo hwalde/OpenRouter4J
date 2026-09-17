@@ -8,6 +8,7 @@ import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
@@ -71,6 +72,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
     private final String toolChoiceName;
     private final Boolean toolChoiceDisableParallel;
     private final List<OpenRouterPlugin> plugins;
+    private final List<OpenRouterStopCondition> stopServerToolsWhen;
     private final OpenRouterTraceConfig trace;
     private final List<String> providerOrder;
     private final List<String> providerOnly;
@@ -176,6 +178,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         this.toolChoiceName = builder.toolChoiceName;
         this.toolChoiceDisableParallel = builder.toolChoiceDisableParallel;
         this.plugins = builder.plugins == null ? null : List.copyOf(builder.plugins);
+        this.stopServerToolsWhen = builder.stopServerToolsWhen.isEmpty()
+                ? null : List.copyOf(builder.stopServerToolsWhen);
         this.trace = builder.trace;
         this.providerOrder = builder.providerOrder == null ? null : List.copyOf(builder.providerOrder);
         this.providerOnly = builder.providerOnly == null ? null : List.copyOf(builder.providerOnly);
@@ -204,6 +208,14 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         return stream;
     }
 
+    /**
+     * @return the stop conditions of the server-tool agent loop
+     *         ({@code stop_server_tools_when}), empty when unset
+     */
+    public List<OpenRouterStopCondition> stopServerToolsWhen() {
+        return stopServerToolsWhen == null ? List.of() : stopServerToolsWhen;
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/messages";
@@ -224,9 +236,9 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
      * {@code models}, {@code fallbacks} (mutually exclusive per the API),
      * {@code service_tier}, {@code speed}, {@code session_id}, {@code user},
      * {@code cache_control} (request-root), {@code tools},
-     * {@code tool_choice}, {@code plugins}, {@code trace} (all omitted when
-     * unset) and the {@code provider} object (omitted unless any provider
-     * option is set).
+     * {@code tool_choice}, {@code plugins}, {@code stop_server_tools_when},
+     * {@code trace} (all omitted when unset) and the {@code provider} object
+     * (omitted unless any provider option is set).
      *
      * @return the JSON body of this request
      */
@@ -368,6 +380,13 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
             }
             root.put("plugins", arr);
         }
+        if (stopServerToolsWhen != null && !stopServerToolsWhen.isEmpty()) {
+            JSONArray arr = new JSONArray();
+            for (OpenRouterStopCondition condition : stopServerToolsWhen) {
+                arr.put(condition.toJson());
+            }
+            root.put("stop_server_tools_when", arr);
+        }
         if (trace != null) {
             root.put("trace", trace.toJson());
         }
@@ -456,6 +475,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         private String toolChoiceName;
         private Boolean toolChoiceDisableParallel;
         private List<OpenRouterPlugin> plugins;
+        private final List<OpenRouterStopCondition> stopServerToolsWhen = new ArrayList<>();
         private OpenRouterTraceConfig trace;
         private List<String> providerOrder;
         private List<String> providerOnly;
@@ -1027,6 +1047,55 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
             }
             plugins.add(plugin);
             return this;
+        }
+
+        /**
+         * Sets the JSON field {@code stop_server_tools_when} - the stop
+         * conditions of the server-side tool agent loop. The endpoint accepts
+         * the same server tools via {@link #addTool(OpenRouterAnthropicTool)}
+         * / {@link #addTool(JSONObject)} and {@link #addPlugin(OpenRouterPlugin)},
+         * so it runs the same loop as chat completions and honours the same
+         * conditions: any condition firing halts the loop (OR logic), the
+         * array overrides {@code max_tool_calls} when present, and a firing
+         * condition ends with one final turn whose tool calls are disabled.
+         * Emits the array only when at least one condition is set.
+         *
+         * @param conditions the stop conditions
+         * @return this builder
+         */
+        public Builder stopServerToolsWhen(OpenRouterStopCondition... conditions) {
+            for (OpenRouterStopCondition condition : conditions) {
+                if (condition == null) {
+                    throw new IllegalArgumentException("stop condition must not be null");
+                }
+                stopServerToolsWhen.add(condition);
+            }
+            return this;
+        }
+
+        /**
+         * List-based variant of
+         * {@link #stopServerToolsWhen(OpenRouterStopCondition...)}.
+         *
+         * @param conditions the stop conditions
+         * @return this builder
+         */
+        public Builder stopServerToolsWhen(List<OpenRouterStopCondition> conditions) {
+            if (conditions == null) {
+                throw new IllegalArgumentException("stop conditions must not be null");
+            }
+            return stopServerToolsWhen(conditions.toArray(new OpenRouterStopCondition[0]));
+        }
+
+        /**
+         * Adds a single stop condition to {@code stop_server_tools_when} (see
+         * {@link #stopServerToolsWhen(OpenRouterStopCondition...)}).
+         *
+         * @param condition the stop condition
+         * @return this builder
+         */
+        public Builder addStopServerToolsWhen(OpenRouterStopCondition condition) {
+            return stopServerToolsWhen(condition);
         }
 
         /**

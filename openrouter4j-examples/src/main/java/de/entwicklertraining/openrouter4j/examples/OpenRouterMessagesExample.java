@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterAnthropicTool;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesRequest;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesResponse;
@@ -38,6 +39,12 @@ public class OpenRouterMessagesExample {
                                         "city", new JSONObject().put("type", "string")))
                                 .put("required", new JSONArray().put("city")))
                         .build())
+                // Stop the server-side tool loop when a condition fires
+                // (OR logic; overrides max_tool_calls; ends with one final
+                // turn with tool calls disabled).
+                .stopServerToolsWhen(
+                        OpenRouterStopCondition.stepCountIs(3),
+                        OpenRouterStopCondition.maxCost(0.25))
                 .effort("medium")
                 .execute();
 
