@@ -1124,12 +1124,12 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * server-side context editing for long agentic conversations. Each
          * entry is one strategy, discriminated by its {@code type} string:
          * {@code clear_tool_uses_20250919}
-         * ({@link OpenRouterClearToolUsesEdit}),
+         * ({@link de.entwicklertraining.openrouter4j.OpenRouterClearToolUsesEdit}),
          * {@code clear_thinking_20251015}
-         * ({@link OpenRouterClearThinkingEdit}) and
-         * {@code compact_20260112} ({@link OpenRouterCompactEdit}); unknown
+         * ({@link de.entwicklertraining.openrouter4j.OpenRouterClearThinkingEdit}) and
+         * {@code compact_20260112} ({@link de.entwicklertraining.openrouter4j.OpenRouterCompactEdit}); unknown
          * strategy types travel via
-         * {@link OpenRouterContextManagementEdit#raw(JSONObject)}. The array
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterContextManagementEdit#raw(JSONObject)}. The array
          * is emitted only when at least one entry is set. Calling this
          * replaces a previously set list.
          *
