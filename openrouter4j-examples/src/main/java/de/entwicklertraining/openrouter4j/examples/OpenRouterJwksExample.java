@@ -9,7 +9,9 @@ import de.entwicklertraining.openrouter4j.oauth.OpenRouterJwk;
  * are the keys that verify the short-lived access token the
  * workload-identity federation ({@code client.exchangeWorkloadIdentityToken()})
  * hands out - pick the entry whose {@code kid} matches the token header and
- * feed modulus/exponent to a standard JWS verification library.
+ * feed its material to a standard JWS verification library: curve plus x/y
+ * coordinates for the EC keys the spec documents, modulus/exponent for RSA
+ * keys.
  */
 public class OpenRouterJwksExample {
 
@@ -24,6 +26,14 @@ public class OpenRouterJwksExample {
                     + " kty=" + jwk.keyType()
                     + " alg=" + jwk.algorithm()
                     + " use=" + jwk.use());
+            if ("EC".equals(jwk.keyType())) {
+                System.out.println("    crv=" + jwk.curve()
+                        + " x=" + jwk.xCoordinateBase64Url()
+                        + " y=" + jwk.yCoordinateBase64Url());
+            } else if ("RSA".equals(jwk.keyType())) {
+                System.out.println("    n=" + jwk.modulusBase64Url()
+                        + " e=" + jwk.exponentBase64Url());
+            }
         }
     }
 }

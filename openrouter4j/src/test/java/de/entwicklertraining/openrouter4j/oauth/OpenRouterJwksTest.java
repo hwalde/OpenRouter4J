@@ -53,10 +53,15 @@ class OpenRouterJwksTest {
         assertThat(ec.exponentBase64Url()).isNull();
 
         OpenRouterJwk rsa = response.keys().get(1);
+        assertThat(rsa.keyType()).isEqualTo("RSA");
+        assertThat(rsa.use()).isEqualTo("sig");
+        assertThat(rsa.algorithm()).isEqualTo("RS256");
         assertThat(rsa.keyId()).isEqualTo("2026-10");
         assertThat(rsa.modulusBase64Url()).isEqualTo("sXchBewbU");
         assertThat(rsa.exponentBase64Url()).isEqualTo("AQAB");
         assertThat(rsa.curve()).isNull();
+        assertThat(rsa.xCoordinateBase64Url()).isNull();
+        assertThat(rsa.yCoordinateBase64Url()).isNull();
 
         assertThat(response.key("2026-10").keyId()).isEqualTo("2026-10");
         assertThat(response.key("missing")).isNull();
