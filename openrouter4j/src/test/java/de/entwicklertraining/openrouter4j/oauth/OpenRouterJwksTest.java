@@ -33,19 +33,31 @@ class OpenRouterJwksTest {
     void responseExposesTypedJwkEntries() {
         OpenRouterJwksResponse response = new OpenRouterJwksRequest.Builder(client()).build()
                 .createResponse("{\"keys\":["
-                        + "{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\","
-                        + "\"kid\":\"2026-09\",\"n\":\"0vx7agoebGcQ\",\"e\":\"AQAB\"},"
+                        + "{\"kty\":\"EC\",\"use\":\"sig\",\"alg\":\"ES256\","
+                        + "\"kid\":\"2026-09\",\"crv\":\"P-256\","
+                        + "\"x\":\"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4\","
+                        + "\"y\":\"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM\"},"
                         + "{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\","
                         + "\"kid\":\"2026-10\",\"n\":\"sXchBewbU\",\"e\":\"AQAB\"}]}");
 
         assertThat(response.keys()).hasSize(2);
-        OpenRouterJwk first = response.keys().get(0);
-        assertThat(first.keyType()).isEqualTo("RSA");
-        assertThat(first.use()).isEqualTo("sig");
-        assertThat(first.algorithm()).isEqualTo("RS256");
-        assertThat(first.keyId()).isEqualTo("2026-09");
-        assertThat(first.modulusBase64Url()).isEqualTo("0vx7agoebGcQ");
-        assertThat(first.exponentBase64Url()).isEqualTo("AQAB");
+        OpenRouterJwk ec = response.keys().get(0);
+        assertThat(ec.keyType()).isEqualTo("EC");
+        assertThat(ec.use()).isEqualTo("sig");
+        assertThat(ec.algorithm()).isEqualTo("ES256");
+        assertThat(ec.keyId()).isEqualTo("2026-09");
+        assertThat(ec.curve()).isEqualTo("P-256");
+        assertThat(ec.xCoordinateBase64Url()).isEqualTo("MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4");
+        assertThat(ec.yCoordinateBase64Url()).isEqualTo("4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM");
+        assertThat(ec.modulusBase64Url()).isNull();
+        assertThat(ec.exponentBase64Url()).isNull();
+
+        OpenRouterJwk rsa = response.keys().get(1);
+        assertThat(rsa.keyId()).isEqualTo("2026-10");
+        assertThat(rsa.modulusBase64Url()).isEqualTo("sXchBewbU");
+        assertThat(rsa.exponentBase64Url()).isEqualTo("AQAB");
+        assertThat(rsa.curve()).isNull();
+
         assertThat(response.key("2026-10").keyId()).isEqualTo("2026-10");
         assertThat(response.key("missing")).isNull();
         assertThat(response.key(null)).isNull();

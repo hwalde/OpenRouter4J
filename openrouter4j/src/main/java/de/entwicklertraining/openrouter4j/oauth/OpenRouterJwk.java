@@ -7,8 +7,11 @@ import java.util.Objects;
 /**
  * One JWK (RFC 7517 JSON Web Key) entry of the JWK Set returned by
  * GET /oauth/jwks: the public material of one key OpenRouter signs access
- * tokens with. For RSA keys the modulus/exponent pair ({@code n} / {@code e},
- * both base64url) is what a standard JWS verification library consumes.
+ * tokens with. The spec documents EC keys ({@code kty: EC}, {@code alg:
+ * ES256}) - for those, the curve/coordinate pair ({@code crv}, {@code x},
+ * {@code y}, all base64url) is what a standard JWS verification library
+ * consumes; RSA fields ({@code n} / {@code e}) are typed as well so the view
+ * stays correct should OpenRouter sign with RSA keys.
  *
  * <p>All accessors follow the library's swallow-and-return-{@code null}
  * convention. Use {@link #json()} for fields without a typed accessor.
@@ -77,12 +80,43 @@ public final class OpenRouterJwk {
 
     /**
      * JSON path: {@code e} - the RSA public exponent, base64url-encoded
-     * (typically {@code AQAB}, i.e. 65537).
+     * (typically {@code AQAB}, i.e. 65537). Only meaningful for RSA keys.
      *
      * @return the value, or {@code null} when absent
      */
     public String exponentBase64Url() {
         return json.optString("e", null);
+    }
+
+    /**
+     * JSON path: {@code crv} - the elliptic curve of an EC key
+     * (e.g. {@code P-256}). The field the spec documents for OpenRouter's
+     * signing keys.
+     *
+     * @return the value, or {@code null} when absent
+     */
+    public String curve() {
+        return json.optString("crv", null);
+    }
+
+    /**
+     * JSON path: {@code x} - the x coordinate of an EC public key,
+     * base64url-encoded.
+     *
+     * @return the value, or {@code null} when absent
+     */
+    public String xCoordinateBase64Url() {
+        return json.optString("x", null);
+    }
+
+    /**
+     * JSON path: {@code y} - the y coordinate of an EC public key,
+     * base64url-encoded.
+     *
+     * @return the value, or {@code null} when absent
+     */
+    public String yCoordinateBase64Url() {
+        return json.optString("y", null);
     }
 
     @Override
