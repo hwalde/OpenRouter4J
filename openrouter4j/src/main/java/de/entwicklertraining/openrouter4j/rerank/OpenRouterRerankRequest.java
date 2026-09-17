@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.rerank;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -32,6 +33,8 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
     private final String query;
     private final List<Document> documents;
     private final Integer topN;
+    private final String user;
+    private final OpenRouterTraceConfig trace;
     private final List<String> providerOrder;
     private final List<String> providerOnly;
     private final List<String> providerIgnore;
@@ -84,6 +87,8 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
         this.query = builder.query;
         this.documents = List.copyOf(builder.documents);
         this.topN = builder.topN;
+        this.user = builder.user;
+        this.trace = builder.trace;
         this.providerOrder = builder.providerOrder == null ? null : List.copyOf(builder.providerOrder);
         this.providerOnly = builder.providerOnly == null ? null : List.copyOf(builder.providerOnly);
         this.providerIgnore = builder.providerIgnore == null ? null : List.copyOf(builder.providerIgnore);
@@ -111,6 +116,28 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
      */
     public List<Document> documents() {
         return documents;
+    }
+
+    /**
+     * The {@code user} end-user identifier, or {@code null} when unset (the
+     * key is not sent). Used by OpenRouter for abuse monitoring and cost
+     * isolation.
+     *
+     * @return the end-user identifier, or {@code null}
+     */
+    public String user() {
+        return user;
+    }
+
+    /**
+     * The {@code trace} observability configuration, or {@code null} when
+     * unset (the key is not sent). Forwarded to configured broadcast
+     * destinations (Langfuse, Datadog, Weave, ...).
+     *
+     * @return the trace configuration, or {@code null}
+     */
+    public OpenRouterTraceConfig trace() {
+        return trace;
     }
 
     @Override
@@ -155,6 +182,12 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
         root.put("documents", documentsArr);
         if (topN != null) {
             root.put("top_n", topN);
+        }
+        if (user != null) {
+            root.put("user", user);
+        }
+        if (trace != null) {
+            root.put("trace", trace.toJson());
         }
 
         // The provider object is emitted whenever any provider routing option is set,
@@ -212,6 +245,8 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
         private String query;
         private final List<Document> documents = new ArrayList<>();
         private Integer topN;
+        private String user;
+        private OpenRouterTraceConfig trace;
         private List<String> providerOrder;
         private List<String> providerOnly;
         private List<String> providerIgnore;
@@ -309,6 +344,33 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
          */
         public Builder topN(Integer topN) {
             this.topN = topN;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code user} - a unique identifier for the
+         * end-user, used by OpenRouter for abuse monitoring. Omitted when
+         * unset.
+         *
+         * @param user the end-user identifier
+         * @return this builder
+         */
+        public Builder user(String user) {
+            this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code trace} - observability metadata that
+         * OpenRouter forwards to configured broadcast destinations (Langfuse,
+         * Datadog, Weave, ...). Build it with
+         * {@link OpenRouterTraceConfig#builder()}. Omitted when unset.
+         *
+         * @param trace the trace configuration
+         * @return this builder
+         */
+        public Builder trace(OpenRouterTraceConfig trace) {
+            this.trace = trace;
             return this;
         }
 

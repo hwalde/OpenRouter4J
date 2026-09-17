@@ -6,6 +6,7 @@ import de.entwicklertraining.api.base.streaming.StreamingFormat;
 import de.entwicklertraining.api.base.streaming.StreamingInfo;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterContextManagementEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
@@ -74,6 +75,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
     private final List<OpenRouterPlugin> plugins;
     private final List<OpenRouterStopCondition> stopServerToolsWhen;
     private final OpenRouterTraceConfig trace;
+    private final List<OpenRouterContextManagementEdit> contextManagementEdits;
     private final List<String> providerOrder;
     private final List<String> providerOnly;
     private final List<String> providerIgnore;
@@ -181,6 +183,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         this.stopServerToolsWhen = builder.stopServerToolsWhen.isEmpty()
                 ? null : List.copyOf(builder.stopServerToolsWhen);
         this.trace = builder.trace;
+        this.contextManagementEdits = builder.contextManagementEdits.isEmpty()
+                ? null : List.copyOf(builder.contextManagementEdits);
         this.providerOrder = builder.providerOrder == null ? null : List.copyOf(builder.providerOrder);
         this.providerOnly = builder.providerOnly == null ? null : List.copyOf(builder.providerOnly);
         this.providerIgnore = builder.providerIgnore == null ? null : List.copyOf(builder.providerIgnore);
@@ -216,6 +220,14 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         return stopServerToolsWhen == null ? List.of() : stopServerToolsWhen;
     }
 
+    /**
+     * @return the {@code context_management.edits} strategy entries, empty
+     *         when unset
+     */
+    public List<OpenRouterContextManagementEdit> contextManagement() {
+        return contextManagementEdits == null ? List.of() : contextManagementEdits;
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/messages";
@@ -237,8 +249,9 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
      * {@code service_tier}, {@code speed}, {@code session_id}, {@code user},
      * {@code cache_control} (request-root), {@code tools},
      * {@code tool_choice}, {@code plugins}, {@code stop_server_tools_when},
-     * {@code trace} (all omitted when unset) and the {@code provider} object
-     * (omitted unless any provider option is set).
+     * {@code context_management} (the {@code edits} array, omitted when no
+     * strategy is set), {@code trace} (all omitted when unset) and the
+     * {@code provider} object (omitted unless any provider option is set).
      *
      * @return the JSON body of this request
      */
@@ -390,6 +403,13 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         if (trace != null) {
             root.put("trace", trace.toJson());
         }
+        if (contextManagementEdits != null && !contextManagementEdits.isEmpty()) {
+            JSONArray edits = new JSONArray();
+            for (OpenRouterContextManagementEdit edit : contextManagementEdits) {
+                edits.put(edit.toJson());
+            }
+            root.put("context_management", new JSONObject().put("edits", edits));
+        }
 
         // The provider object is emitted whenever any provider option is set,
         // so an unset option never appears in the JSON.
@@ -476,6 +496,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         private Boolean toolChoiceDisableParallel;
         private List<OpenRouterPlugin> plugins;
         private final List<OpenRouterStopCondition> stopServerToolsWhen = new ArrayList<>();
+        private final List<OpenRouterContextManagementEdit> contextManagementEdits = new ArrayList<>();
         private OpenRouterTraceConfig trace;
         private List<String> providerOrder;
         private List<String> providerOnly;
@@ -1096,6 +1117,63 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          */
         public Builder addStopServerToolsWhen(OpenRouterStopCondition condition) {
             return stopServerToolsWhen(condition);
+        }
+
+        /**
+         * Sets the {@code context_management.edits} array - Anthropic
+         * server-side context editing for long agentic conversations. Each
+         * entry is one strategy, discriminated by its {@code type} string:
+         * {@code clear_tool_uses_20250919}
+         * ({@link OpenRouterClearToolUsesEdit}),
+         * {@code clear_thinking_20251015}
+         * ({@link OpenRouterClearThinkingEdit}) and
+         * {@code compact_20260112} ({@link OpenRouterCompactEdit}); unknown
+         * strategy types travel via
+         * {@link OpenRouterContextManagementEdit#raw(JSONObject)}. The array
+         * is emitted only when at least one entry is set. Calling this
+         * replaces a previously set list.
+         *
+         * @param edits the strategy entries
+         * @return this builder
+         */
+        public Builder contextManagement(OpenRouterContextManagementEdit... edits) {
+            if (edits == null) {
+                throw new IllegalArgumentException("context management edits must not be null");
+            }
+            contextManagementEdits.clear();
+            for (OpenRouterContextManagementEdit edit : edits) {
+                if (edit == null) {
+                    throw new IllegalArgumentException("context management edit must not be null");
+                }
+                contextManagementEdits.add(edit);
+            }
+            return this;
+        }
+
+        /**
+         * List-based variant of
+         * {@link #contextManagement(OpenRouterContextManagementEdit...)}.
+         *
+         * @param edits the strategy entries
+         * @return this builder
+         */
+        public Builder contextManagement(List<OpenRouterContextManagementEdit> edits) {
+            if (edits == null) {
+                throw new IllegalArgumentException("context management edits must not be null");
+            }
+            return contextManagement(edits.toArray(new OpenRouterContextManagementEdit[0]));
+        }
+
+        /**
+         * Adds a single strategy entry to {@code context_management.edits}
+         * (see
+         * {@link #contextManagement(OpenRouterContextManagementEdit...)}).
+         *
+         * @param edit the strategy entry
+         * @return this builder
+         */
+        public Builder addContextManagement(OpenRouterContextManagementEdit edit) {
+            return contextManagement(edit);
         }
 
         /**

@@ -226,4 +226,17 @@ class OpenRouterClientEntryPointsTest {
         assertThat(client().observability().destinations().update("d1").name("N").build().getHttpMethod()).isEqualTo("PATCH");
         assertThat(client().observability().destinations().delete("d1").build().getHttpMethod()).isEqualTo("DELETE");
     }
+
+    @Test
+    void filesAndContainersEntryPointsProduceTheRequests() {
+        assertThat(client().files().upload().fileByBytes(new byte[] {1}, "a.pdf").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().files().list().build().getRelativeUrl()).isEqualTo("/files");
+        assertThat(client().files().get("f1").build().getRelativeUrl()).isEqualTo("/files/f1");
+        assertThat(client().files().delete("f1").build().getHttpMethod()).isEqualTo("DELETE");
+        assertThat(client().files().content("f1").build().isBinaryResponse()).isTrue();
+        assertThat(client().containers().listFiles("sess_a").build().getRelativeUrl()).isEqualTo("/containers/sess_a/files");
+        assertThat(client().containers().file("sess_a", "cfile_b").build().getRelativeUrl()).isEqualTo("/containers/sess_a/files/cfile_b");
+        assertThat(client().containers().fileContent("sess_a", "cfile_b").build().isBinaryResponse()).isTrue();
+        assertThat(client().containers().promoteFile("sess_a", "cfile_b").build().getHttpMethod()).isEqualTo("POST");
+    }
 }

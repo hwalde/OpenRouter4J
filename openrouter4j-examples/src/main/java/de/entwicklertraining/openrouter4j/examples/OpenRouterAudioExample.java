@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSpeechResponse;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSttResponse;
 
@@ -25,6 +26,14 @@ public class OpenRouterAudioExample {
                 .model("openai/whisper-large-v3")
                 .audioByPath(Path.of("sample.wav"), "wav")
                 .language("en")
+                // Observability: end-user id and broadcast trace metadata
+                // (never sent to the provider); in multipart form trace
+                // travels as a JSON-encoded string, which the library performs.
+                .user("end-user-42")
+                .trace(OpenRouterTraceConfig.builder()
+                        .traceId("support-call-4711")
+                        .generationName("transcription")
+                        .build())
                 // verbose_json additionally returns segments (and words with
                 // addTimestampGranularity("word")) on OpenAI-compatible providers:
                 // .responseFormat("verbose_json")
@@ -44,6 +53,11 @@ public class OpenRouterAudioExample {
                 .voice("en_paul_neutral")
                 .responseFormat("mp3")
                 .speed(1.0)
+                .user("end-user-42")
+                .trace(OpenRouterTraceConfig.builder()
+                        .traceId("support-call-4711")
+                        .generationName("greeting-speech")
+                        .build())
                 .execute();
 
         Path out = Path.of("generated-speech.mp3");

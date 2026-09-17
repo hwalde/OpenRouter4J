@@ -14,9 +14,20 @@ import de.entwicklertraining.openrouter4j.byok.OpenRouterByokGetRequest;
 import de.entwicklertraining.openrouter4j.byok.OpenRouterByokListRequest;
 import de.entwicklertraining.openrouter4j.byok.OpenRouterByokUpdateRequest;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest;
+import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFileContentRequest;
+import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFileGetRequest;
+import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFileListRequest;
+import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFilePromoteRequest;
+import de.entwicklertraining.openrouter4j.containers.OpenRouterContainers;
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsModelsRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsRequest;
+import de.entwicklertraining.openrouter4j.files.OpenRouterFileContentRequest;
+import de.entwicklertraining.openrouter4j.files.OpenRouterFileDeleteRequest;
+import de.entwicklertraining.openrouter4j.files.OpenRouterFileGetRequest;
+import de.entwicklertraining.openrouter4j.files.OpenRouterFileListRequest;
+import de.entwicklertraining.openrouter4j.files.OpenRouterFileUploadRequest;
+import de.entwicklertraining.openrouter4j.files.OpenRouterFiles;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest;
@@ -501,6 +512,28 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterImages images() {
         return new OpenRouterImages(this);
+    }
+
+    /**
+     * Files API: upload files, list them, read their metadata, download
+     * their content and delete them again (POST/GET/DELETE /files*).
+     *
+     * @return the starting point for the Files API requests
+     */
+    public OpenRouterFiles files() {
+        return new OpenRouterFiles(this);
+    }
+
+    /**
+     * Code-execution container files: list the files a bash/shell server
+     * tool wrote into a sandbox container, read one file's metadata,
+     * download its content and promote it into the workspace's durable
+     * document storage (GET/POST /containers/{container_id}/files*).
+     *
+     * @return the starting point for the container file requests
+     */
+    public OpenRouterContainers containers() {
+        return new OpenRouterContainers(this);
     }
 
     /**

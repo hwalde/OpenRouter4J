@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.audio;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -52,6 +53,9 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
     private final String responseFormat;
     private final Double temperature;
     private final List<String> timestampGranularities;
+    private final String user;
+    private final OpenRouterTraceConfig trace;
+    private final JSONObject providerOptions;
 
     private final String boundary;
 
@@ -69,6 +73,10 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         this.temperature = builder.temperature;
         this.timestampGranularities = builder.timestampGranularities == null
                 ? null : List.copyOf(builder.timestampGranularities);
+        this.user = builder.user;
+        this.trace = builder.trace;
+        this.providerOptions = builder.providerOptions == null
+                ? null : new JSONObject(builder.providerOptions.toString());
     }
 
     /** @return the STT model id (e.g. {@code openai/whisper-large-v3}) */
@@ -79,6 +87,39 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
     /** @return whether this request travels as multipart/form-data */
     public boolean isMultipart() {
         return fileBytes != null;
+    }
+
+    /**
+     * The {@code user} end-user identifier, or {@code null} when unset (the
+     * key is not sent). Forwarded to Broadcast and private logging as the
+     * end-user id; never sent to the provider.
+     *
+     * @return the end-user identifier, or {@code null}
+     */
+    public String user() {
+        return user;
+    }
+
+    /**
+     * The {@code trace} observability configuration, or {@code null} when
+     * unset (the key is not sent). Forwarded to configured broadcast
+     * destinations (Langfuse, Datadog, Weave, ...).
+     *
+     * @return the trace configuration, or {@code null}
+     */
+    public OpenRouterTraceConfig trace() {
+        return trace;
+    }
+
+    /**
+     * The configured {@code provider.options} passthrough entries keyed by
+     * provider slug, or {@code null} when none were set. JSON mode only -
+     * the multipart form has no {@code provider} field.
+     *
+     * @return the provider options object, or {@code null}
+     */
+    public JSONObject providerOptions() {
+        return providerOptions;
     }
 
     @Override
@@ -148,6 +189,16 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             }
             root.put("timestamp_granularities", arr);
         }
+        if (user != null) {
+            root.put("user", user);
+        }
+        if (trace != null) {
+            root.put("trace", trace.toJson());
+        }
+        if (providerOptions != null && providerOptions.length() > 0) {
+            root.put("provider", new JSONObject().put("options",
+                    new JSONObject(providerOptions.toString())));
+        }
         if (!isMultipart()) {
             return root.toString();
         }
@@ -157,6 +208,8 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
                 + (temperature != null ? ", temperature=" + temperature : "")
                 + (timestampGranularities != null && !timestampGranularities.isEmpty()
                         ? ", timestamp_granularities=" + timestampGranularities : "")
+                + (user != null ? ", user=" + user : "")
+                + (trace != null ? ", trace=" + trace.toJson() : "")
                 + ", file=" + fileName;
     }
 
@@ -188,6 +241,14 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             for (String granularity : timestampGranularities) {
                 addFormField(sb, boundary, "timestamp_granularities[]", granularity);
             }
+        }
+        if (user != null) {
+            addFormField(sb, boundary, "user", user);
+        }
+        if (trace != null) {
+            // The multipart form carries trace as a JSON-encoded string that
+            // must decode to a JSON object (the API schema's multipart shape).
+            addFormField(sb, boundary, "trace", trace.toJson().toString());
         }
         sb.append("--").append(boundary).append(MULTIPART_CRLF);
         sb.append("Content-Disposition: form-data; name=\"file\"; filename=\"")
@@ -235,6 +296,9 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         private String responseFormat;
         private Double temperature;
         private List<String> timestampGranularities;
+        private String user;
+        private OpenRouterTraceConfig trace;
+        private JSONObject providerOptions;
 
         /**
          * Creates a builder bound to the given client.
@@ -396,6 +460,60 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             return this;
         }
 
+        /**
+         * Sets the JSON field {@code user} (multipart form field {@code user})
+         * - a unique identifier representing your end-user. Forwarded to
+         * Broadcast and private logging as the end-user id; never sent to the
+         * provider. Omitted when unset.
+         *
+         * @param user the end-user identifier
+         * @return this builder
+         */
+        public Builder user(String user) {
+            this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code trace} - observability metadata that
+         * OpenRouter forwards to configured broadcast destinations (Langfuse,
+         * Datadog, Weave, ...). Build it with
+         * {@link OpenRouterTraceConfig#builder()}. In multipart mode the
+         * schema carries it as a JSON-encoded string; the library performs
+         * that encoding. Omitted when unset.
+         *
+         * @param trace the trace configuration
+         * @return this builder
+         */
+        public Builder trace(OpenRouterTraceConfig trace) {
+            this.trace = trace;
+            return this;
+        }
+
+        /**
+         * Adds a provider-specific passthrough option to the JSON field
+         * {@code provider.options[providerSlug]} (JSON body mode only - the
+         * multipart form schema has no {@code provider} field), e.g.
+         * {@code providerOption("openai", new JSONObject().put("prompt", "..."))}.
+         *
+         * @param providerSlug the provider slug key
+         * @param options the provider-specific options object
+         * @return this builder
+         */
+        public Builder providerOption(String providerSlug, JSONObject options) {
+            if (providerSlug == null || providerSlug.isEmpty()) {
+                throw new IllegalArgumentException("providerSlug must not be null or empty");
+            }
+            if (options == null) {
+                throw new IllegalArgumentException("options must not be null");
+            }
+            if (providerOptions == null) {
+                providerOptions = new JSONObject();
+            }
+            providerOptions.put(providerSlug, new JSONObject(options.toString()));
+            return this;
+        }
+
         @Override
         public OpenRouterSttRequest build() {
             if (model == null || model.isEmpty()) {
@@ -407,6 +525,7 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             rejectLineBreaks("language", language);
             rejectLineBreaks("responseFormat", responseFormat);
             rejectLineBreaks("fileName", fileName);
+            rejectLineBreaks("user", user);
             if (fileBytes == null && (audioData == null || audioFormat == null)) {
                 throw new IllegalStateException(
                         "audio is required for a transcription request - use audioByBase64, audioByPath or audioByFile");

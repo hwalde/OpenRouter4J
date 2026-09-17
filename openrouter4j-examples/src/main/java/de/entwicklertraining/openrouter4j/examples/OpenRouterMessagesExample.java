@@ -1,7 +1,9 @@
 package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
+import de.entwicklertraining.openrouter4j.OpenRouterClearToolUsesEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterCompactEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterAnthropicTool;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesRequest;
@@ -45,6 +47,18 @@ public class OpenRouterMessagesExample {
                 .stopServerToolsWhen(
                         OpenRouterStopCondition.stepCountIs(3),
                         OpenRouterStopCondition.maxCost(0.25))
+                // Server-side context editing: shed old tool results once the
+                // conversation grows, and compact before the context window
+                // is exhausted.
+                .addContextManagement(OpenRouterClearToolUsesEdit.builder()
+                        .triggerInputTokens(100000)
+                        .keepLastToolUses(5)
+                        .clearAtLeastInputTokens(20000)
+                        .build())
+                .addContextManagement(OpenRouterCompactEdit.builder()
+                        .instructions("Preserve the task state and the last user request")
+                        .triggerInputTokens(150000)
+                        .build())
                 .effort("medium")
                 .execute();
 

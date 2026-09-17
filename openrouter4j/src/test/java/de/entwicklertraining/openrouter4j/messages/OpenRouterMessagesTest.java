@@ -1,11 +1,16 @@
 package de.entwicklertraining.openrouter4j.messages;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
+import de.entwicklertraining.openrouter4j.OpenRouterClearThinkingEdit;
+import de.entwicklertraining.openrouter4j.OpenRouterClearToolUsesEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterCompactEdit;
+import de.entwicklertraining.openrouter4j.OpenRouterContextManagementEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterModerationPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -542,5 +547,88 @@ class OpenRouterMessagesTest {
     void clientEntryPointBuildsTheRequest() {
         assertThat(client().messages().model("m").maxTokens(1).addMessage("user", "hi").build()
                 .getRelativeUrl()).isEqualTo("/messages");
+    }
+
+    @Test
+    void contextManagementClearToolUsesEmitsEveryDocumentedField() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addContextManagement(OpenRouterClearToolUsesEdit.builder()
+                        .triggerInputTokens(100000)
+                        .keepLastToolUses(5)
+                        .clearAtLeastInputTokens(50000)
+                        .clearToolInputs("search", "calculator")
+                        .excludeTools("vault")
+                        .build())
+                .build()
+                .getBody());
+
+        assertThat(body.has("context_management")).isTrue();
+        JSONObject contextManagement = body.getJSONObject("context_management");
+        JSONArray edits = contextManagement.getJSONArray("edits");
+        assertThat(edits).hasSize(1);
+        JSONObject edit = edits.getJSONObject(0);
+        assertThat(edit.getString("type")).isEqualTo("clear_tool_uses_20250919");
+        assertThat(edit.getJSONObject("trigger").getString("type")).isEqualTo("input_tokens");
+        assertThat(edit.getJSONObject("trigger").getLong("value")).isEqualTo(100000L);
+        assertThat(edit.getJSONObject("keep").getString("type")).isEqualTo("tool_uses");
+        assertThat(edit.getJSONObject("keep").getLong("value")).isEqualTo(5L);
+        assertThat(edit.getJSONObject("clear_at_least").getString("type")).isEqualTo("input_tokens");
+        assertThat(edit.getJSONObject("clear_at_least").getLong("value")).isEqualTo(50000L);
+        assertThat(edit.getJSONArray("clear_tool_inputs").toList())
+                .containsExactly("search", "calculator");
+        assertThat(edit.getJSONArray("exclude_tools").toList()).containsExactly("vault");
+    }
+
+    @Test
+    void contextManagementSupportsEveryStrategyVariantAndListForm() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .contextManagement(List.of(
+                        OpenRouterClearToolUsesEdit.builder()
+                                .triggerToolUses(10)
+                                .clearToolInputs(true)
+                                .build(),
+                        OpenRouterClearThinkingEdit.builder().keepLastTurns(3).build(),
+                        OpenRouterClearThinkingEdit.builder().keepAll().build(),
+                        OpenRouterCompactEdit.builder()
+                                .instructions("Keep the task state")
+                                .pauseAfterCompaction(true)
+                                .triggerInputTokens(100000)
+                                .build(),
+                        OpenRouterContextManagementEdit.raw(new JSONObject()
+                                .put("type", "future_strategy"))
+                ))
+                .build()
+                .getBody());
+
+        JSONArray edits = body.getJSONObject("context_management").getJSONArray("edits");
+        assertThat(edits).hasSize(5);
+        assertThat(edits.getJSONObject(0).getJSONObject("trigger").getString("type"))
+                .isEqualTo("tool_uses");
+        assertThat(edits.getJSONObject(0).getBoolean("clear_tool_inputs")).isTrue();
+        assertThat(edits.getJSONObject(1).getString("type")).isEqualTo("clear_thinking_20251015");
+        assertThat(edits.getJSONObject(1).getJSONObject("keep").getString("type"))
+                .isEqualTo("thinking_turns");
+        assertThat(edits.getJSONObject(1).getJSONObject("keep").getInt("value")).isEqualTo(3);
+        assertThat(edits.getJSONObject(2).getJSONObject("keep").getString("type")).isEqualTo("all");
+        assertThat(edits.getJSONObject(3).getString("type")).isEqualTo("compact_20260112");
+        assertThat(edits.getJSONObject(3).getString("instructions"))
+                .isEqualTo("Keep the task state");
+        assertThat(edits.getJSONObject(3).getBoolean("pause_after_compaction")).isTrue();
+        assertThat(edits.getJSONObject(3).getJSONObject("trigger").getString("type"))
+                .isEqualTo("input_tokens");
+        assertThat(edits.getJSONObject(4).getString("type")).isEqualTo("future_strategy");
+    }
+
+    @Test
+    void contextManagementIsOmittedWhenUnset() {
+        assertThat(new JSONObject(minimalBuilder().build().getBody())
+                .has("context_management")).isFalse();
+        assertThat(minimalBuilder().build().contextManagement()).isEqualTo(java.util.List.of());
+    }
+
+    @Test
+    void contextManagementRawEditRequiresTypeField() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> OpenRouterContextManagementEdit.raw(new JSONObject().put("x", 1)));
     }
 }

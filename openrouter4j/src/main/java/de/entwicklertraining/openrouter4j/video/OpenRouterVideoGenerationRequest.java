@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.video;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -39,6 +40,8 @@ public final class OpenRouterVideoGenerationRequest
     private final Double upscaleFactor;
     private final List<JSONObject> frameImages;
     private final List<JSONObject> inputReferences;
+    private final String user;
+    private final OpenRouterTraceConfig trace;
     private final JSONObject providerOptions;
 
     private OpenRouterVideoGenerationRequest(Builder builder) {
@@ -56,6 +59,8 @@ public final class OpenRouterVideoGenerationRequest
         this.upscaleFactor = builder.upscaleFactor;
         this.frameImages = builder.frameImages == null ? null : List.copyOf(builder.frameImages);
         this.inputReferences = builder.inputReferences == null ? null : List.copyOf(builder.inputReferences);
+        this.user = builder.user;
+        this.trace = builder.trace;
         this.providerOptions = builder.providerOptions == null ? null : new JSONObject(builder.providerOptions.toString());
     }
 
@@ -67,6 +72,28 @@ public final class OpenRouterVideoGenerationRequest
     /** @return the text prompt describing the video, or {@code null} when unset */
     public String prompt() {
         return prompt;
+    }
+
+    /**
+     * The {@code user} end-user identifier, or {@code null} when unset (the
+     * key is not sent). Used by OpenRouter for abuse monitoring and cost
+     * isolation.
+     *
+     * @return the end-user identifier, or {@code null}
+     */
+    public String user() {
+        return user;
+    }
+
+    /**
+     * The {@code trace} observability configuration, or {@code null} when
+     * unset (the key is not sent). Forwarded to configured broadcast
+     * destinations (Langfuse, Datadog, Weave, ...).
+     *
+     * @return the trace configuration, or {@code null}
+     */
+    public OpenRouterTraceConfig trace() {
+        return trace;
     }
 
     @Override
@@ -138,6 +165,12 @@ public final class OpenRouterVideoGenerationRequest
             }
             root.put("input_references", refs);
         }
+        if (user != null) {
+            root.put("user", user);
+        }
+        if (trace != null) {
+            root.put("trace", trace.toJson());
+        }
         if (providerOptions != null && providerOptions.length() > 0) {
             root.put("provider", new JSONObject().put("options",
                     new JSONObject(providerOptions.toString())));
@@ -170,6 +203,8 @@ public final class OpenRouterVideoGenerationRequest
         private Double upscaleFactor;
         private List<JSONObject> frameImages;
         private List<JSONObject> inputReferences;
+        private String user;
+        private OpenRouterTraceConfig trace;
         private JSONObject providerOptions;
 
         /**
@@ -441,6 +476,33 @@ public final class OpenRouterVideoGenerationRequest
                 providerOptions = new JSONObject();
             }
             providerOptions.put(providerSlug, new JSONObject(options.toString()));
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code user} - a unique identifier for the
+         * end-user, used by OpenRouter for abuse monitoring. Omitted when
+         * unset.
+         *
+         * @param user the end-user identifier
+         * @return this builder
+         */
+        public Builder user(String user) {
+            this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code trace} - observability metadata that
+         * OpenRouter forwards to configured broadcast destinations (Langfuse,
+         * Datadog, Weave, ...). Build it with
+         * {@link OpenRouterTraceConfig#builder()}. Omitted when unset.
+         *
+         * @param trace the trace configuration
+         * @return this builder
+         */
+        public Builder trace(OpenRouterTraceConfig trace) {
+            this.trace = trace;
             return this;
         }
 

@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.audio;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -33,6 +34,9 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
     private final String responseFormat;
     private final Double speed;
     private final List<JSONObject> inputReferences;
+    private final String user;
+    private final OpenRouterTraceConfig trace;
+    private final JSONObject providerOptions;
 
     private OpenRouterSpeechRequest(Builder builder) {
         super(builder);
@@ -44,6 +48,10 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         this.speed = builder.speed;
         this.inputReferences = builder.inputReferences == null
                 ? null : List.copyOf(builder.inputReferences);
+        this.user = builder.user;
+        this.trace = builder.trace;
+        this.providerOptions = builder.providerOptions == null
+                ? null : new JSONObject(builder.providerOptions.toString());
     }
 
     /** @return the TTS model id (e.g. {@code mistralai/voxtral-mini-tts-2603}) */
@@ -54,6 +62,38 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
     /** @return the text to synthesize */
     public String input() {
         return input;
+    }
+
+    /**
+     * The {@code user} end-user identifier, or {@code null} when unset (the
+     * key is not sent). Forwarded to Broadcast and private logging as the
+     * end-user id; never sent to the provider.
+     *
+     * @return the end-user identifier, or {@code null}
+     */
+    public String user() {
+        return user;
+    }
+
+    /**
+     * The {@code trace} observability configuration, or {@code null} when
+     * unset (the key is not sent). Forwarded to configured broadcast
+     * destinations (Langfuse, Datadog, Weave, ...).
+     *
+     * @return the trace configuration, or {@code null}
+     */
+    public OpenRouterTraceConfig trace() {
+        return trace;
+    }
+
+    /**
+     * The configured {@code provider.options} passthrough entries keyed by
+     * provider slug, or {@code null} when none were set.
+     *
+     * @return the provider options object, or {@code null}
+     */
+    public JSONObject providerOptions() {
+        return providerOptions;
     }
 
     @Override
@@ -105,6 +145,16 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
             }
             root.put("input_references", refs);
         }
+        if (user != null) {
+            root.put("user", user);
+        }
+        if (trace != null) {
+            root.put("trace", trace.toJson());
+        }
+        if (providerOptions != null && providerOptions.length() > 0) {
+            root.put("provider", new JSONObject().put("options",
+                    new JSONObject(providerOptions.toString())));
+        }
         return root.toString();
     }
 
@@ -147,6 +197,9 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         private String responseFormat;
         private Double speed;
         private List<JSONObject> inputReferences;
+        private String user;
+        private OpenRouterTraceConfig trace;
+        private JSONObject providerOptions;
 
         /**
          * Creates a builder bound to the given client.
@@ -221,6 +274,57 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
          */
         public Builder speed(Double speed) {
             this.speed = speed;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code user} - a unique identifier representing
+         * your end-user. Forwarded to Broadcast and private logging as the
+         * end-user id; never sent to the provider. Omitted when unset.
+         *
+         * @param user the end-user identifier
+         * @return this builder
+         */
+        public Builder user(String user) {
+            this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code trace} - observability metadata that
+         * OpenRouter forwards to configured broadcast destinations (Langfuse,
+         * Datadog, Weave, ...). Build it with
+         * {@link OpenRouterTraceConfig#builder()}. Omitted when unset.
+         *
+         * @param trace the trace configuration
+         * @return this builder
+         */
+        public Builder trace(OpenRouterTraceConfig trace) {
+            this.trace = trace;
+            return this;
+        }
+
+        /**
+         * Adds a provider-specific passthrough option to the JSON field
+         * {@code provider.options[providerSlug]}, e.g.
+         * {@code providerOption("openai", new JSONObject())}. Only the
+         * options of the provider that serves the request are forwarded.
+         *
+         * @param providerSlug the provider slug key
+         * @param options the provider-specific options object
+         * @return this builder
+         */
+        public Builder providerOption(String providerSlug, JSONObject options) {
+            if (providerSlug == null || providerSlug.isEmpty()) {
+                throw new IllegalArgumentException("providerSlug must not be null or empty");
+            }
+            if (options == null) {
+                throw new IllegalArgumentException("options must not be null");
+            }
+            if (providerOptions == null) {
+                providerOptions = new JSONObject();
+            }
+            providerOptions.put(providerSlug, new JSONObject(options.toString()));
             return this;
         }
 

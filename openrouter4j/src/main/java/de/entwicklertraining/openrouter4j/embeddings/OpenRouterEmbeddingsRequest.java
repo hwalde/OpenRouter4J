@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.embeddings;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -37,6 +38,7 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
     private final String encodingFormat;
     private final String inputType;
     private final String user;
+    private final OpenRouterTraceConfig trace;
     private final List<String> providerOrder;
     private final List<String> providerOnly;
     private final List<String> providerIgnore;
@@ -53,6 +55,7 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         this.encodingFormat = builder.encodingFormat;
         this.inputType = builder.inputType;
         this.user = builder.user;
+        this.trace = builder.trace;
         this.providerOrder = builder.providerOrder == null ? null : List.copyOf(builder.providerOrder);
         this.providerOnly = builder.providerOnly == null ? null : List.copyOf(builder.providerOnly);
         this.providerIgnore = builder.providerIgnore == null ? null : List.copyOf(builder.providerIgnore);
@@ -79,6 +82,17 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
      */
     public List<String> inputs() {
         return inputs;
+    }
+
+    /**
+     * The {@code trace} observability configuration, or {@code null} when
+     * unset (the key is not sent). Forwarded to configured broadcast
+     * destinations (Langfuse, Datadog, Weave, ...).
+     *
+     * @return the trace configuration, or {@code null}
+     */
+    public OpenRouterTraceConfig trace() {
+        return trace;
     }
 
     @Override
@@ -123,6 +137,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         }
         if (user != null) {
             root.put("user", user);
+        }
+        if (trace != null) {
+            root.put("trace", trace.toJson());
         }
 
         // The provider object is emitted whenever any provider routing option is set,
@@ -183,6 +200,7 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         private String encodingFormat;
         private String inputType;
         private String user;
+        private OpenRouterTraceConfig trace;
         private List<String> providerOrder;
         private List<String> providerOnly;
         private List<String> providerIgnore;
@@ -290,6 +308,20 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
          */
         public Builder user(String user) {
             this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code trace} - observability metadata that
+         * OpenRouter forwards to configured broadcast destinations (Langfuse,
+         * Datadog, Weave, ...). Build it with
+         * {@link OpenRouterTraceConfig#builder()}. Omitted when unset.
+         *
+         * @param trace the trace configuration
+         * @return this builder
+         */
+        public Builder trace(OpenRouterTraceConfig trace) {
+            this.trace = trace;
             return this;
         }
 

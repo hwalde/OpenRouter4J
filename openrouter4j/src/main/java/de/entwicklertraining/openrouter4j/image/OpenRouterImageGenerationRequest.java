@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.image;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
+import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -42,6 +43,7 @@ public final class OpenRouterImageGenerationRequest
     private final Integer outputCompression;
     private final Long seed;
     private final String user;
+    private final OpenRouterTraceConfig trace;
     private final boolean stream;
     private final List<JSONObject> inputReferences;
     private final List<String> providerOrder;
@@ -65,6 +67,7 @@ public final class OpenRouterImageGenerationRequest
         this.outputCompression = builder.outputCompression;
         this.seed = builder.seed;
         this.user = builder.user;
+        this.trace = builder.trace;
         this.stream = builder.streamRequested();
         this.inputReferences = builder.inputReferences == null
                 ? null : List.copyOf(builder.inputReferences);
@@ -91,6 +94,17 @@ public final class OpenRouterImageGenerationRequest
      */
     public boolean streamRequested() {
         return stream;
+    }
+
+    /**
+     * The {@code trace} observability configuration, or {@code null} when
+     * unset (the key is not sent). Forwarded to configured broadcast
+     * destinations (Langfuse, Datadog, Weave, ...).
+     *
+     * @return the trace configuration, or {@code null}
+     */
+    public OpenRouterTraceConfig trace() {
+        return trace;
     }
 
     @Override
@@ -147,6 +161,9 @@ public final class OpenRouterImageGenerationRequest
         }
         if (user != null) {
             root.put("user", user);
+        }
+        if (trace != null) {
+            root.put("trace", trace.toJson());
         }
         if (stream) {
             root.put("stream", true);
@@ -225,6 +242,7 @@ public final class OpenRouterImageGenerationRequest
         private Integer outputCompression;
         private Long seed;
         private String user;
+        private OpenRouterTraceConfig trace;
         private boolean streamEnabled;
         private List<JSONObject> inputReferences;
         private List<String> providerOrder;
@@ -408,6 +426,20 @@ public final class OpenRouterImageGenerationRequest
          */
         public Builder user(String user) {
             this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code trace} - observability metadata that
+         * OpenRouter forwards to configured broadcast destinations (Langfuse,
+         * Datadog, Weave, ...). Build it with
+         * {@link OpenRouterTraceConfig#builder()}. Omitted when unset.
+         *
+         * @param trace the trace configuration
+         * @return this builder
+         */
+        public Builder trace(OpenRouterTraceConfig trace) {
+            this.trace = trace;
             return this;
         }
 
