@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
  * GET https://openrouter.ai/api/v1/scim/group-mappings/{id}
  *
  * <p>OpenRouter requires a management key for every SCIM endpoint (see the
- * package javadoc of {@link OpenRouterScimGroupMappingsListRequest}).
+ * class javadoc of {@link OpenRouterScimGroupMappingsListRequest}).
  */
 public final class OpenRouterScimGroupMappingGetRequest extends OpenRouterRequest<OpenRouterScimGroupMappingMutationResponse<OpenRouterScimGroupMappingGetRequest>> {
 

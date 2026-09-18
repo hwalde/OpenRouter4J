@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
  * GET https://openrouter.ai/api/v1/scim/sync-jobs/{id}
  *
  * <p>OpenRouter requires a management key for every SCIM endpoint (see the
- * package javadoc of {@link OpenRouterScimGroupMappingsListRequest}).
+ * class javadoc of {@link OpenRouterScimGroupMappingsListRequest}).
  */
 public final class OpenRouterScimSyncJobGetRequest extends OpenRouterRequest<OpenRouterScimSyncJobResponse<OpenRouterScimSyncJobGetRequest>> {
 

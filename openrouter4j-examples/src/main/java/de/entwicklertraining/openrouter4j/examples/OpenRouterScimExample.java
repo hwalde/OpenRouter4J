@@ -62,5 +62,10 @@ public class OpenRouterScimExample {
             System.out.println("Sync status: " + polled.status()
                     + (polled.errorMessage() != null ? " (" + polled.errorMessage() + ")" : ""));
         }
+
+        // Deleting a mapping is destructive and mutates organization state,
+        // so it is left commented out; keepMembers(false) removes the
+        // workspace access of members that arrived through the SCIM group:
+        // client.scim().deleteGroupMapping(created.id()).keepMembers(false).execute();
     }
 }

@@ -219,6 +219,100 @@ class OpenRouterResponsesTest {
     }
 
     @Test
+    void modelsListReplacesTheSingleModelRequirement() {
+        OpenRouterResponsesRequest request = client().responses()
+                .models("openai/gpt-4o", "anthropic/claude-4.5-sonnet-20250929")
+                .input("hi")
+                .build();
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.keySet()).containsExactlyInAnyOrder("models", "input");
+        assertThat(body.getJSONArray("models").toList()).containsExactly(
+                "openai/gpt-4o", "anthropic/claude-4.5-sonnet-20250929");
+        assertThat(body.has("model")).isFalse();
+
+        OpenRouterResponsesRequest listForm = client().responses()
+                .models(java.util.List.of("openai/gpt-4o"))
+                .input("hi")
+                .build();
+        assertThat(new JSONObject(listForm.getBody()).getJSONArray("models").toList())
+                .containsExactly("openai/gpt-4o");
+    }
+
+    @Test
+    void rawInputItemsLandVerbatimInTheInputArray() {
+        JSONObject raw = new JSONObject("{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_image\",\"image_url\":\"https://example.com/x.png\"}]}");
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("switched away from this")
+                .addInputItem(raw)
+                .build();
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getJSONArray("input").length()).isEqualTo(1);
+        assertThat(body.getJSONArray("input").getJSONObject(0).toMap())
+                .isEqualTo(raw.toMap());
+    }
+
+    @Test
+    void metadataPluginsTraceAndStopConditionsAreEmittedWhenSet() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .metadata(new JSONObject("{\"user_id\":\"u-1\"}"))
+                .addPlugin(de.entwicklertraining.openrouter4j.OpenRouterModerationPlugin.builder().build())
+                .trace(de.entwicklertraining.openrouter4j.OpenRouterTraceConfig.builder().traceId("trace-1").build())
+                .stopServerToolsWhen(java.util.List.of(
+                        de.entwicklertraining.openrouter4j.OpenRouterStopCondition.stepCountIs(3)))
+                .build();
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getJSONObject("metadata").toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("user_id", "u-1"));
+        assertThat(body.getJSONArray("plugins").length()).isEqualTo(1);
+        assertThat(body.getJSONArray("plugins").getJSONObject(0).getString("id")).isEqualTo("moderation");
+        assertThat(body.getJSONObject("trace").optString("trace_id")).isEqualTo("trace-1");
+        assertThat(body.getJSONArray("stop_server_tools_when").length()).isEqualTo(1);
+    }
+
+    @Test
+    void providerIgnoreAloneTriggersTheProviderObject() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .providerIgnore("deepseek", "qwen")
+                .build();
+        JSONObject provider = new JSONObject(request.getBody()).getJSONObject("provider");
+        assertThat(provider.getJSONArray("ignore").toList()).containsExactly("deepseek", "qwen");
+        assertThat(provider.has("order")).isFalse();
+        assertThat(provider.has("only")).isFalse();
+        assertThat(provider.has("require_parameters")).isFalse();
+    }
+
+    @Test
+    void handlerStreamingAloneMakesTheBodyCarryStreamTrue() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .stream(new de.entwicklertraining.api.base.streaming.StreamingResponseHandler<String>() {
+                    @Override
+                    public void onData(String data) {
+                        // not executed in this test
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        // not executed in this test
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        // not executed in this test
+                    }
+                })
+                .build();
+        assertThat(new JSONObject(request.getBody()).getBoolean("stream")).isTrue();
+        assertThat(request.streamRequested()).isTrue();
+    }
+
+    @Test
     void responseSurfacesTheRecordedFixture() {
         OpenRouterResponsesResponse response = responseOf("""
                 {

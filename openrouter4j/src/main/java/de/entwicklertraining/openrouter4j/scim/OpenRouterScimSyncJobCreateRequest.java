@@ -13,7 +13,7 @@ import org.json.JSONObject;
  * with {@link OpenRouterScimSyncJobGetRequest}.
  *
  * <p>OpenRouter requires a management key for every SCIM endpoint (see the
- * package javadoc of {@link OpenRouterScimGroupMappingsListRequest}).
+ * class javadoc of {@link OpenRouterScimGroupMappingsListRequest}).
  */
 public final class OpenRouterScimSyncJobCreateRequest extends OpenRouterRequest<OpenRouterScimSyncJobResponse<OpenRouterScimSyncJobCreateRequest>> {
 

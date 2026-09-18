@@ -43,6 +43,40 @@ class OpenRouterPresetsTest {
         OpenRouterPresetVersionsListRequest request =
                 client().presets().versions("my/preset").limit(5).build();
         assertThat(request.getRelativeUrl()).isEqualTo("/presets/my%2Fpreset/versions?limit=5");
+
+        OpenRouterPresetVersionsListRequest offsetPaged =
+                client().presets().versions("my/preset").offset(10).limit(5).build();
+        assertThat(offsetPaged.getRelativeUrl()).isEqualTo("/presets/my%2Fpreset/versions?offset=10&limit=5");
+    }
+
+    @Test
+    void upsertRoutesEncodeTheSlug() {
+        OpenRouterChatCompletionRequest chatRequest = client().chat().completion()
+                .model("openai/gpt-4o")
+                .addMessage("user", "Hi")
+                .build();
+        OpenRouterPresetUpsertFromChatRequest chat = client().presets()
+                .upsertFromChat("my preset")
+                .body(chatRequest)
+                .build();
+        assertThat(chat.getRelativeUrl()).isEqualTo("/presets/my+preset/chat/completions");
+        assertThat(chat.slug()).isEqualTo("my+preset");
+
+        OpenRouterPresetUpsertFromMessagesRequest messages = client().presets()
+                .upsertFromMessages("my preset")
+                .body(client().messages()
+                        .model("anthropic/claude-4.5-sonnet-20250929")
+                        .maxTokens(1024)
+                        .addMessage("user", "Hi")
+                        .build())
+                .build();
+        assertThat(messages.getRelativeUrl()).isEqualTo("/presets/my+preset/messages");
+
+        OpenRouterPresetUpsertFromResponsesRequest responses = client().presets()
+                .upsertFromResponses("my preset")
+                .body(client().responses().model("openai/gpt-4o").input("hi").build())
+                .build();
+        assertThat(responses.getRelativeUrl()).isEqualTo("/presets/my+preset/responses");
     }
 
     @Test

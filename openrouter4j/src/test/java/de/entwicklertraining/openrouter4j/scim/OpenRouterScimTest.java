@@ -106,6 +106,11 @@ class OpenRouterScimTest {
         assertThat(request.getRelativeUrl()).isEqualTo("/scim/group-mappings/some-id?keep_members=false");
         assertThat(request.getHttpMethod()).isEqualTo("DELETE");
         assertThat(request.getBody()).isNull();
+
+        OpenRouterScimGroupMappingDeleteRequest keeping = client().scim().deleteGroupMapping("some-id")
+                .keepMembers(true)
+                .build();
+        assertThat(keeping.getRelativeUrl()).isEqualTo("/scim/group-mappings/some-id?keep_members=true");
     }
 
     @Test
@@ -121,6 +126,9 @@ class OpenRouterScimTest {
         assertThat(request.getRelativeUrl()).isEqualTo("/scim/groups?limit=50");
         assertThat(request.getHttpMethod()).isEqualTo("GET");
         assertThat(request.getBody()).isNull();
+
+        OpenRouterScimGroupsListRequest paged = client().scim().groups().offset(5).limit(10).build();
+        assertThat(paged.getRelativeUrl()).isEqualTo("/scim/groups?offset=5&limit=10");
     }
 
     @Test
@@ -233,6 +241,7 @@ class OpenRouterScimTest {
                   "total_count": 1
                 }
                 """);
+        assertThat(response.totalCount()).isEqualTo(1L);
         assertThat(response.groups()).hasSize(1);
         OpenRouterScimGroup group = response.groups().get(0);
         assertThat(group.displayName()).isEqualTo("Engineering");

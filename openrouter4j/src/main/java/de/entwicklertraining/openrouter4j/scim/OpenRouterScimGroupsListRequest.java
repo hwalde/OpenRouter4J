@@ -13,7 +13,7 @@ import org.json.JSONObject;
  * mapping endpoints accept.
  *
  * <p>OpenRouter requires a management key for every SCIM endpoint (see the
- * package javadoc of {@link OpenRouterScimGroupMappingsListRequest}).
+ * class javadoc of {@link OpenRouterScimGroupMappingsListRequest}).
  */
 public final class OpenRouterScimGroupsListRequest extends OpenRouterRequest<OpenRouterScimGroupsListResponse> {
 
