@@ -75,7 +75,23 @@ import de.entwicklertraining.openrouter4j.publicdata.OpenRouterBenchmarksRequest
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterRankingsDailyRequest;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterSessionCostRequest;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterTaskClassificationsRequest;
+import de.entwicklertraining.openrouter4j.presets.OpenRouterPresetGetRequest;
+import de.entwicklertraining.openrouter4j.presets.OpenRouterPresetUpsertFromChatRequest;
+import de.entwicklertraining.openrouter4j.presets.OpenRouterPresetUpsertFromMessagesRequest;
+import de.entwicklertraining.openrouter4j.presets.OpenRouterPresetUpsertFromResponsesRequest;
+import de.entwicklertraining.openrouter4j.presets.OpenRouterPresetVersionGetRequest;
+import de.entwicklertraining.openrouter4j.presets.OpenRouterPresetVersionsListRequest;
+import de.entwicklertraining.openrouter4j.presets.OpenRouterPresetsListRequest;
 import de.entwicklertraining.openrouter4j.rerank.OpenRouterRerankRequest;
+import de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesRequest;
+import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupMappingCreateRequest;
+import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupMappingDeleteRequest;
+import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupMappingGetRequest;
+import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupMappingUpdateRequest;
+import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupMappingsListRequest;
+import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupsListRequest;
+import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobCreateRequest;
+import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobGetRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoContentRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoGenerationRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoJobRequest;
@@ -478,6 +494,45 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterMessagesRequest.Builder messages() {
         return new OpenRouterMessagesRequest.Builder(this);
+    }
+
+    /**
+     * The OpenAI Responses API on OpenRouter:
+     * POST /responses (the successor surface for features that only exist
+     * there, e.g. full {@code openrouter:tool_search} support,
+     * {@code openrouter:apply_patch}, subagent function inheritance). SSE
+     * streaming with the Responses event model.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterResponsesRequest.Builder responses() {
+        return new OpenRouterResponsesRequest.Builder(this);
+    }
+
+    /**
+     * Reads and manages the presets of the account:
+     * GET /presets, GET /presets/{slug}, the version endpoints under
+     * /presets/{slug}/versions and the create/update routes
+     * POST /presets/{slug}/chat/completions, /messages and /responses
+     * (create routes require a management key; they are NOT inference
+     * routes).
+     *
+     * @return the starting point for the preset requests
+     */
+    public OpenRouterPresets presets() {
+        return new OpenRouterPresets(this);
+    }
+
+    /**
+     * Manages the SCIM provisioning of the organization:
+     * GET/POST /scim/group-mappings, GET/PATCH/DELETE
+     * /scim/group-mappings/{id}, GET /scim/groups and the sync-job endpoints
+     * under /scim/sync-jobs (management key required for all of them).
+     *
+     * @return the starting point for the SCIM requests
+     */
+    public OpenRouterScim scim() {
+        return new OpenRouterScim(this);
     }
 
     /**
@@ -1399,6 +1454,214 @@ public final class OpenRouterClient extends ApiClient {
 
         public OpenRouterChatCompletionRequest.Builder completion() {
             return OpenRouterChatCompletionRequest.builder(client);
+        }
+    }
+
+    /**
+     * Facade for the preset read and management endpoints. The read
+     * endpoints surface the presets that inference requests reference via
+     * the {@code preset} body field or a {@code @preset/} model id; the
+     * create/update routes store a request body as a new preset version
+     * (management key required, create-not-infer semantics).
+     */
+    public static class OpenRouterPresets {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterPresets(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the presets of the account:
+         * GET /presets with {@code offset} / {@code limit}.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterPresetsListRequest.Builder list() {
+            return new OpenRouterPresetsListRequest.Builder(client);
+        }
+
+        /**
+         * Gets one preset by slug, including its currently designated
+         * version:
+         * GET /presets/{slug}. The documented way to check a slug's
+         * existence before an inference request - an unknown slug in the
+         * {@code preset} body field is silently ignored on inference.
+         *
+         * @param slug the preset slug
+         * @return the starting point for the request
+         */
+        public OpenRouterPresetGetRequest.Builder get(String slug) {
+            return new OpenRouterPresetGetRequest.Builder(client, slug);
+        }
+
+        /**
+         * Lists the versions of one preset:
+         * GET /presets/{slug}/versions with {@code offset} / {@code limit}.
+         *
+         * @param slug the preset slug
+         * @return the starting point for the request
+         */
+        public OpenRouterPresetVersionsListRequest.Builder versions(String slug) {
+            return new OpenRouterPresetVersionsListRequest.Builder(client, slug);
+        }
+
+        /**
+         * Gets one specific version of a preset:
+         * GET /presets/{slug}/versions/{version}.
+         *
+         * @param slug the preset slug
+         * @param version the version number (or {@code latest})
+         * @return the starting point for the request
+         */
+        public OpenRouterPresetVersionGetRequest.Builder version(String slug, String version) {
+            return new OpenRouterPresetVersionGetRequest.Builder(client, slug, version);
+        }
+
+        /**
+         * Creates or updates a preset from a chat-completions request body:
+         * POST /presets/{slug}/chat/completions (management key required;
+         * create-not-infer semantics - the body is stored as a new version,
+         * nothing is generated).
+         *
+         * @param slug the preset slug to create or update
+         * @return the starting point for the request
+         */
+        public OpenRouterPresetUpsertFromChatRequest.Builder upsertFromChat(String slug) {
+            return new OpenRouterPresetUpsertFromChatRequest.Builder(client, slug);
+        }
+
+        /**
+         * Creates or updates a preset from an Anthropic-Messages request
+         * body: POST /presets/{slug}/messages (management key required;
+         * create-not-infer semantics).
+         *
+         * @param slug the preset slug to create or update
+         * @return the starting point for the request
+         */
+        public OpenRouterPresetUpsertFromMessagesRequest.Builder upsertFromMessages(String slug) {
+            return new OpenRouterPresetUpsertFromMessagesRequest.Builder(client, slug);
+        }
+
+        /**
+         * Creates or updates a preset from a Responses-API request body:
+         * POST /presets/{slug}/responses (management key required;
+         * create-not-infer semantics).
+         *
+         * @param slug the preset slug to create or update
+         * @return the starting point for the request
+         */
+        public OpenRouterPresetUpsertFromResponsesRequest.Builder upsertFromResponses(String slug) {
+            return new OpenRouterPresetUpsertFromResponsesRequest.Builder(client, slug);
+        }
+    }
+
+    /**
+     * Facade for the SCIM provisioning endpoints (management key required):
+     * group-to-workspace mappings, the SCIM groups and the directory-sync
+     * jobs.
+     */
+    public static class OpenRouterScim {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterScim(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the group-to-workspace mappings:
+         * GET /scim/group-mappings with {@code offset} / {@code limit}.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterScimGroupMappingsListRequest.Builder groupMappings() {
+            return new OpenRouterScimGroupMappingsListRequest.Builder(client);
+        }
+
+        /**
+         * Creates a group-to-workspace mapping:
+         * POST /scim/group-mappings. Trap: re-creating the same mapping
+         * with the same role succeeds and re-applies it; a different role
+         * for an existing mapping is rejected with HTTP 409 - use
+         * {@link #updateGroupMapping(String)} to change a role.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterScimGroupMappingCreateRequest.Builder createGroupMapping() {
+            return new OpenRouterScimGroupMappingCreateRequest.Builder(client);
+        }
+
+        /**
+         * Gets one group-to-workspace mapping by id:
+         * GET /scim/group-mappings/{id}.
+         *
+         * @param id the mapping id (UUID)
+         * @return the starting point for the request
+         */
+        public OpenRouterScimGroupMappingGetRequest.Builder groupMapping(String id) {
+            return new OpenRouterScimGroupMappingGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Updates a group-to-workspace mapping:
+         * PATCH /scim/group-mappings/{id} ({@code role} only).
+         *
+         * @param id the mapping id (UUID)
+         * @return the starting point for the request
+         */
+        public OpenRouterScimGroupMappingUpdateRequest.Builder updateGroupMapping(String id) {
+            return new OpenRouterScimGroupMappingUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes a group-to-workspace mapping:
+         * DELETE /scim/group-mappings/{id} with the optional
+         * {@code keep_members} query parameter.
+         *
+         * @param id the mapping id (UUID)
+         * @return the starting point for the request
+         */
+        public OpenRouterScimGroupMappingDeleteRequest.Builder deleteGroupMapping(String id) {
+            return new OpenRouterScimGroupMappingDeleteRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the SCIM groups of the organization:
+         * GET /scim/groups with {@code offset} / {@code limit} (the group
+         * ids are the {@code scim_group_id} values of the mapping
+         * endpoints).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterScimGroupsListRequest.Builder groups() {
+            return new OpenRouterScimGroupsListRequest.Builder(client);
+        }
+
+        /**
+         * Starts a SCIM directory sync:
+         * POST /scim/sync-jobs (answers 202 with the created job).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterScimSyncJobCreateRequest.Builder startSyncJob() {
+            return new OpenRouterScimSyncJobCreateRequest.Builder(client);
+        }
+
+        /**
+         * Polls the status of a SCIM directory sync:
+         * GET /scim/sync-jobs/{id}.
+         *
+         * @param id the sync-job id (UUID)
+         * @return the starting point for the request
+         */
+        public OpenRouterScimSyncJobGetRequest.Builder syncJob(String id) {
+            return new OpenRouterScimSyncJobGetRequest.Builder(client, id);
         }
     }
 
