@@ -651,7 +651,9 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * Adds a JSON field {@code prompt.variables[key]} entry for the
          * stored prompt template set via {@link #prompt(String)}. The value
          * may be any JSON-representable object (string, number, boolean,
-         * {@code JSONObject}); {@code null} values are rejected.
+         * {@code JSONObject}); {@code null} values are rejected. Trap:
+         * variables without a preceding {@code prompt(String)} id are
+         * rejected loudly in {@link #build()}.
          *
          * @param key the variable name
          * @param value the variable value

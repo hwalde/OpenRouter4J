@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import org.json.JSONObject;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
 import de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesRequest;
@@ -90,6 +91,22 @@ public class OpenRouterResponsesExample {
                 .promptVariable("tone", "friendly")
                 .build();
         System.out.println("\nTemplated body: " + templated.getBody());
+
+        // The image/debug/text output options: imageConfig reuses the chat
+        // image type, debug echoes the upstream body, textFormat/textVerbosity
+        // compose the text output configuration.
+        OpenRouterResponsesRequest shaped = client.responses()
+                .model("openai/gpt-4o")
+                .input("Draw a cat sitting on a windowsill.")
+                .imageConfig(OpenRouterImageConfig.builder()
+                        .numImages(1)
+                        .aspectRatio("16:9")
+                        .build())
+                .debug(false)
+                .textFormat(new JSONObject().put("type", "text"))
+                .textVerbosity("low")
+                .build();
+        System.out.println("\nImage/debug/text body: " + shaped.getBody());
 
         // The typed request is also reusable for preset management:
         // client.presets().upsertFromResponses("my-preset").body(theRequest).execute()
