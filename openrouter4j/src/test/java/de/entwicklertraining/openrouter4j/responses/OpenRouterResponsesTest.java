@@ -74,9 +74,94 @@ class OpenRouterResponsesTest {
                 "reasoning", "modalities", "include", "background", "store", "metadata", "service_tier",
                 "session_id", "safety_identifier", "user", "prompt_cache_key", "truncation",
                 "cache_control", "plugins", "trace", "stop_server_tools_when", "provider", "stream",
-                "models")) {
+                "models", "prompt", "image_config", "debug", "text")) {
             assertThat(body.has(absent)).as(absent).isFalse();
         }
+    }
+
+    @Test
+    void promptTemplateIsEmittedWithIdAndVariables() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .prompt("preset-abc-123")
+                .promptVariable("tone", "friendly")
+                .promptVariable("length", 2)
+                .build();
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getJSONObject("prompt").toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                        "id", "preset-abc-123",
+                        "variables", java.util.Map.of("tone", "friendly", "length", 2)));
+
+        // An id without variables emits only the id.
+        JSONObject idOnly = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .prompt("preset-abc-123")
+                .build()
+                .getBody());
+        assertThat(idOnly.getJSONObject("prompt").toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("id", "preset-abc-123"));
+
+        assertThatThrownBy(() -> client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .promptVariable("tone", "friendly")
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("prompt id");
+    }
+
+    @Test
+    void imageConfigDebugAndTextAreEmittedWhenSetAndAbsentWhenUnset() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("draw a cat")
+                .imageConfig(de.entwicklertraining.openrouter4j.OpenRouterImageConfig.builder()
+                        .numImages(1)
+                        .aspectRatio("16:9")
+                        .build())
+                .debug(true)
+                .textFormat(new JSONObject().put("type", "text"))
+                .textVerbosity("high")
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("image_config").toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("num_images", 1, "aspect_ratio", "16:9"));
+        assertThat(body.getJSONObject("debug").getBoolean("echo_upstream_body")).isTrue();
+        assertThat(body.getJSONObject("text").toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                        "format", java.util.Map.of("type", "text"),
+                        "verbosity", "high"));
+
+        // debug(false) is a set option and must be emitted (not treated as unset).
+        JSONObject debugFalse = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .debug(false)
+                .build()
+                .getBody());
+        assertThat(debugFalse.getJSONObject("debug").getBoolean("echo_upstream_body")).isFalse();
+
+        // The verbatim text object replaces the composed form.
+        JSONObject verbatim = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .textFormat(new JSONObject().put("type", "text"))
+                .text(new JSONObject().put("format", new JSONObject().put("type", "custom")))
+                .build()
+                .getBody());
+        assertThat(verbatim.getJSONObject("text").toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                        "format", java.util.Map.of("type", "custom")));
+
+        assertThatThrownBy(() -> client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .textVerbosity("ultra"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("verbosity");
     }
 
     @Test

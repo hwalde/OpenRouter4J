@@ -34,6 +34,7 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
     private final List<Document> documents;
     private final Integer topN;
     private final String user;
+    private final String sessionId;
     private final OpenRouterTraceConfig trace;
     private final List<String> providerOrder;
     private final List<String> providerOnly;
@@ -88,6 +89,7 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
         this.documents = List.copyOf(builder.documents);
         this.topN = builder.topN;
         this.user = builder.user;
+        this.sessionId = builder.sessionId;
         this.trace = builder.trace;
         this.providerOrder = builder.providerOrder == null ? null : List.copyOf(builder.providerOrder);
         this.providerOnly = builder.providerOnly == null ? null : List.copyOf(builder.providerOnly);
@@ -127,6 +129,18 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
      */
     public String user() {
         return user;
+    }
+
+    /**
+     * The {@code session_id} grouping key, or {@code null} when unset (the
+     * key is not sent). Groups related requests (a conversation or agent
+     * workflow) for observability grouping in Broadcast and private logging;
+     * never sent to the provider.
+     *
+     * @return the session identifier, or {@code null}
+     */
+    public String sessionId() {
+        return sessionId;
     }
 
     /**
@@ -185,6 +199,9 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
         }
         if (user != null) {
             root.put("user", user);
+        }
+        if (sessionId != null) {
+            root.put("session_id", sessionId);
         }
         if (trace != null) {
             root.put("trace", trace.toJson());
@@ -246,6 +263,7 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
         private final List<Document> documents = new ArrayList<>();
         private Integer topN;
         private String user;
+        private String sessionId;
         private OpenRouterTraceConfig trace;
         private List<String> providerOrder;
         private List<String> providerOnly;
@@ -357,6 +375,21 @@ public final class OpenRouterRerankRequest extends OpenRouterRequest<OpenRouterR
          */
         public Builder user(String user) {
             this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code session_id} - a unique identifier for
+         * grouping related requests (a conversation or agent workflow). Used
+         * for observability grouping in Broadcast and private logging; never
+         * sent to the provider. Maximum 256 characters (API-side limit, not
+         * validated here). Omitted when unset.
+         *
+         * @param sessionId the session grouping identifier
+         * @return this builder
+         */
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
             return this;
         }
 

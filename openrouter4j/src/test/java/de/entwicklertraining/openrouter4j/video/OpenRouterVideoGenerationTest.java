@@ -47,6 +47,7 @@ class OpenRouterVideoGenerationTest {
         assertThat(body.has("generate_audio")).isFalse();
         assertThat(body.has("seed")).isFalse();
         assertThat(body.has("callback_url")).isFalse();
+        assertThat(body.has("previous_job_id")).isFalse();
         assertThat(body.has("creativity")).isFalse();
         assertThat(body.has("upscale_factor")).isFalse();
         assertThat(body.has("frame_images")).isFalse();
@@ -66,6 +67,7 @@ class OpenRouterVideoGenerationTest {
                 .generateAudio(true)
                 .seed(42L)
                 .callbackUrl("https://example.com/webhook")
+                .previousJobId("job-previous-123")
                 .creativity(1)
                 .upscaleFactor(2.0)
                 .build()
@@ -79,6 +81,7 @@ class OpenRouterVideoGenerationTest {
         assertThat(body.getBoolean("generate_audio")).isTrue();
         assertThat(body.getLong("seed")).isEqualTo(42L);
         assertThat(body.getString("callback_url")).isEqualTo("https://example.com/webhook");
+        assertThat(body.getString("previous_job_id")).isEqualTo("job-previous-123");
         assertThat(body.getInt("creativity")).isEqualTo(1);
         assertThat(body.getDouble("upscale_factor")).isEqualTo(2.0);
     }

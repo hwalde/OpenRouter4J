@@ -36,11 +36,13 @@ public final class OpenRouterVideoGenerationRequest
     private final Boolean generateAudio;
     private final Long seed;
     private final String callbackUrl;
+    private final String previousJobId;
     private final Integer creativity;
     private final Double upscaleFactor;
     private final List<JSONObject> frameImages;
     private final List<JSONObject> inputReferences;
     private final String user;
+    private final String sessionId;
     private final OpenRouterTraceConfig trace;
     private final JSONObject providerOptions;
 
@@ -55,11 +57,13 @@ public final class OpenRouterVideoGenerationRequest
         this.generateAudio = builder.generateAudio;
         this.seed = builder.seed;
         this.callbackUrl = builder.callbackUrl;
+        this.previousJobId = builder.previousJobId;
         this.creativity = builder.creativity;
         this.upscaleFactor = builder.upscaleFactor;
         this.frameImages = builder.frameImages == null ? null : List.copyOf(builder.frameImages);
         this.inputReferences = builder.inputReferences == null ? null : List.copyOf(builder.inputReferences);
         this.user = builder.user;
+        this.sessionId = builder.sessionId;
         this.trace = builder.trace;
         this.providerOptions = builder.providerOptions == null ? null : new JSONObject(builder.providerOptions.toString());
     }
@@ -86,6 +90,18 @@ public final class OpenRouterVideoGenerationRequest
     }
 
     /**
+     * The {@code session_id} grouping key, or {@code null} when unset (the
+     * key is not sent). Groups related requests (conversation or agent
+     * workflow) for observability grouping in Broadcast and private logging;
+     * never sent to the provider.
+     *
+     * @return the session identifier, or {@code null}
+     */
+    public String sessionId() {
+        return sessionId;
+    }
+
+    /**
      * The {@code trace} observability configuration, or {@code null} when
      * unset (the key is not sent). Forwarded to configured broadcast
      * destinations (Langfuse, Datadog, Weave, ...).
@@ -94,6 +110,17 @@ public final class OpenRouterVideoGenerationRequest
      */
     public OpenRouterTraceConfig trace() {
         return trace;
+    }
+
+    /**
+     * The {@code previous_job_id} of the finished job this new job is chained
+     * to, or {@code null} when unset (the key is not sent). The continuation
+     * variant alongside the {@code frame_images} variants.
+     *
+     * @return the previous job id, or {@code null}
+     */
+    public String previousJobId() {
+        return previousJobId;
     }
 
     @Override
@@ -110,8 +137,10 @@ public final class OpenRouterVideoGenerationRequest
      * JSON path: the request body - {@code model} (required), {@code prompt},
      * {@code aspect_ratio}, {@code resolution}, {@code size}, {@code duration},
      * {@code generate_audio}, {@code seed}, {@code callback_url},
-     * {@code creativity}, {@code upscale_factor}, {@code frame_images},
-     * {@code input_references} (all omitted when unset) and the
+     * {@code previous_job_id}, {@code creativity}, {@code upscale_factor},
+     * {@code frame_images},
+     * {@code input_references} (all omitted when unset), {@code user} and
+     * {@code session_id} (omitted when unset) and the
      * {@code provider.options} object (omitted unless a passthrough option is
      * set).
      *
@@ -145,6 +174,9 @@ public final class OpenRouterVideoGenerationRequest
         if (callbackUrl != null) {
             root.put("callback_url", callbackUrl);
         }
+        if (previousJobId != null) {
+            root.put("previous_job_id", previousJobId);
+        }
         if (creativity != null) {
             root.put("creativity", creativity);
         }
@@ -167,6 +199,9 @@ public final class OpenRouterVideoGenerationRequest
         }
         if (user != null) {
             root.put("user", user);
+        }
+        if (sessionId != null) {
+            root.put("session_id", sessionId);
         }
         if (trace != null) {
             root.put("trace", trace.toJson());
@@ -199,11 +234,13 @@ public final class OpenRouterVideoGenerationRequest
         private Boolean generateAudio;
         private Long seed;
         private String callbackUrl;
+        private String previousJobId;
         private Integer creativity;
         private Double upscaleFactor;
         private List<JSONObject> frameImages;
         private List<JSONObject> inputReferences;
         private String user;
+        private String sessionId;
         private OpenRouterTraceConfig trace;
         private JSONObject providerOptions;
 
@@ -341,6 +378,21 @@ public final class OpenRouterVideoGenerationRequest
                 throw new IllegalArgumentException("callback_url must be HTTPS, got: " + callbackUrl);
             }
             this.callbackUrl = callbackUrl;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code previous_job_id} - chains this new job
+         * to a previously finished video job (the continuation variant
+         * alongside the {@code frame_images} variants: extend or remix an
+         * earlier generation by referencing its job id). The referenced job
+         * must belong to the same workspace.
+         *
+         * @param previousJobId the id of the finished job to continue
+         * @return this builder
+         */
+        public Builder previousJobId(String previousJobId) {
+            this.previousJobId = previousJobId;
             return this;
         }
 
@@ -489,6 +541,21 @@ public final class OpenRouterVideoGenerationRequest
          */
         public Builder user(String user) {
             this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code session_id} - a unique identifier for
+         * grouping related requests (a conversation or agent workflow). Used
+         * for observability grouping in Broadcast and private logging; never
+         * sent to the provider. Maximum 256 characters (API-side limit, not
+         * validated here). Omitted when unset.
+         *
+         * @param sessionId the session grouping identifier
+         * @return this builder
+         */
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
             return this;
         }
 

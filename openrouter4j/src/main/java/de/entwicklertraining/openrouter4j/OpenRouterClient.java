@@ -20,6 +20,7 @@ import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFileList
 import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFilePromoteRequest;
 import de.entwicklertraining.openrouter4j.containers.OpenRouterContainers;
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
+import de.entwicklertraining.openrouter4j.decisions.OpenRouterDecisionsRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsModelsRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsRequest;
 import de.entwicklertraining.openrouter4j.files.OpenRouterFileContentRequest;
@@ -665,6 +666,60 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterJwksRequest.Builder oauthJwks() {
         return new OpenRouterJwksRequest.Builder(this);
+    }
+
+    /**
+     * Submits a Decisions request to the Decisions router (alpha):
+     * POST /api/alpha/decisions - evaluate content against typed questions
+     * (boolean {@code noul}, multi-class {@code choice}, ordered
+     * {@code score}).
+     *
+     * <p>Trap: the endpoint lives in OpenRouter's alpha namespace, outside
+     * the {@code /api/v1} base of every other endpoint. This builder routes
+     * through an internal client whose base URL is the API host's
+     * {@code /api/alpha} namespace (derived from this client's base URL); the
+     * alpha surface may change or disappear without a major version of the
+     * API.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterDecisionsRequest.Builder decisions() {
+        return new OpenRouterDecisionsRequest.Builder(alphaClient());
+    }
+
+    private volatile OpenRouterClient alphaClient;
+
+    /**
+     * The internal client for the {@code /api/alpha} namespace, created
+     * lazily on first use with the same settings, HTTP configuration and app
+     * attribution as this client.
+     *
+     * @return the alpha-namespace client
+     */
+    OpenRouterClient alphaClient() {
+        OpenRouterClient result = alphaClient;
+        if (result == null) {
+            synchronized (this) {
+                result = alphaClient;
+                if (result == null) {
+                    result = new OpenRouterClient(settings, httpConfig, alphaBaseUrl());
+                    result.appAttribution(this.appAttribution);
+                    alphaClient = result;
+                }
+            }
+        }
+        return result;
+    }
+
+    String alphaBaseUrl() {
+        String base = getBaseUrl();
+        if (base.endsWith("/api/alpha")) {
+            return base;
+        }
+        if (base.endsWith("/api/v1")) {
+            return base.substring(0, base.length() - "/api/v1".length()) + "/api/alpha";
+        }
+        return base + "/api/alpha";
     }
 
     /**

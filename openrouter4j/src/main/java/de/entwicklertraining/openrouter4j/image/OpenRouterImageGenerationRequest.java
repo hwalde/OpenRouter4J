@@ -43,6 +43,7 @@ public final class OpenRouterImageGenerationRequest
     private final Integer outputCompression;
     private final Long seed;
     private final String user;
+    private final String sessionId;
     private final OpenRouterTraceConfig trace;
     private final boolean stream;
     private final List<JSONObject> inputReferences;
@@ -67,6 +68,7 @@ public final class OpenRouterImageGenerationRequest
         this.outputCompression = builder.outputCompression;
         this.seed = builder.seed;
         this.user = builder.user;
+        this.sessionId = builder.sessionId;
         this.trace = builder.trace;
         this.stream = builder.streamRequested();
         this.inputReferences = builder.inputReferences == null
@@ -97,6 +99,18 @@ public final class OpenRouterImageGenerationRequest
     }
 
     /**
+     * The {@code session_id} grouping key, or {@code null} when unset (the
+     * key is not sent). Groups related requests (a conversation or agent
+     * workflow) for observability grouping in Broadcast and private logging;
+     * never sent to the provider.
+     *
+     * @return the session identifier, or {@code null}
+     */
+    public String sessionId() {
+        return sessionId;
+    }
+
+    /**
      * The {@code trace} observability configuration, or {@code null} when
      * unset (the key is not sent). Forwarded to configured broadcast
      * destinations (Langfuse, Datadog, Weave, ...).
@@ -121,7 +135,8 @@ public final class OpenRouterImageGenerationRequest
      * JSON path: the request body - {@code model} and {@code prompt}
      * (required), {@code aspect_ratio}, {@code background}, {@code quality},
      * {@code resolution}, {@code size}, {@code n}, {@code output_format},
-     * {@code output_compression}, {@code seed}, {@code user}, {@code stream},
+     * {@code output_compression}, {@code seed}, {@code user},
+     * {@code session_id}, {@code stream},
      * {@code input_references} (all omitted when unset) and the
      * {@code provider} object (omitted unless any provider option is set).
      *
@@ -161,6 +176,9 @@ public final class OpenRouterImageGenerationRequest
         }
         if (user != null) {
             root.put("user", user);
+        }
+        if (sessionId != null) {
+            root.put("session_id", sessionId);
         }
         if (trace != null) {
             root.put("trace", trace.toJson());
@@ -242,6 +260,7 @@ public final class OpenRouterImageGenerationRequest
         private Integer outputCompression;
         private Long seed;
         private String user;
+        private String sessionId;
         private OpenRouterTraceConfig trace;
         private boolean streamEnabled;
         private List<JSONObject> inputReferences;
@@ -426,6 +445,21 @@ public final class OpenRouterImageGenerationRequest
          */
         public Builder user(String user) {
             this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code session_id} - a unique identifier for
+         * grouping related requests (a conversation or agent workflow). Used
+         * for observability grouping in Broadcast and private logging; never
+         * sent to the provider. Maximum 256 characters (API-side limit, not
+         * validated here). Omitted when unset.
+         *
+         * @param sessionId the session grouping identifier
+         * @return this builder
+         */
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
             return this;
         }
 

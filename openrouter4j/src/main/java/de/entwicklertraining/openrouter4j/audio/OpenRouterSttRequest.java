@@ -54,6 +54,7 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
     private final Double temperature;
     private final List<String> timestampGranularities;
     private final String user;
+    private final String sessionId;
     private final OpenRouterTraceConfig trace;
     private final JSONObject providerOptions;
 
@@ -74,6 +75,7 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         this.timestampGranularities = builder.timestampGranularities == null
                 ? null : List.copyOf(builder.timestampGranularities);
         this.user = builder.user;
+        this.sessionId = builder.sessionId;
         this.trace = builder.trace;
         this.providerOptions = builder.providerOptions == null
                 ? null : new JSONObject(builder.providerOptions.toString());
@@ -98,6 +100,20 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
      */
     public String user() {
         return user;
+    }
+
+    /**
+     * The {@code session_id} grouping key, or {@code null} when unset (the
+     * key is not sent). Groups related requests (a conversation or agent
+     * workflow) for observability grouping in Broadcast and private logging;
+     * never sent to the provider. In multipart mode it travels as a plain
+     * {@code session_id} form field (like {@code user}, it is a plain string,
+     * so no JSON encoding is needed).
+     *
+     * @return the session identifier, or {@code null}
+     */
+    public String sessionId() {
+        return sessionId;
     }
 
     /**
@@ -192,6 +208,9 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         if (user != null) {
             root.put("user", user);
         }
+        if (sessionId != null) {
+            root.put("session_id", sessionId);
+        }
         if (trace != null) {
             root.put("trace", trace.toJson());
         }
@@ -209,6 +228,7 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
                 + (timestampGranularities != null && !timestampGranularities.isEmpty()
                         ? ", timestamp_granularities=" + timestampGranularities : "")
                 + (user != null ? ", user=" + user : "")
+                + (sessionId != null ? ", session_id=" + sessionId : "")
                 + (trace != null ? ", trace=" + trace.toJson() : "")
                 + ", file=" + fileName;
     }
@@ -244,6 +264,9 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         }
         if (user != null) {
             addFormField(sb, boundary, "user", user);
+        }
+        if (sessionId != null) {
+            addFormField(sb, boundary, "session_id", sessionId);
         }
         if (trace != null) {
             // The multipart form carries trace as a JSON-encoded string that
@@ -297,6 +320,7 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         private Double temperature;
         private List<String> timestampGranularities;
         private String user;
+        private String sessionId;
         private OpenRouterTraceConfig trace;
         private JSONObject providerOptions;
 
@@ -475,6 +499,22 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         }
 
         /**
+         * Sets the JSON field {@code session_id} (multipart form field
+         * {@code session_id}) - a unique identifier for grouping related
+         * requests (a conversation or agent workflow). Used for observability
+         * grouping in Broadcast and private logging; never sent to the
+         * provider. Maximum 256 characters (API-side limit, not validated
+         * here). Omitted when unset.
+         *
+         * @param sessionId the session grouping identifier
+         * @return this builder
+         */
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
+            return this;
+        }
+
+        /**
          * Sets the JSON field {@code trace} - observability metadata that
          * OpenRouter forwards to configured broadcast destinations (Langfuse,
          * Datadog, Weave, ...). Build it with
@@ -526,6 +566,7 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             rejectLineBreaks("responseFormat", responseFormat);
             rejectLineBreaks("fileName", fileName);
             rejectLineBreaks("user", user);
+            rejectLineBreaks("sessionId", sessionId);
             if (fileBytes == null && (audioData == null || audioFormat == null)) {
                 throw new IllegalStateException(
                         "audio is required for a transcription request - use audioByBase64, audioByPath or audioByFile");

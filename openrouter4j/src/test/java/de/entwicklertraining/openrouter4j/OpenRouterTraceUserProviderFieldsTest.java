@@ -16,10 +16,10 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests the {@code trace} / {@code user} observability fields (and the STT /
- * speech {@code provider.options} passthrough) on the non-chat inference
- * endpoints: every field is emitted only when explicitly set and absent
- * otherwise, on every one of the six requests.
+ * Tests the {@code trace} / {@code user} / {@code session_id} observability
+ * fields (and the STT / speech {@code provider.options} passthrough) on the
+ * non-chat inference endpoints: every field is emitted only when explicitly
+ * set and absent otherwise, on every one of the six requests.
  */
 class OpenRouterTraceUserProviderFieldsTest {
 
@@ -202,5 +202,125 @@ class OpenRouterTraceUserProviderFieldsTest {
                 .getBody());
         assertThat(unset.has("trace")).isFalse();
         assertThat(unset.has("user")).isFalse();
+    }
+
+    @Test
+    void embeddingsSessionIdIsEmittedWhenSetAndAbsentWhenUnset() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .sessionId("session-embed-1")
+                .build()
+                .getBody());
+        assertThat(body.getString("session_id")).isEqualTo("session-embed-1");
+
+        JSONObject unset = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .build()
+                .getBody());
+        assertThat(unset.has("session_id")).isFalse();
+    }
+
+    @Test
+    void rerankSessionIdIsEmittedWhenSetAndAbsentWhenUnset() {
+        JSONObject body = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .sessionId("session-rerank-1")
+                .build()
+                .getBody());
+        assertThat(body.getString("session_id")).isEqualTo("session-rerank-1");
+
+        JSONObject unset = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .build()
+                .getBody());
+        assertThat(unset.has("session_id")).isFalse();
+    }
+
+    @Test
+    void sttSessionIdTravelsInBothWireForms() throws Exception {
+        JSONObject body = new JSONObject(new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .sessionId("session-stt-1")
+                .build()
+                .getBody());
+        assertThat(body.getString("session_id")).isEqualTo("session-stt-1");
+
+        JSONObject unset = new JSONObject(new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .build()
+                .getBody());
+        assertThat(unset.has("session_id")).isFalse();
+
+        Path wav = Files.createTempFile("session-test", ".wav");
+        Files.write(wav, "fake-wav".getBytes(StandardCharsets.UTF_8));
+        OpenRouterSttRequest multipart = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByFile(wav)
+                .sessionId("session-stt-1")
+                .build();
+        assertThat(new String(multipart.getBodyBytes(), StandardCharsets.UTF_8))
+                .contains("name=\"session_id\"").contains("session-stt-1");
+    }
+
+    @Test
+    void speechSessionIdIsEmittedWhenSetAndAbsentWhenUnset() {
+        JSONObject body = new JSONObject(new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello")
+                .sessionId("session-tts-1")
+                .build()
+                .getBody());
+        assertThat(body.getString("session_id")).isEqualTo("session-tts-1");
+
+        JSONObject unset = new JSONObject(new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello")
+                .build()
+                .getBody());
+        assertThat(unset.has("session_id")).isFalse();
+    }
+
+    @Test
+    void imageGenerationSessionIdIsEmittedWhenSetAndAbsentWhenUnset() {
+        JSONObject body = new JSONObject(new OpenRouterImageGenerationRequest.Builder(client())
+                .model("google/imagen-4")
+                .prompt("a cat")
+                .sessionId("session-image-1")
+                .build()
+                .getBody());
+        assertThat(body.getString("session_id")).isEqualTo("session-image-1");
+
+        JSONObject unset = new JSONObject(new OpenRouterImageGenerationRequest.Builder(client())
+                .model("google/imagen-4")
+                .prompt("a cat")
+                .build()
+                .getBody());
+        assertThat(unset.has("session_id")).isFalse();
+    }
+
+    @Test
+    void videoGenerationSessionIdIsEmittedWhenSetAndAbsentWhenUnset() {
+        JSONObject body = new JSONObject(new OpenRouterVideoGenerationRequest.Builder(client())
+                .model("google/veo-3.1")
+                .prompt("a wave")
+                .sessionId("session-video-1")
+                .build()
+                .getBody());
+        assertThat(body.getString("session_id")).isEqualTo("session-video-1");
+
+        JSONObject unset = new JSONObject(new OpenRouterVideoGenerationRequest.Builder(client())
+                .model("google/veo-3.1")
+                .prompt("a wave")
+                .build()
+                .getBody());
+        assertThat(unset.has("session_id")).isFalse();
     }
 }

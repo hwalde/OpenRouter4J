@@ -38,6 +38,7 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
     private final String encodingFormat;
     private final String inputType;
     private final String user;
+    private final String sessionId;
     private final OpenRouterTraceConfig trace;
     private final List<String> providerOrder;
     private final List<String> providerOnly;
@@ -55,6 +56,7 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         this.encodingFormat = builder.encodingFormat;
         this.inputType = builder.inputType;
         this.user = builder.user;
+        this.sessionId = builder.sessionId;
         this.trace = builder.trace;
         this.providerOrder = builder.providerOrder == null ? null : List.copyOf(builder.providerOrder);
         this.providerOnly = builder.providerOnly == null ? null : List.copyOf(builder.providerOnly);
@@ -85,6 +87,18 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
     }
 
     /**
+     * The {@code session_id} grouping key, or {@code null} when unset (the
+     * key is not sent). Groups related requests (a conversation or agent
+     * workflow) for observability grouping in Broadcast and private logging;
+     * never sent to the provider.
+     *
+     * @return the session identifier, or {@code null}
+     */
+    public String sessionId() {
+        return sessionId;
+    }
+
+    /**
      * The {@code trace} observability configuration, or {@code null} when
      * unset (the key is not sent). Forwarded to configured broadcast
      * destinations (Langfuse, Datadog, Weave, ...).
@@ -108,7 +122,7 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
     /**
      * JSON path: the request body - {@code model} (required), {@code input}
      * (required; string or string array), {@code dimensions}, {@code encoding_format},
-     * {@code input_type}, {@code user} (all omitted when unset) and the
+     * {@code input_type}, {@code user}, {@code session_id} (all omitted when unset) and the
      * {@code provider} object (omitted unless any provider routing option is set).
      *
      * @return the JSON body of this request
@@ -137,6 +151,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         }
         if (user != null) {
             root.put("user", user);
+        }
+        if (sessionId != null) {
+            root.put("session_id", sessionId);
         }
         if (trace != null) {
             root.put("trace", trace.toJson());
@@ -200,6 +217,7 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         private String encodingFormat;
         private String inputType;
         private String user;
+        private String sessionId;
         private OpenRouterTraceConfig trace;
         private List<String> providerOrder;
         private List<String> providerOnly;
@@ -308,6 +326,21 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
          */
         public Builder user(String user) {
             this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code session_id} - a unique identifier for
+         * grouping related requests (a conversation or agent workflow). Used
+         * for observability grouping in Broadcast and private logging; never
+         * sent to the provider. Maximum 256 characters (API-side limit, not
+         * validated here). Omitted when unset.
+         *
+         * @param sessionId the session grouping identifier
+         * @return this builder
+         */
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
             return this;
         }
 

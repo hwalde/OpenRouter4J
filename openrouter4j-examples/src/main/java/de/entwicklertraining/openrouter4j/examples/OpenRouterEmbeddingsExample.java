@@ -36,6 +36,8 @@ public class OpenRouterEmbeddingsExample {
                 .inputType("search_document")
                 // Broadcast trace metadata (the embeddings request also has user(...)).
                 .trace(OpenRouterTraceConfig.builder().traceId("embedding-jobs").build())
+                // Observability grouping key - never sent to the provider.
+                .sessionId("embedding-session-42")
                 .execute();
 
         System.out.println("Model:            " + response.model());

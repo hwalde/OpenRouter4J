@@ -82,6 +82,15 @@ public class OpenRouterResponsesExample {
                 })
                 .execute();
 
+        // A stored prompt template (prompt.id + variables) instead of a raw
+        // input prompt - the Responses counterpart of the chat preset field.
+        OpenRouterResponsesRequest templated = client.responses()
+                .model("openai/gpt-4o")
+                .prompt("preset-my-template")
+                .promptVariable("tone", "friendly")
+                .build();
+        System.out.println("\nTemplated body: " + templated.getBody());
+
         // The typed request is also reusable for preset management:
         // client.presets().upsertFromResponses("my-preset").body(theRequest).execute()
         // stores this body as a new version of the preset (management key).

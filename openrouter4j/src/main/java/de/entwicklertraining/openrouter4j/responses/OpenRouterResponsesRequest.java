@@ -6,6 +6,7 @@ import de.entwicklertraining.api.base.streaming.StreamingFormat;
 import de.entwicklertraining.api.base.streaming.StreamingInfo;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
@@ -91,6 +92,13 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
     private final Boolean requireParameters;
     private final Boolean allowFallbacks;
     private final Boolean stream;
+    private final String promptId;
+    private final JSONObject promptVariables;
+    private final OpenRouterImageConfig imageConfig;
+    private final Boolean debugEchoUpstreamBody;
+    private final JSONObject textFormat;
+    private final String textVerbosity;
+    private final JSONObject textVerbatim;
 
     private OpenRouterResponsesRequest(Builder builder) {
         super(builder);
@@ -135,6 +143,13 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         this.requireParameters = builder.requireParameters;
         this.allowFallbacks = builder.allowFallbacks;
         this.stream = builder.streamRequested();
+        this.promptId = builder.promptId;
+        this.promptVariables = builder.promptVariables == null ? null : new JSONObject(builder.promptVariables.toString());
+        this.imageConfig = builder.imageConfig;
+        this.debugEchoUpstreamBody = builder.debugEchoUpstreamBody;
+        this.textFormat = builder.textFormat == null ? null : new JSONObject(builder.textFormat.toString());
+        this.textVerbosity = builder.textVerbosity;
+        this.textVerbatim = builder.textVerbatim == null ? null : new JSONObject(builder.textVerbatim.toString());
     }
 
     /** @return the plain-string input, or {@code null} when the input was built with items */
@@ -162,6 +177,78 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         return stream;
     }
 
+    /**
+     * The {@code prompt.id} of the stored prompt template to run this request
+     * through, or {@code null} when unset (the key is not sent).
+     *
+     * @return the stored prompt template id, or {@code null}
+     */
+    public String promptId() {
+        return promptId;
+    }
+
+    /**
+     * The {@code prompt.variables} map for the stored prompt template, or
+     * {@code null} when none were set.
+     *
+     * @return the prompt template variables, or {@code null}
+     */
+    public JSONObject promptVariables() {
+        return promptVariables;
+    }
+
+    /**
+     * The provider-specific image generation configuration
+     * ({@code image_config}), or {@code null} when unset (the key is not
+     * sent). The same type the chat-completions request uses.
+     *
+     * @return the image configuration, or {@code null}
+     */
+    public OpenRouterImageConfig imageConfig() {
+        return imageConfig;
+    }
+
+    /**
+     * The {@code debug.echo_upstream_body} flag, or {@code null} when unset
+     * (the key is not sent).
+     *
+     * @return the debug echo flag, or {@code null}
+     */
+    public Boolean debugEchoUpstreamBody() {
+        return debugEchoUpstreamBody;
+    }
+
+    /**
+     * The {@code text.format} configuration object, or {@code null} when
+     * unset (the key is not sent).
+     *
+     * @return the text format configuration, or {@code null}
+     */
+    public JSONObject textFormat() {
+        return textFormat;
+    }
+
+    /**
+     * The {@code text.verbosity} enum value, or {@code null} when unset (the
+     * key is not sent).
+     *
+     * @return the verbosity value, or {@code null}
+     */
+    public String textVerbosity() {
+        return textVerbosity;
+    }
+
+    /**
+     * The verbatim {@code text} object set through
+     * {@link Builder#text(JSONObject)}, or {@code null}. When set it replaces
+     * the composed {@code format} / {@code verbosity} form.
+     *
+     * @return the verbatim text object, or {@code null}
+     */
+    public JSONObject textVerbatim() {
+        return textVerbatim;
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/responses";
@@ -174,7 +261,8 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
 
     /**
      * JSON path: the request body - {@code input} (string or item array),
-     * {@code model} / {@code models}, {@code instructions},
+     * {@code model} / {@code models}, {@code prompt}, {@code image_config},
+     * {@code debug}, {@code text}, {@code instructions},
      * {@code max_output_tokens}, {@code max_tool_calls}, {@code temperature},
      * {@code top_p}, {@code top_k}, {@code frequency_penalty},
      * {@code presence_penalty}, {@code tools}, {@code tool_choice},
@@ -206,6 +294,32 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         }
         if (models != null && !models.isEmpty()) {
             root.put("models", new JSONArray(models));
+        }
+        if (promptId != null) {
+            JSONObject prompt = new JSONObject();
+            prompt.put("id", promptId);
+            if (promptVariables != null && promptVariables.length() > 0) {
+                prompt.put("variables", new JSONObject(promptVariables.toString()));
+            }
+            root.put("prompt", prompt);
+        }
+        if (imageConfig != null) {
+            root.put("image_config", imageConfig.toJson());
+        }
+        if (debugEchoUpstreamBody != null) {
+            root.put("debug", new JSONObject().put("echo_upstream_body", debugEchoUpstreamBody));
+        }
+        if (textVerbatim != null) {
+            root.put("text", new JSONObject(textVerbatim.toString()));
+        } else if (textFormat != null || textVerbosity != null) {
+            JSONObject text = new JSONObject();
+            if (textFormat != null) {
+                text.put("format", new JSONObject(textFormat.toString()));
+            }
+            if (textVerbosity != null) {
+                text.put("verbosity", textVerbosity);
+            }
+            root.put("text", text);
         }
         if (instructions != null) {
             root.put("instructions", instructions);
@@ -396,6 +510,13 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         private Boolean allowFallbacks;
         private boolean streamEnabled;
         private StreamingInfo streamingInfo;
+        private String promptId;
+        private JSONObject promptVariables;
+        private OpenRouterImageConfig imageConfig;
+        private Boolean debugEchoUpstreamBody;
+        private JSONObject textFormat;
+        private String textVerbosity;
+        private JSONObject textVerbatim;
 
         /**
          * Creates a builder bound to the given client.
@@ -508,6 +629,123 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
                 }
             }
             this.models = list;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code prompt.id} - the id of a stored prompt
+         * template (the Responses counterpart of the chat-completions
+         * {@code preset} field). The template runs the request; template
+         * variables ride along via {@link #promptVariable(String, Object)}.
+         * The {@code prompt} object is emitted only when an id is set.
+         *
+         * @param id the stored prompt template id
+         * @return this builder
+         */
+        public Builder prompt(String id) {
+            this.promptId = id;
+            return this;
+        }
+
+        /**
+         * Adds a JSON field {@code prompt.variables[key]} entry for the
+         * stored prompt template set via {@link #prompt(String)}. The value
+         * may be any JSON-representable object (string, number, boolean,
+         * {@code JSONObject}); {@code null} values are rejected.
+         *
+         * @param key the variable name
+         * @param value the variable value
+         * @return this builder
+         */
+        public Builder promptVariable(String key, Object value) {
+            if (key == null || key.isEmpty()) {
+                throw new IllegalArgumentException("prompt variable key must not be null or empty");
+            }
+            if (value == null) {
+                throw new IllegalArgumentException("prompt variable value must not be null");
+            }
+            if (promptVariables == null) {
+                promptVariables = new JSONObject();
+            }
+            promptVariables.put(key, value);
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code image_config} - the provider-specific
+         * image generation options (image count, aspect ratio, resolution,
+         * quality and similar provider-specific keys). The Responses API can
+         * generate images; without this object the model-dependent defaults
+         * apply. Build it with {@link OpenRouterImageConfig#builder()} - the
+         * same type the chat-completions request uses. Emitted only when set.
+         *
+         * @param config the image configuration
+         * @return this builder
+         */
+        public Builder imageConfig(OpenRouterImageConfig config) {
+            this.imageConfig = config;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code debug.echo_upstream_body} - when
+         * {@code true}, OpenRouter echoes the upstream provider request body
+         * back in the debug response metadata. Mainly useful for diagnosing
+         * provider-facing issues. Emitted only when set.
+         *
+         * @param echoUpstreamBody whether to echo the upstream body
+         * @return this builder
+         */
+        public Builder debug(Boolean echoUpstreamBody) {
+            this.debugEchoUpstreamBody = echoUpstreamBody;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code text.format} - the text output format
+         * configuration (the {@code Formats} form, e.g.
+         * {@code new JSONObject().put("type", "text")}). One of the two typed
+         * {@code text} keys alongside {@link #textVerbosity(String)}; both
+         * are composed into the {@code text} object, each emitted only when
+         * set. Replaced wholesale by {@link #text(JSONObject)}.
+         *
+         * @param format the format configuration object
+         * @return this builder
+         */
+        public Builder textFormat(JSONObject format) {
+            this.textFormat = format;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code text.verbosity} - how verbose the text
+         * output should be: {@code low}, {@code medium}, {@code high},
+         * {@code xhigh} or {@code max} (validated loudly). One of the two
+         * typed {@code text} keys alongside {@link #textFormat(JSONObject)}.
+         *
+         * @param verbosity the verbosity value
+         * @return this builder
+         */
+        public Builder textVerbosity(String verbosity) {
+            if (verbosity != null && !List.of("low", "medium", "high", "xhigh", "max").contains(verbosity)) {
+                throw new IllegalArgumentException(
+                        "text verbosity must be one of low, medium, high, xhigh, max, got: " + verbosity);
+            }
+            this.textVerbosity = verbosity;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code text} verbatim - the escape hatch for
+         * future {@code Formats} variants the typed
+         * {@link #textFormat(JSONObject)} / {@link #textVerbosity(String)}
+         * methods do not cover yet. Replaces the composed form entirely.
+         *
+         * @param text the verbatim text configuration object
+         * @return this builder
+         */
+        public Builder text(JSONObject text) {
+            this.textVerbatim = text;
             return this;
         }
 
@@ -1073,6 +1311,10 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
             }
             if (inputText == null && (inputItems == null || inputItems.isEmpty())) {
                 throw new IllegalStateException("input is required for a Responses request");
+            }
+            if (promptVariables != null && promptVariables.length() > 0 && promptId == null) {
+                throw new IllegalStateException(
+                        "prompt variables require a prompt id - call prompt(String) first");
             }
             return new OpenRouterResponsesRequest(this);
         }

@@ -35,6 +35,7 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
     private final Double speed;
     private final List<JSONObject> inputReferences;
     private final String user;
+    private final String sessionId;
     private final OpenRouterTraceConfig trace;
     private final JSONObject providerOptions;
 
@@ -49,6 +50,7 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         this.inputReferences = builder.inputReferences == null
                 ? null : List.copyOf(builder.inputReferences);
         this.user = builder.user;
+        this.sessionId = builder.sessionId;
         this.trace = builder.trace;
         this.providerOptions = builder.providerOptions == null
                 ? null : new JSONObject(builder.providerOptions.toString());
@@ -73,6 +75,18 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
      */
     public String user() {
         return user;
+    }
+
+    /**
+     * The {@code session_id} grouping key, or {@code null} when unset (the
+     * key is not sent). Groups related requests (a conversation or agent
+     * workflow) for observability grouping in Broadcast and private logging;
+     * never sent to the provider.
+     *
+     * @return the session identifier, or {@code null}
+     */
+    public String sessionId() {
+        return sessionId;
     }
 
     /**
@@ -120,7 +134,8 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
     /**
      * JSON path: the request body - {@code model} and {@code input}
      * (required), {@code voice}, {@code response_format}, {@code speed},
-     * {@code input_references} (all omitted when unset).
+     * {@code input_references} (all omitted when unset), {@code user} and
+     * {@code session_id} (omitted when unset).
      *
      * @return the JSON body of this request
      */
@@ -147,6 +162,9 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         }
         if (user != null) {
             root.put("user", user);
+        }
+        if (sessionId != null) {
+            root.put("session_id", sessionId);
         }
         if (trace != null) {
             root.put("trace", trace.toJson());
@@ -198,6 +216,7 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         private Double speed;
         private List<JSONObject> inputReferences;
         private String user;
+        private String sessionId;
         private OpenRouterTraceConfig trace;
         private JSONObject providerOptions;
 
@@ -287,6 +306,21 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
          */
         public Builder user(String user) {
             this.user = user;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code session_id} - a unique identifier for
+         * grouping related requests (a conversation or agent workflow). Used
+         * for observability grouping in Broadcast and private logging; never
+         * sent to the provider. Maximum 256 characters (API-side limit, not
+         * validated here). Omitted when unset.
+         *
+         * @param sessionId the session grouping identifier
+         * @return this builder
+         */
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
             return this;
         }
 

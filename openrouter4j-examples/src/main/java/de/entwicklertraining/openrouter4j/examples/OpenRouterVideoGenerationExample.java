@@ -50,6 +50,15 @@ public class OpenRouterVideoGenerationExample {
                 + ", error: " + finished.error());
         System.out.println("urls: " + finished.unsignedUrls());
 
+        // 3b. Continuation: chain a new job to the finished one via
+        //     previous_job_id (extend or remix an earlier generation).
+        OpenRouterVideoGenerationResponse<OpenRouterVideoGenerationRequest> remixed = client.videos().generate()
+                .model("google/veo-3.1")
+                .prompt("The same mountain landscape as dawn breaks, storm clouds rolling in")
+                .previousJobId(finished.id())
+                .execute();
+        System.out.println("continuation job " + remixed.id() + " status: " + remixed.status());
+
         // 4. Download the raw video bytes (typically mp4).
         if (finished.isCompleted() && !finished.unsignedUrls().isEmpty()) {
             byte[] video = client.videos().jobContent(finished.id()).execute().bytes();
