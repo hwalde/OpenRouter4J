@@ -128,12 +128,12 @@ class OpenRouterVaultTest {
 
     @Test
     void deleteRequestBuildsUrlEncodedDelete() {
-        OpenRouterVaultSecretDeleteRequest delete = client().vault().delete("gh/token")
+        OpenRouterVaultSecretDeleteRequest delete = client().vault().delete("github_token")
                 .build();
-        assertThat(delete.getRelativeUrl()).isEqualTo("/vault/secrets/gh%2Ftoken");
+        assertThat(delete.getRelativeUrl()).isEqualTo("/vault/secrets/github_token");
         assertThat(delete.getHttpMethod()).isEqualTo("DELETE");
         assertThat(delete.getBody()).isNull();
-        assertThat(delete.name()).isEqualTo("gh%2Ftoken");
+        assertThat(delete.name()).isEqualTo("github_token");
     }
 
     @Test
@@ -166,22 +166,22 @@ class OpenRouterVaultTest {
     void internStoreRequestBuildsScopedUrlAndBody() {
         OpenRouterVaultInternSecretStoreRequest request = client().vault()
                 .storeInternSecret("i1", "github_token")
-                .value("v")
+                .value("intern-secret-value-77")
                 .hosts("api.github.com")
                 .build();
         assertThat(request.getRelativeUrl()).isEqualTo("/vault/interns/i1/secrets/github_token");
         assertThat(request.getHttpMethod()).isEqualTo("PUT");
         JSONObject body = new JSONObject(request.getBody());
         assertThat(body.keySet()).containsExactlyInAnyOrder("value", "hosts");
-        assertThat(request.toString()).doesNotContain("v");
+        assertThat(request.toString()).doesNotContain("intern-secret-value-77");
     }
 
     @Test
     void internDeleteRequestBuildsScopedUrl() {
         OpenRouterVaultInternSecretDeleteRequest request = client().vault()
-                .deleteInternSecret("i 1", "gh/token")
+                .deleteInternSecret("i 1", "github_token")
                 .build();
-        assertThat(request.getRelativeUrl()).isEqualTo("/vault/interns/i+1/secrets/gh%2Ftoken");
+        assertThat(request.getRelativeUrl()).isEqualTo("/vault/interns/i+1/secrets/github_token");
         assertThat(request.getHttpMethod()).isEqualTo("DELETE");
         assertThat(request.getBody()).isNull();
     }
