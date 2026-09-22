@@ -93,6 +93,14 @@ import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupMappingsListRe
 import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupsListRequest;
 import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobCreateRequest;
 import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobGetRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternChatRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternCreateRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternDeleteRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternGetRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternProvisionRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternSuspendRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternUpdateRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternsListRequest;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretDeleteRequest;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretStoreRequest;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretsListRequest;
@@ -541,6 +549,20 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterScim scim() {
         return new OpenRouterScim(this);
+    }
+
+    /**
+     * Manages and drives the interns of the account - the OpenRouter "Ori"
+     * programme:
+     * GET/POST /interns, GET/PATCH/DELETE /interns/{internId},
+     * POST /interns/{internId}/provision, POST /interns/{internId}/suspend
+     * and the streaming chat POST /interns/{internId}/chat/completions.
+     * Every path answers 404 for keys outside the interns programme.
+     *
+     * @return the starting point for the intern requests
+     */
+    public OpenRouterInterns interns() {
+        return new OpenRouterInterns(this);
     }
 
     /**
@@ -1739,6 +1761,123 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterScimSyncJobGetRequest.Builder syncJob(String id) {
             return new OpenRouterScimSyncJobGetRequest.Builder(client, id);
+        }
+    }
+
+    /**
+     * Facade for the intern endpoints (the OpenRouter "Ori" programme).
+     * Every path answers 404 for keys outside the interns programme; there
+     * is no default workspace fallback and regional hostnames are refused.
+     */
+    public static class OpenRouterInterns {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterInterns(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the interns visible to the API key, newest first:
+         * GET /interns with the typed filters ({@code limit}, lifecycle
+         * {@code status}, {@code starting_after} cursor,
+         * {@code workspace_id}) plus the {@code queryParam} escape hatch.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterInternsListRequest.Builder list() {
+            return new OpenRouterInternsListRequest.Builder(client);
+        }
+
+        /**
+         * Creates an intern:
+         * POST /interns (idempotent on retry; the body is capped at 1 MiB).
+         * Set {@code provision(true)} to boot immediately, otherwise the
+         * intern stays queued until the provision endpoint is called.
+         *
+         * @param name the intern name (2-17 chars, lowercase pattern,
+         *             validated loudly)
+         * @return the starting point for the request
+         */
+        public OpenRouterInternCreateRequest.Builder create(String name) {
+            return new OpenRouterInternCreateRequest.Builder(client, name);
+        }
+
+        /**
+         * Reads one intern's public lifecycle state and settings:
+         * GET /interns/{internId}.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterInternGetRequest.Builder get(String internId) {
+            return new OpenRouterInternGetRequest.Builder(client, internId);
+        }
+
+        /**
+         * Updates an intern:
+         * PATCH /interns/{internId} - omitted fields stay unchanged.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterInternUpdateRequest.Builder update(String internId) {
+            return new OpenRouterInternUpdateRequest.Builder(client, internId);
+        }
+
+        /**
+         * Deletes an intern - the safe teardown of intern, runtime and
+         * vault: DELETE /interns/{internId}. Trap: without
+         * {@code acknowledgeWorkspaceLoss(true)} the teardown is refused
+         * while a workspace archive is missing.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterInternDeleteRequest.Builder delete(String internId) {
+            return new OpenRouterInternDeleteRequest.Builder(client, internId);
+        }
+
+        /**
+         * Provisions an intern - the first boot, or the resume after a
+         * suspension: POST /interns/{internId}/provision.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterInternProvisionRequest.Builder provision(String internId) {
+            return new OpenRouterInternProvisionRequest.Builder(client, internId);
+        }
+
+        /**
+         * Suspends an intern - stops the runtime, keeps the disk and the
+         * configuration: POST /interns/{internId}/suspend.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterInternSuspendRequest.Builder suspend(String internId) {
+            return new OpenRouterInternSuspendRequest.Builder(client, internId);
+        }
+
+        /**
+         * Streams one turn with an intern in the OpenAI chat-completions SSE
+         * format: POST /interns/{internId}/chat/completions. The endpoint
+         * only streams - a request without an installed streaming handler is
+         * refused loudly. Only the last message is read; a tool reply
+         * requires the {@code session_id} of the interaction's stream. Use
+         * {@code OpenRouterInternChatAccumulator} as the handler for typed
+         * access to {@code finish_reason}, the
+         * {@code openrouter.provide_input} tool call and the
+         * {@code session_id}.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterInternChatRequest.Builder chat(String internId) {
+            return new OpenRouterInternChatRequest.Builder(client, internId);
         }
     }
 
