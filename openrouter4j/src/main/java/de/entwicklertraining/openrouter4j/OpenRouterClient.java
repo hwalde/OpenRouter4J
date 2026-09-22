@@ -93,6 +93,13 @@ import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupMappingsListRe
 import de.entwicklertraining.openrouter4j.scim.OpenRouterScimGroupsListRequest;
 import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobCreateRequest;
 import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobGetRequest;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretDeleteRequest;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretStoreRequest;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretsListRequest;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecretCopyRequest;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecretDeleteRequest;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecretStoreRequest;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecretsListRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoContentRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoGenerationRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoJobRequest;
@@ -534,6 +541,21 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterScim scim() {
         return new OpenRouterScim(this);
+    }
+
+    /**
+     * Manages the vault secrets of the account - host-bound secrets for the
+     * active workspace and for interns:
+     * GET /vault/secrets, PUT/DELETE /vault/secrets/{name}, the intern
+     * routes under /vault/interns/{internId}/secrets and the copy route
+     * POST /vault/interns/{internId}/secrets/copy. Responses are metadata
+     * only - the plaintext value is never returned. Every vault route,
+     * including the list, answers 404 outside the Intern API programme.
+     *
+     * @return the starting point for the vault requests
+     */
+    public OpenRouterVault vault() {
+        return new OpenRouterVault(this);
     }
 
     /**
@@ -1717,6 +1739,111 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterScimSyncJobGetRequest.Builder syncJob(String id) {
             return new OpenRouterScimSyncJobGetRequest.Builder(client, id);
+        }
+    }
+
+    /**
+     * Facade for the vault endpoints - host-bound secrets for the active
+     * workspace and for interns. Responses are metadata only; the plaintext
+     * value is never returned. Scope is selected by the API key's active
+     * workspace (no workspace parameter, no fallback). Every vault route,
+     * including the list, answers 404 outside the Intern API programme.
+     */
+    public static class OpenRouterVault {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterVault(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the workspace secret metadata:
+         * GET /vault/secrets with {@code limit} / {@code offset}, sorted by
+         * name.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterVaultSecretsListRequest.Builder list() {
+            return new OpenRouterVaultSecretsListRequest.Builder(client);
+        }
+
+        /**
+         * Stores (creates or replaces) a workspace secret:
+         * PUT /vault/secrets/{name}. The value is a write-only secret - it
+         * is never returned by any vault response.
+         *
+         * @param name the secret name (validated loudly)
+         * @return the starting point for the request
+         */
+        public OpenRouterVaultSecretStoreRequest.Builder store(String name) {
+            return new OpenRouterVaultSecretStoreRequest.Builder(client, name);
+        }
+
+        /**
+         * Deletes a workspace secret (permanent):
+         * DELETE /vault/secrets/{name}. Unknown names answer 404.
+         *
+         * @param name the secret name (validated loudly)
+         * @return the starting point for the request
+         */
+        public OpenRouterVaultSecretDeleteRequest.Builder delete(String name) {
+            return new OpenRouterVaultSecretDeleteRequest.Builder(client, name);
+        }
+
+        /**
+         * Lists one intern's secret metadata:
+         * GET /vault/interns/{internId}/secrets with {@code limit} /
+         * {@code offset}, sorted by name.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterVaultInternSecretsListRequest.Builder internSecrets(String internId) {
+            return new OpenRouterVaultInternSecretsListRequest.Builder(client, internId);
+        }
+
+        /**
+         * Stores (creates or replaces) an intern secret:
+         * PUT /vault/interns/{internId}/secrets/{name}. The value is a
+         * write-only secret - it is never returned by any vault response.
+         *
+         * @param internId the id (UUID) of the intern
+         * @param name the secret name (validated loudly)
+         * @return the starting point for the request
+         */
+        public OpenRouterVaultInternSecretStoreRequest.Builder storeInternSecret(
+                String internId, String name) {
+            return new OpenRouterVaultInternSecretStoreRequest.Builder(client, internId, name);
+        }
+
+        /**
+         * Deletes an intern secret (permanent):
+         * DELETE /vault/interns/{internId}/secrets/{name}. Unknown names
+         * answer 404.
+         *
+         * @param internId the id (UUID) of the intern
+         * @param name the secret name (validated loudly)
+         * @return the starting point for the request
+         */
+        public OpenRouterVaultInternSecretDeleteRequest.Builder deleteInternSecret(
+                String internId, String name) {
+            return new OpenRouterVaultInternSecretDeleteRequest.Builder(client, internId, name);
+        }
+
+        /**
+         * Copies named workspace secrets into an intern's scope:
+         * POST /vault/interns/{internId}/secrets/copy. Trap: every
+         * requested name must exist - otherwise the API answers 404 and
+         * nothing is copied.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterVaultSecretCopyRequest.Builder copySecretsToIntern(String internId) {
+            return new OpenRouterVaultSecretCopyRequest.Builder(client, internId);
         }
     }
 

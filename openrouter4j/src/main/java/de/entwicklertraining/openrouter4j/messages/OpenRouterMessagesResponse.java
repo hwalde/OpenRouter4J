@@ -186,6 +186,83 @@ public final class OpenRouterMessagesResponse extends OpenRouterResponse<OpenRou
     }
 
     /**
+     * JSON path: {@code context_management.applied_edits} - the server-side
+     * context edits Anthropic actually applied to the prompt this turn (each
+     * entry is a free-form object with a required {@code type}; e.g. a
+     * {@code clear_tool_uses_20250919} edit reports what it cleared).
+     *
+     * <p>Trap: {@code context_management} is only present when the request
+     * opted into context editing via the builder's {@code contextManagement(...)}
+     * edits AND the serving provider actually applied edits - otherwise this
+     * list is empty.
+     *
+     * <p>Streaming: the published OpenAPI schema documents
+     * {@code context_management} only on the non-streaming payload - on a
+     * streamed turn no SSE event carries it, so read the applied edits from
+     * the non-streaming response.
+     *
+     * @return the applied edits, empty when {@code context_management} (or
+     *         the {@code applied_edits} array) is absent
+     */
+    public List<OpenRouterAppliedContextEdit> appliedContextEdits() {
+        List<OpenRouterAppliedContextEdit> result = new ArrayList<>();
+        try {
+            JSONObject contextManagement = json.optJSONObject("context_management");
+            JSONArray edits = contextManagement == null
+                    ? null
+                    : contextManagement.optJSONArray("applied_edits");
+            if (edits != null) {
+                for (int i = 0; i < edits.length(); i++) {
+                    JSONObject edit = edits.optJSONObject(i);
+                    if (edit != null) {
+                        result.add(new OpenRouterAppliedContextEdit(edit));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // swallow-and-return-empty convention
+        }
+        return result;
+    }
+
+    /**
+     * JSON path: {@code input_transformations} - the server-side
+     * transformations the serving provider applied to the request input
+     * (e.g. {@code {"path":"messages.1.content.0",
+     * "reason":"prefix_binding_mismatch","type":"thinking_dropped"}}).
+     * This is the diagnostic surface for "my thinking blocks disappeared".
+     *
+     * <p>Trap: the field appears only when the serving provider actually
+     * transformed the input - commonly Anthropic dropping thinking blocks on
+     * a prefix binding mismatch. A clean turn returns an empty list.
+     *
+     * <p>Streaming: per the published OpenAPI schema the field travels in the
+     * {@code message_start} event's {@code message} object, so on a streamed
+     * turn read it from the raw event JSON ({@code stream(handler)} forwards
+     * every event verbatim).
+     *
+     * @return the transformations, empty when the field is absent or not an
+     *         array
+     */
+    public List<OpenRouterInputTransformation> inputTransformations() {
+        List<OpenRouterInputTransformation> result = new ArrayList<>();
+        try {
+            JSONArray transformations = json.optJSONArray("input_transformations");
+            if (transformations != null) {
+                for (int i = 0; i < transformations.length(); i++) {
+                    JSONObject transformation = transformations.optJSONObject(i);
+                    if (transformation != null) {
+                        result.add(new OpenRouterInputTransformation(transformation));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // swallow-and-return-empty convention
+        }
+        return result;
+    }
+
+    /**
      * JSON path: {@code provider} - the provider that served the request
      * (OpenRouter extension).
      *

@@ -219,6 +219,18 @@ class OpenRouterClientEntryPointsTest {
     }
 
     @Test
+    void vaultEntryPointsProduceTheVaultRequests() {
+        assertThat(client().vault().list().build().getRelativeUrl()).isEqualTo("/vault/secrets");
+        assertThat(client().vault().store("token").value("v").hosts("h.com").build().getHttpMethod()).isEqualTo("PUT");
+        assertThat(client().vault().store("token").value("v").hosts("h.com").build().getRelativeUrl()).isEqualTo("/vault/secrets/token");
+        assertThat(client().vault().delete("token").build().getHttpMethod()).isEqualTo("DELETE");
+        assertThat(client().vault().internSecrets("i1").build().getRelativeUrl()).isEqualTo("/vault/interns/i1/secrets");
+        assertThat(client().vault().storeInternSecret("i1", "token").value("v").hosts("h.com").build().getRelativeUrl()).isEqualTo("/vault/interns/i1/secrets/token");
+        assertThat(client().vault().deleteInternSecret("i1", "token").build().getHttpMethod()).isEqualTo("DELETE");
+        assertThat(client().vault().copySecretsToIntern("i1").names("a").build().getRelativeUrl()).isEqualTo("/vault/interns/i1/secrets/copy");
+    }
+
+    @Test
     void observabilityEntryPointsProduceTheManagementRequests() {
         assertThat(client().observability().destinations().list().build().getRelativeUrl()).isEqualTo("/observability/destinations");
         assertThat(client().observability().destinations().create().type("langfuse").name("D").config(new JSONObject().put("baseUrl", "https://example.invalid")).build().getHttpMethod()).isEqualTo("POST");
