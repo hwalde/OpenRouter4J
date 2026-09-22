@@ -70,6 +70,21 @@ public class OpenRouterMessagesExample {
                 + ", usage: in=" + response.inputTokens() + " out=" + response.outputTokens()
                 + " cost=" + response.cost());
 
+        // What the server removed from the prompt / transformed in the input.
+        // applied_edits only appears when the request used contextManagement(...);
+        // input_transformations only when the provider transformed the input
+        // (commonly Anthropic dropping thinking blocks on a prefix mismatch).
+        for (OpenRouterMessagesResponse.OpenRouterAppliedContextEdit edit
+                : response.appliedContextEdits()) {
+            System.out.println("context edit applied: " + edit.type()
+                    + " " + edit.json());
+        }
+        for (OpenRouterMessagesResponse.OpenRouterInputTransformation transformation
+                : response.inputTransformations()) {
+            System.out.println("input transformed: " + transformation.type()
+                    + " at " + transformation.path() + " (" + transformation.reason() + ")");
+        }
+
         // 2. Streaming: enable SSE and parse the Anthropic event model. The
         //    body carries stream:true automatically; events are executed
         //    through the client (executeAsync) and completed when the stream

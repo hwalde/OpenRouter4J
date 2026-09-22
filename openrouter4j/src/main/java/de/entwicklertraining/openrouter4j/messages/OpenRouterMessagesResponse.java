@@ -490,4 +490,98 @@ public final class OpenRouterMessagesResponse extends OpenRouterResponse<OpenRou
             }
         }
     }
+
+    /**
+     * One entry of {@code context_management.applied_edits} - a server-side
+     * context edit the serving provider applied this turn. The schema types
+     * only the {@code type} field; everything else is provider-specific and
+     * read from the verbatim JSON.
+     */
+    public static final class OpenRouterAppliedContextEdit {
+
+        private final JSONObject json;
+
+        OpenRouterAppliedContextEdit(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * JSON path: {@code context_management.applied_edits[].type} - the
+         * edit strategy that ran (e.g. {@code clear_tool_uses_20250919}).
+         *
+         * @return the edit type, or {@code null} when absent
+         */
+        public String type() {
+            try {
+                return json.optString("type", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the verbatim edit object (the strategy-specific fields,
+         *         e.g. what a clear edit removed)
+         */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * One entry of {@code input_transformations} - a server-side
+     * transformation the serving provider applied to the request input.
+     */
+    public static final class OpenRouterInputTransformation {
+
+        private final JSONObject json;
+
+        OpenRouterInputTransformation(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * JSON path: {@code input_transformations[].type} - the
+         * transformation (e.g. {@code thinking_dropped}).
+         *
+         * @return the transformation type, or {@code null} when absent
+         */
+        public String type() {
+            try {
+                return json.optString("type", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * JSON path: {@code input_transformations[].path} - where in the
+         * input the transformation hit (e.g.
+         * {@code messages.1.content.0}), or {@code null} when absent.
+         *
+         * @return the path, or {@code null} when absent
+         */
+        public String path() {
+            try {
+                return json.optString("path", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * JSON path: {@code input_transformations[].reason} - why the
+         * transformation ran (e.g. {@code prefix_binding_mismatch}), or
+         * {@code null} when absent.
+         *
+         * @return the reason, or {@code null} when absent
+         */
+        public String reason() {
+            try {
+                return json.optString("reason", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+    }
 }

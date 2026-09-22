@@ -504,6 +504,77 @@ class OpenRouterMessagesTest {
         assertThat(response.toolUseBlocks()).isEmpty();
         assertThat(response.usage()).isNull();
         assertThat(response.cost()).isNull();
+        assertThat(response.appliedContextEdits()).isEmpty();
+        assertThat(response.inputTransformations()).isEmpty();
+    }
+
+    @Test
+    void responseExposesAppliedContextEditsAndInputTransformations() {
+        String fixture = """
+                {
+                  "id": "msg_01ABC",
+                  "type": "message",
+                  "role": "assistant",
+                  "model": "claude-sonnet-4-5-20250929",
+                  "content": [{"type": "text", "text": "ok"}],
+                  "stop_reason": "end_turn",
+                  "stop_details": null,
+                  "stop_sequence": null,
+                  "context_management": {
+                    "applied_edits": [
+                      {"type": "clear_tool_uses_20250919", "cleared_tool_uses": 2,
+                       "cleared_input_tokens": 1500},
+                      {"type": "clear_thinking_20251015"}
+                    ]
+                  },
+                  "input_transformations": [
+                    {"type": "thinking_dropped", "path": "messages.1.content.0",
+                     "reason": "prefix_binding_mismatch"},
+                    {"type": "thinking_dropped", "path": null, "reason": null}
+                  ],
+                  "usage": {"input_tokens": 12, "output_tokens": 8}
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.appliedContextEdits()).hasSize(2);
+        assertThat(response.appliedContextEdits().get(0).type())
+                .isEqualTo("clear_tool_uses_20250919");
+        assertThat(response.appliedContextEdits().get(0).json().getInt("cleared_tool_uses"))
+                .isEqualTo(2);
+        assertThat(response.appliedContextEdits().get(1).type())
+                .isEqualTo("clear_thinking_20251015");
+
+        assertThat(response.inputTransformations()).hasSize(2);
+        assertThat(response.inputTransformations().get(0).type()).isEqualTo("thinking_dropped");
+        assertThat(response.inputTransformations().get(0).path())
+                .isEqualTo("messages.1.content.0");
+        assertThat(response.inputTransformations().get(0).reason())
+                .isEqualTo("prefix_binding_mismatch");
+        assertThat(response.inputTransformations().get(1).type()).isEqualTo("thinking_dropped");
+        assertThat(response.inputTransformations().get(1).path()).isNull();
+        assertThat(response.inputTransformations().get(1).reason()).isNull();
+    }
+
+    @Test
+    void responseEditAndTransformationAccessorsAreEmptyWithoutTheFields() {
+        String fixture = """
+                {
+                  "id": "msg_01DEF",
+                  "type": "message",
+                  "role": "assistant",
+                  "model": "claude-sonnet-4-5-20250929",
+                  "content": [{"type": "text", "text": "ok"}],
+                  "stop_reason": "end_turn",
+                  "stop_details": null,
+                  "stop_sequence": null,
+                  "usage": {"input_tokens": 12, "output_tokens": 8}
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.appliedContextEdits()).isEmpty();
+        assertThat(response.inputTransformations()).isEmpty();
     }
 
     @Test
