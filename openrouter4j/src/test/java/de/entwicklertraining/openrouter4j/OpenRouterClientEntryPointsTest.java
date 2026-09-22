@@ -231,6 +231,24 @@ class OpenRouterClientEntryPointsTest {
     }
 
     @Test
+    void internsEntryPointsProduceTheInternRequests() {
+        assertThat(client().interns().list().build().getRelativeUrl()).isEqualTo("/interns");
+        assertThat(client().interns().create("ok-name").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().interns().get("i1").build().getRelativeUrl()).isEqualTo("/interns/i1");
+        assertThat(client().interns().update("i1").name("ok-name").build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().interns().delete("i1").build().getHttpMethod()).isEqualTo("DELETE");
+        assertThat(client().interns().provision("i1").build().getRelativeUrl()).isEqualTo("/interns/i1/provision");
+        assertThat(client().interns().suspend("i1").build().getRelativeUrl()).isEqualTo("/interns/i1/suspend");
+        assertThatThrownBy(() -> client().interns().chat("i1").addUserMessage("x").build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("only streams");
+        assertThat(client().interns().chat("i1").addUserMessage("x")
+                .stream(new de.entwicklertraining.openrouter4j.interns.OpenRouterInternChatAccumulator(null))
+                .build().getRelativeUrl())
+                .isEqualTo("/interns/i1/chat/completions");
+    }
+
+    @Test
     void observabilityEntryPointsProduceTheManagementRequests() {
         assertThat(client().observability().destinations().list().build().getRelativeUrl()).isEqualTo("/observability/destinations");
         assertThat(client().observability().destinations().create().type("langfuse").name("D").config(new JSONObject().put("baseUrl", "https://example.invalid")).build().getHttpMethod()).isEqualTo("POST");
