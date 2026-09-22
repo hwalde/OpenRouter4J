@@ -798,6 +798,111 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
     }
 
     /**
+     * Returns the raw {@code usage.server_tool_use_details} object - the
+     * server-tool execution statistics OpenRouter reports when server tools
+     * ({@code openrouter:web_search}, {@code openrouter:bash}, ...) ran
+     * inside the request - or {@code null} when absent. See
+     * {@link #serverToolCallsRequested()}, {@link #serverToolCallsExecuted()}
+     * and {@link #serverToolWebSearchRequests()} for the typed view.
+     *
+     * @return the raw server-tool-use details object, or {@code null} when absent
+     */
+    public JSONObject serverToolUseDetails() {
+        JSONObject usage = usage();
+        return usage == null ? null : usage.optJSONObject("server_tool_use_details");
+    }
+
+    /**
+     * Returns the number of OpenRouter server tool calls that executed and
+     * produced a result from {@code usage.server_tool_use_details.tool_calls_executed},
+     * or {@code null} when absent (no server tool ran, or the serving model
+     * does not report the details). Compare with
+     * {@link #serverToolCallsRequested()} to detect silently dropped
+     * server-tool executions.
+     *
+     * @return the executed server tool call count, or {@code null} when absent
+     */
+    public Integer serverToolCallsExecuted() {
+        return serverToolUseDetailInt("tool_calls_executed");
+    }
+
+    /**
+     * Returns the total number of server-orchestrated tool calls the model
+     * requested across all tool types from
+     * {@code usage.server_tool_use_details.tool_calls_requested}, or
+     * {@code null} when absent. Provider-native tools are not counted here.
+     *
+     * @return the requested server tool call count, or {@code null} when absent
+     */
+    public Integer serverToolCallsRequested() {
+        return serverToolUseDetailInt("tool_calls_requested");
+    }
+
+    /**
+     * Returns the number of web searches performed by server-side tools from
+     * {@code usage.server_tool_use_details.web_search_requests}, or
+     * {@code null} when absent.
+     * <p>
+     * Trap (per the API schema): do <b>not</b> sum this with
+     * {@link #serverToolCallsRequested()} - a server-orchestrated search
+     * counts in both, while provider-native search reports only
+     * {@code web_search_requests}.
+     *
+     * @return the web search request count, or {@code null} when absent
+     */
+    public Integer serverToolWebSearchRequests() {
+        return serverToolUseDetailInt("web_search_requests");
+    }
+
+    private Integer serverToolUseDetailInt(String key) {
+        JSONObject details = serverToolUseDetails();
+        if (details == null || details.isNull(key)) {
+            return null;
+        }
+        Object value = details.opt(key);
+        return value instanceof Number number ? number.intValue() : null;
+    }
+
+    /**
+     * Returns the model that actually produced the message from
+     * {@code choices[0].message.model}, or {@code null} when absent. This can
+     * differ from the top-level {@link #model()} in multi-attempt routing,
+     * where the top-level field names the originally requested model and the
+     * message field the model of the attempt that produced this message.
+     *
+     * @return the producing message model, or {@code null} when absent
+     */
+    public String messageModel() {
+        try {
+            JSONArray choices = getJson().getJSONArray("choices");
+            JSONObject firstChoice = choices.getJSONObject(0);
+            JSONObject message = firstChoice.getJSONObject("message");
+            return message.optString("model", null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the optional participant name of the message from
+     * {@code choices[0].message.name}, or {@code null} when absent. The name
+     * echoes the {@code messages[].name} field the request may set via
+     * {@code OpenRouterChatCompletionRequest.Builder#addNamedMessage(String, String, String)}.
+     *
+     * @return the message participant name, or {@code null} when absent
+     */
+    public String messageName() {
+        try {
+            JSONArray choices = getJson().getJSONArray("choices");
+            JSONObject firstChoice = choices.getJSONObject(0);
+            JSONObject message = firstChoice.getJSONObject("message");
+            return message.optString("name", null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * Returns the capacity tier that actually served this request from the top-level
      * {@code service_tier} field ({@code "default"}, {@code "flex"}, {@code "priority"}
      * or {@code null}), or {@code null} when absent. The request pins the tier via

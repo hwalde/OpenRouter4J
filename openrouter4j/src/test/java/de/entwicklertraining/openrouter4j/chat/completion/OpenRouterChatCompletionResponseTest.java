@@ -323,6 +323,92 @@ class OpenRouterChatCompletionResponseTest {
     }
 
     @Test
+    void serverToolUseDetailsAreSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Searched."},
+                    "finish_reason": "stop"
+                  }],
+                  "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                    "server_tool_use_details": {
+                      "tool_calls_executed": 2,
+                      "tool_calls_requested": 3,
+                      "web_search_requests": 1
+                    }
+                  }
+                }
+                """);
+
+        assertThat(response.serverToolUseDetails()).isNotNull();
+        assertThat(response.serverToolCallsExecuted()).isEqualTo(2);
+        assertThat(response.serverToolCallsRequested()).isEqualTo(3);
+        assertThat(response.serverToolWebSearchRequests()).isEqualTo(1);
+    }
+
+    @Test
+    void serverToolUseDetailsReturnNullWhenAbsent() {
+        OpenRouterChatCompletionResponse withoutUsage = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+        assertThat(withoutUsage.serverToolUseDetails()).isNull();
+        assertThat(withoutUsage.serverToolCallsExecuted()).isNull();
+        assertThat(withoutUsage.serverToolCallsRequested()).isNull();
+        assertThat(withoutUsage.serverToolWebSearchRequests()).isNull();
+
+        OpenRouterChatCompletionResponse withoutDetails = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}], "usage": {"total_tokens": 15}}
+                """);
+        assertThat(withoutDetails.serverToolUseDetails()).isNull();
+        assertThat(withoutDetails.serverToolCallsRequested()).isNull();
+    }
+
+    @Test
+    void messageModelAndMessageNameAreSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "model": "openai/gpt-4o",
+                  "choices": [{
+                    "index": 0,
+                    "message": {
+                      "role": "assistant",
+                      "content": "Hi",
+                      "model": "openai/gpt-4o-2026-05-19",
+                      "name": "research-helper"
+                    },
+                    "finish_reason": "stop"
+                  }]
+                }
+                """);
+
+        assertThat(response.model()).isEqualTo("openai/gpt-4o");
+        assertThat(response.messageModel()).isEqualTo("openai/gpt-4o-2026-05-19");
+        assertThat(response.messageName()).isEqualTo("research-helper");
+    }
+
+    @Test
+    void messageModelAndMessageNameReturnNullWhenAbsent() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+
+        assertThat(response.messageModel()).isNull();
+        assertThat(response.messageName()).isNull();
+    }
+
+    @Test
+    void messageModelAndMessageNameSurviveAMalformedChoicesArray() {
+        assertThat(responseOf("{\"choices\": []}").messageModel()).isNull();
+        assertThat(responseOf("{\"choices\": []}").messageName()).isNull();
+        assertThat(responseOf("{}").messageModel()).isNull();
+        assertThat(responseOf("{}").messageName()).isNull();
+    }
+
+    @Test
     void serviceTierAndPredictionTokenUsageAreSurfaced() {
         OpenRouterChatCompletionResponse response = responseOf("""
                 {

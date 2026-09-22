@@ -62,6 +62,7 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
     private final Double temperature;
     private final Double topP;
     private final Integer topK;
+    private final Integer topLogprobs;
     private final Double frequencyPenalty;
     private final Double presencePenalty;
     private final List<JSONObject> tools;
@@ -81,6 +82,8 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
     private final String safetyIdentifier;
     private final String user;
     private final String promptCacheKey;
+    private final String promptCacheOptionsMode;
+    private final String promptCacheOptionsTtl;
     private final String truncation;
     private final String cacheControlTtl;
     private final List<OpenRouterPlugin> plugins;
@@ -113,6 +116,7 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         this.temperature = builder.temperature;
         this.topP = builder.topP;
         this.topK = builder.topK;
+        this.topLogprobs = builder.topLogprobs;
         this.frequencyPenalty = builder.frequencyPenalty;
         this.presencePenalty = builder.presencePenalty;
         this.tools = builder.tools == null ? null : List.copyOf(builder.tools);
@@ -132,6 +136,8 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         this.safetyIdentifier = builder.safetyIdentifier;
         this.user = builder.user;
         this.promptCacheKey = builder.promptCacheKey;
+        this.promptCacheOptionsMode = builder.promptCacheOptionsMode;
+        this.promptCacheOptionsTtl = builder.promptCacheOptionsTtl;
         this.truncation = builder.truncation;
         this.cacheControlTtl = builder.cacheControlTtl;
         this.plugins = builder.plugins == null ? null : List.copyOf(builder.plugins);
@@ -249,6 +255,37 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         return textVerbatim;
     }
 
+    /**
+     * JSON field: {@code top_logprobs} - the number of top log probabilities
+     * to return per output token, or {@code null} when unset (the key is not
+     * sent).
+     *
+     * @return the top-logprobs count, or {@code null}
+     */
+    public Integer topLogprobs() {
+        return topLogprobs;
+    }
+
+    /**
+     * JSON field: {@code prompt_cache_options.mode} - the explicit-cache
+     * configuration mode, or {@code null} when unset (the key is not sent).
+     *
+     * @return the prompt-cache mode, or {@code null}
+     */
+    public String promptCacheOptionsMode() {
+        return promptCacheOptionsMode;
+    }
+
+    /**
+     * JSON field: {@code prompt_cache_options.ttl} - the explicit-cache
+     * time-to-live, or {@code null} when unset (the key is not sent).
+     *
+     * @return the prompt-cache TTL, or {@code null}
+     */
+    public String promptCacheOptionsTtl() {
+        return promptCacheOptionsTtl;
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/responses";
@@ -264,12 +301,14 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
      * {@code model} / {@code models}, {@code prompt}, {@code image_config},
      * {@code debug}, {@code text}, {@code instructions},
      * {@code max_output_tokens}, {@code max_tool_calls}, {@code temperature},
-     * {@code top_p}, {@code top_k}, {@code frequency_penalty},
+     * {@code top_p}, {@code top_k}, {@code top_logprobs},
+     * {@code frequency_penalty},
      * {@code presence_penalty}, {@code tools}, {@code tool_choice},
      * {@code parallel_tool_calls}, {@code reasoning}, {@code modalities},
      * {@code include}, {@code background}, {@code store}, {@code metadata},
      * {@code service_tier}, {@code session_id}, {@code safety_identifier},
-     * {@code user}, {@code prompt_cache_key}, {@code truncation},
+     * {@code user}, {@code prompt_cache_key}, {@code prompt_cache_options},
+     * {@code truncation},
      * {@code cache_control}, {@code plugins}, {@code trace},
      * {@code stop_server_tools_when}, {@code stream} (all omitted when unset)
      * and the {@code provider} object (omitted unless any provider option is
@@ -339,6 +378,9 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         if (topK != null) {
             root.put("top_k", topK);
         }
+        if (topLogprobs != null) {
+            root.put("top_logprobs", topLogprobs);
+        }
         if (frequencyPenalty != null) {
             root.put("frequency_penalty", frequencyPenalty);
         }
@@ -404,6 +446,14 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         }
         if (promptCacheKey != null) {
             root.put("prompt_cache_key", promptCacheKey);
+        }
+        if (promptCacheOptionsMode != null) {
+            JSONObject promptCacheOptions = new JSONObject();
+            promptCacheOptions.put("mode", promptCacheOptionsMode);
+            if (promptCacheOptionsTtl != null) {
+                promptCacheOptions.put("ttl", promptCacheOptionsTtl);
+            }
+            root.put("prompt_cache_options", promptCacheOptions);
         }
         if (truncation != null) {
             root.put("truncation", truncation);
@@ -479,6 +529,7 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         private Double temperature;
         private Double topP;
         private Integer topK;
+        private Integer topLogprobs;
         private Double frequencyPenalty;
         private Double presencePenalty;
         private List<JSONObject> tools;
@@ -498,6 +549,8 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         private String safetyIdentifier;
         private String user;
         private String promptCacheKey;
+        private String promptCacheOptionsMode;
+        private String promptCacheOptionsTtl;
         private String truncation;
         private String cacheControlTtl;
         private List<OpenRouterPlugin> plugins;
@@ -822,6 +875,20 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         }
 
         /**
+         * Sets the JSON field {@code top_logprobs} - the number of top log
+         * probabilities to return per output token (the same semantics as the
+         * chat-completions {@code topLogprobs(n)}; the logprob entries ride
+         * on the output content parts). Emitted only when set.
+         *
+         * @param topLogprobs the number of top log probabilities per output token
+         * @return this builder
+         */
+        public Builder topLogprobs(Integer topLogprobs) {
+            this.topLogprobs = topLogprobs;
+            return this;
+        }
+
+        /**
          * Sets the JSON field {@code frequency_penalty}.
          *
          * @param frequencyPenalty the frequency penalty
@@ -1100,6 +1167,41 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          */
         public Builder promptCacheKey(String promptCacheKey) {
             this.promptCacheKey = promptCacheKey;
+            return this;
+        }
+
+        /**
+         * Sets {@code prompt_cache_options} with an explicit mode
+         * ({@code {"mode":<mode>}}) - the same explicit-cache configuration
+         * the chat-completions builder exposes. Documented mode:
+         * {@code "explicit"} - disables OpenAI-managed breakpoints so only
+         * blocks marked with {@code prompt_cache_breakpoint} participate in
+         * caching (OpenAI GPT-5.6+). Emitted only when set.
+         *
+         * @param mode the caching mode, e.g. {@code "explicit"}
+         * @return this builder
+         */
+        public Builder promptCacheOptions(String mode) {
+            this.promptCacheOptionsMode = mode;
+            this.promptCacheOptionsTtl = null;
+            return this;
+        }
+
+        /**
+         * Sets {@code prompt_cache_options} with an explicit mode and TTL
+         * ({@code {"mode":<mode>,"ttl":<ttl>}}) - see
+         * {@link #promptCacheOptions(String)} for the mode semantics.
+         * Emitted only when set. Trap: the object is emitted only when the
+         * mode is non-null - a TTL passed with a {@code null} mode is
+         * silently not sent, matching the "emitted only when set" convention.
+         *
+         * @param mode the caching mode, e.g. {@code "explicit"}
+         * @param ttl the cache time-to-live, e.g. {@code "30m"}
+         * @return this builder
+         */
+        public Builder promptCacheOptions(String mode, String ttl) {
+            this.promptCacheOptionsMode = mode;
+            this.promptCacheOptionsTtl = ttl;
             return this;
         }
 

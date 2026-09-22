@@ -48,19 +48,29 @@ public class OpenRouterFilesExample {
             System.out.println("- " + file.id() + " filename=" + file.filename());
         }
 
-        // 3. Read the metadata of the uploaded file.
-        OpenRouterFileGetResponse metadata = client.files().get(uploadedFile.id()).execute();
+        // 3. Read the metadata of the uploaded file. The single-file
+        //    operations carry the same storage scope as upload/list: in a
+        //    multi-workspace/multi-provider setup, address the file with
+        //    workspaceId(...) / provider(...) - without them the request hits
+        //    the default scope and a scoped file answers 404 there.
+        OpenRouterFileGetResponse metadata = client.files().get(uploadedFile.id())
+                .provider("openai")
+                .execute();
         System.out.println("Metadata: downloadable=" + metadata.file().downloadable()
                 + " createdAt=" + metadata.file().createdAt());
 
-        // 4. Download the raw file bytes.
-        OpenRouterFileContentResponse content = client.files().content(uploadedFile.id()).execute();
+        // 4. Download the raw file bytes (same scope rules as the metadata read).
+        OpenRouterFileContentResponse content = client.files().content(uploadedFile.id())
+                .provider("openai")
+                .execute();
         System.out.println("Downloaded " + content.length() + " bytes");
 
         // 5. Delete the file again (irreversible - guarded so a missing file
         //    does not fail the example).
         if (uploadedFile.id() != null) {
-            OpenRouterFileDeleteResponse deleted = client.files().delete(uploadedFile.id()).execute();
+            OpenRouterFileDeleteResponse deleted = client.files().delete(uploadedFile.id())
+                    .provider("openai")
+                    .execute();
             System.out.println("Deleted: " + deleted.isDeleted() + " (" + deleted.type() + ")");
         }
     }

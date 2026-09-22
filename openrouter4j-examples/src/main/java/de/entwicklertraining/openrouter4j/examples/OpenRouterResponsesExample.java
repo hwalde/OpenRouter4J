@@ -31,11 +31,16 @@ public class OpenRouterResponsesExample {
 
         // Non-streaming: the input is a plain string here; multi-turn input
         // uses addMessage(role, text) / addInputItem(JSONObject) instead.
+        // topLogprobs(n) asks for the top-n log probabilities per output
+        // token; promptCacheOptions("explicit") enables explicit prompt
+        // caching (only marked blocks are cached, OpenAI GPT-5.6+).
         OpenRouterResponsesResponse response = client.responses()
                 .model("openai/gpt-4o")
                 .input("Tell me a joke about programming.")
                 .maxOutputTokens(256)
                 .reasoningEffort("low")
+                .topLogprobs(3)
+                .promptCacheOptions("explicit")
                 .addTool(OpenRouterWebSearchServerTool.builder().build().toJson())
                 .toolChoice("auto")
                 .execute();
@@ -52,6 +57,10 @@ public class OpenRouterResponsesExample {
         }
         if (response.error() != null) {
             System.out.println("Error:         " + response.error());
+        }
+        if (response.errorType() != null) {
+            System.out.println("Error type:    " + response.errorType()
+                    + " (canonical, stable across API formats)");
         }
 
         // Streaming: the body automatically carries stream: true and every

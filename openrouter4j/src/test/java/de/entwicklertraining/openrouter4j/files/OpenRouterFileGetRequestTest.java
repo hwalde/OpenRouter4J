@@ -45,6 +45,32 @@ class OpenRouterFileGetRequestTest {
     }
 
     @Test
+    void scopeQueryParametersAreAppendedOnlyWhenSet() {
+        OpenRouterFileGetRequest unset =
+                new OpenRouterFileGetRequest.Builder(client(), "file-abc123").build();
+        assertThat(unset.getRelativeUrl()).isEqualTo("/files/file-abc123");
+        assertThat(unset.workspaceId()).isNull();
+        assertThat(unset.provider()).isNull();
+
+        OpenRouterFileGetRequest workspaceOnly =
+                new OpenRouterFileGetRequest.Builder(client(), "file-abc123")
+                        .workspaceId("ws-1")
+                        .build();
+        assertThat(workspaceOnly.getRelativeUrl()).isEqualTo("/files/file-abc123?workspace_id=ws-1");
+        assertThat(workspaceOnly.workspaceId()).isEqualTo("ws-1");
+        assertThat(workspaceOnly.provider()).isNull();
+
+        OpenRouterFileGetRequest both =
+                new OpenRouterFileGetRequest.Builder(client(), "file-abc123")
+                        .workspaceId("ws 1")
+                        .provider("anthropic")
+                        .build();
+        assertThat(both.getRelativeUrl())
+                .isEqualTo("/files/file-abc123?workspace_id=ws+1&provider=anthropic");
+        assertThat(both.provider()).isEqualTo("anthropic");
+    }
+
+    @Test
     void responseResolvesTheDataWrapperToAFileView() {
         String fixture = """
                 {

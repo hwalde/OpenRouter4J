@@ -21,17 +21,25 @@ import java.nio.charset.StandardCharsets;
  * Trap: a job whose content is not ready (or already expired) fails with
  * HTTP 400/404/409 - poll the job to {@code completed} first (see
  * {@link OpenRouterVideoGenerationResponse#awaitCompletion(OpenRouterClient)}).
+ *
+ * <p>Multi-output jobs: the optional {@code index} query parameter selects
+ * which of the job's generated videos is downloaded when the generation
+ * produced more than one output (API default 0). The parameter matters only
+ * for multi-output jobs - a single-output job ignores it and always returns
+ * its only video.
  */
 public final class OpenRouterVideoContentRequest
         extends OpenRouterRequest<OpenRouterVideoContentResponse> {
 
     private final OpenRouterClient client;
     private final String jobId;
+    private final Integer index;
 
     private OpenRouterVideoContentRequest(Builder builder) {
         super(builder);
         this.client = builder.client;
         this.jobId = builder.jobId;
+        this.index = builder.index;
     }
 
     /** @return the job id ({@code job-...}) whose content is downloaded */
@@ -39,9 +47,23 @@ public final class OpenRouterVideoContentRequest
         return jobId;
     }
 
+    /**
+     * JSON/query key: {@code index} (GET /videos/{jobId}/content).
+     *
+     * @return the selected output index, or {@code null} when unset (the API
+     *         then uses its default 0)
+     */
+    public Integer index() {
+        return index;
+    }
+
     @Override
     public String getRelativeUrl() {
-        return "/videos/" + encode(jobId) + "/content";
+        String url = "/videos/" + encode(jobId) + "/content";
+        if (index != null) {
+            url += "?index=" + URLEncoder.encode(String.valueOf(index), StandardCharsets.UTF_8);
+        }
+        return url;
     }
 
     private static String encode(String segment) {
@@ -113,6 +135,7 @@ public final class OpenRouterVideoContentRequest
 
         private final OpenRouterClient client;
         private final String jobId;
+        private Integer index;
 
         /**
          * Creates a builder bound to the given client.
@@ -124,6 +147,24 @@ public final class OpenRouterVideoContentRequest
             super(client);
             this.client = client;
             this.jobId = jobId;
+        }
+
+        /**
+         * Sets the query key {@code index} - the zero-based index of the
+         * generated video to download when the job produced more than one
+         * output (API default 0, minimum 0, rejected loudly below that).
+         * Trap: a single-output job ignores the parameter and always returns
+         * its only video.
+         *
+         * @param index the zero-based output index
+         * @return this builder
+         */
+        public Builder index(Integer index) {
+            if (index != null && index < 0) {
+                throw new IllegalArgumentException("index must be >= 0, got: " + index);
+            }
+            this.index = index;
+            return this;
         }
 
         @Override

@@ -46,6 +46,33 @@ class OpenRouterFileContentRequestTest {
     }
 
     @Test
+    void scopeQueryParametersAreAppendedOnlyWhenSet() {
+        OpenRouterFileContentRequest unset =
+                new OpenRouterFileContentRequest.Builder(client(), "file-abc123").build();
+        assertThat(unset.getRelativeUrl()).isEqualTo("/files/file-abc123/content");
+        assertThat(unset.workspaceId()).isNull();
+        assertThat(unset.provider()).isNull();
+
+        OpenRouterFileContentRequest providerOnly =
+                new OpenRouterFileContentRequest.Builder(client(), "file-abc123")
+                        .provider("openai")
+                        .build();
+        assertThat(providerOnly.getRelativeUrl())
+                .isEqualTo("/files/file-abc123/content?provider=openai");
+        assertThat(providerOnly.provider()).isEqualTo("openai");
+        assertThat(providerOnly.workspaceId()).isNull();
+
+        OpenRouterFileContentRequest both =
+                new OpenRouterFileContentRequest.Builder(client(), "file-abc123")
+                        .workspaceId("ws 1")
+                        .provider("anthropic")
+                        .build();
+        assertThat(both.getRelativeUrl())
+                .isEqualTo("/files/file-abc123/content?workspace_id=ws+1&provider=anthropic");
+        assertThat(both.workspaceId()).isEqualTo("ws 1");
+    }
+
+    @Test
     void contentResponseHoldsTheFileBytes() {
         OpenRouterFileContentRequest request =
                 new OpenRouterFileContentRequest.Builder(client(), "file-abc123").build();

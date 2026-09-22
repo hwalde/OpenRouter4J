@@ -224,6 +224,33 @@ class StreamingToolCallAccumulatorTest {
     }
 
     @Test
+    void syntheticResponseCarriesServerToolUseDetailsFromTheTerminalUsageChunk() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(new JSONObject()
+                .put("id", "gen-xxx")
+                .put("choices", new JSONArray())
+                .put("usage", new JSONObject()
+                        .put("total_tokens", 25)
+                        .put("server_tool_use_details", new JSONObject()
+                                .put("tool_calls_executed", 2)
+                                .put("tool_calls_requested", 3)
+                                .put("web_search_requests", 1)))
+                .toString());
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        assertThat(response.serverToolUseDetails()).isNotNull();
+        assertThat(response.serverToolCallsExecuted()).isEqualTo(2);
+        assertThat(response.serverToolCallsRequested()).isEqualTo(3);
+        assertThat(response.serverToolWebSearchRequests()).isEqualTo(1);
+        assertThat(response.messageModel()).isNull();
+        assertThat(response.messageName()).isNull();
+    }
+
+    @Test
     void midStreamErrorChunkIsCapturedAndNotForwarded() {
         accumulator.onData(contentChunk("Hello"));
         accumulator.onData(errorChunk("Rate limit exceeded", 429, "rate_limit_exceeded", "provider_error"));

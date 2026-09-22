@@ -14,17 +14,26 @@ import java.nio.charset.StandardCharsets;
  *
  * <p>Trap: deletion is irreversible - the file content can no longer be
  * downloaded afterwards and cannot be restored.
+ *
+ * <p>Storage scope: the optional {@code workspace_id} / {@code provider}
+ * query parameters delete a file in a non-default scope. Trap: without them
+ * the request always hits the default scope, so a file stored in another
+ * workspace or with another provider answers 404 here even though it exists.
  */
 public final class OpenRouterFileDeleteRequest
         extends OpenRouterRequest<OpenRouterFileDeleteResponse> {
 
     private final OpenRouterClient client;
     private final String fileId;
+    private final String workspaceId;
+    private final String provider;
 
     private OpenRouterFileDeleteRequest(Builder builder) {
         super(builder);
         this.client = builder.client;
         this.fileId = builder.fileId;
+        this.workspaceId = builder.workspaceId;
+        this.provider = builder.provider;
     }
 
     /** @return the file id to delete */
@@ -32,9 +41,48 @@ public final class OpenRouterFileDeleteRequest
         return fileId;
     }
 
+    /**
+     * JSON/query key: {@code workspace_id} (DELETE /files/{file_id}).
+     *
+     * @return the workspace scope, or {@code null} when unset (default scope)
+     */
+    public String workspaceId() {
+        return workspaceId;
+    }
+
+    /**
+     * JSON/query key: {@code provider} (DELETE /files/{file_id}).
+     *
+     * @return the storage-provider scope, or {@code null} when unset (default scope)
+     */
+    public String provider() {
+        return provider;
+    }
+
     @Override
     public String getRelativeUrl() {
-        return "/files/" + encode(fileId);
+        String url = "/files/" + encode(fileId);
+        String query = query();
+        return query.isEmpty() ? url : url + "?" + query;
+    }
+
+    private String query() {
+        StringBuilder sb = new StringBuilder();
+        appendQueryParam(sb, "workspace_id", workspaceId);
+        appendQueryParam(sb, "provider", provider);
+        return sb.toString();
+    }
+
+    private static void appendQueryParam(StringBuilder sb, String key, String value) {
+        if (value == null) {
+            return;
+        }
+        if (sb.length() > 0) {
+            sb.append('&');
+        }
+        sb.append(URLEncoder.encode(key, StandardCharsets.UTF_8));
+        sb.append('=');
+        sb.append(URLEncoder.encode(value, StandardCharsets.UTF_8));
     }
 
     private static String encode(String segment) {
@@ -74,6 +122,8 @@ public final class OpenRouterFileDeleteRequest
 
         private final OpenRouterClient client;
         private final String fileId;
+        private String workspaceId;
+        private String provider;
 
         /**
          * Creates a builder bound to the given client.
@@ -85,6 +135,37 @@ public final class OpenRouterFileDeleteRequest
             super(client);
             this.client = client;
             this.fileId = fileId;
+        }
+
+        /**
+         * Sets the query key {@code workspace_id} - deletes the file in this
+         * workspace's storage scope instead of the default scope. Mirrors the
+         * semantics of the upload/list operations
+         * ({@code client.files().upload()} / {@code client.files().list()}).
+         * The parameter is appended to the query string only when set.
+         *
+         * @param workspaceId the workspace id
+         * @return this builder
+         */
+        public Builder workspaceId(String workspaceId) {
+            this.workspaceId = workspaceId;
+            return this;
+        }
+
+        /**
+         * Sets the query key {@code provider} - deletes the file in the scope
+         * of this storage provider (the API documents {@code openai} and
+         * {@code anthropic}, but the value is free-form: unknown values are
+         * not rejected by the builder and are passed through verbatim).
+         * Mirrors the semantics of the upload/list operations. The parameter
+         * is appended to the query string only when set.
+         *
+         * @param provider the storage provider
+         * @return this builder
+         */
+        public Builder provider(String provider) {
+            this.provider = provider;
+            return this;
         }
 
         @Override

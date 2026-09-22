@@ -46,6 +46,33 @@ class OpenRouterFileDeleteRequestTest {
     }
 
     @Test
+    void scopeQueryParametersAreAppendedOnlyWhenSet() {
+        OpenRouterFileDeleteRequest unset =
+                new OpenRouterFileDeleteRequest.Builder(client(), "or_file_abc123").build();
+        assertThat(unset.getRelativeUrl()).isEqualTo("/files/or_file_abc123");
+        assertThat(unset.workspaceId()).isNull();
+        assertThat(unset.provider()).isNull();
+
+        OpenRouterFileDeleteRequest workspaceOnly =
+                new OpenRouterFileDeleteRequest.Builder(client(), "or_file_abc123")
+                        .workspaceId("ws-1")
+                        .build();
+        assertThat(workspaceOnly.getRelativeUrl())
+                .isEqualTo("/files/or_file_abc123?workspace_id=ws-1");
+        assertThat(workspaceOnly.workspaceId()).isEqualTo("ws-1");
+        assertThat(workspaceOnly.provider()).isNull();
+
+        OpenRouterFileDeleteRequest both =
+                new OpenRouterFileDeleteRequest.Builder(client(), "or_file_abc123")
+                        .workspaceId("ws 1")
+                        .provider("anthropic")
+                        .build();
+        assertThat(both.getRelativeUrl())
+                .isEqualTo("/files/or_file_abc123?workspace_id=ws+1&provider=anthropic");
+        assertThat(both.provider()).isEqualTo("anthropic");
+    }
+
+    @Test
     void openRouterShapeConfirmsDeletionThroughTheTypeField() {
         OpenRouterFileDeleteResponse response =
                 new OpenRouterFileDeleteRequest.Builder(client(), "or_file_abc123")

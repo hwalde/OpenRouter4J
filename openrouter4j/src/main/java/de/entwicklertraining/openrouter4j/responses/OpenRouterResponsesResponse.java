@@ -71,6 +71,30 @@ public final class OpenRouterResponsesResponse extends OpenRouterResponse<OpenRo
         return json.optJSONObject("error");
     }
 
+    /**
+     * JSON path: {@code error_type} (top level; falls back to
+     * {@code error.error_type} when the top-level key is absent) - the
+     * canonical OpenRouter error type (the {@code ApiErrorType} schema enum:
+     * {@code context_length_exceeded}, {@code payment_required},
+     * {@code provider_overloaded}, {@code refusal}, {@code timeout}, ...).
+     * Per the API docs this identifier is stable across all OpenRouter API
+     * formats, so callers can branch on it. Follows the
+     * swallow-and-return-null convention: {@code null} when neither location
+     * carries the key.
+     *
+     * @return the canonical error type, or {@code null} when absent
+     */
+    public String errorType() {
+        if (json.has("error_type") && !json.isNull("error_type")) {
+            return json.optString("error_type", null);
+        }
+        JSONObject error = json.optJSONObject("error");
+        if (error != null && error.has("error_type") && !error.isNull("error_type")) {
+            return error.optString("error_type", null);
+        }
+        return null;
+    }
+
     /** @return the raw {@code incomplete_details} object, or {@code null} */
     public JSONObject incompleteDetails() {
         return json.optJSONObject("incomplete_details");

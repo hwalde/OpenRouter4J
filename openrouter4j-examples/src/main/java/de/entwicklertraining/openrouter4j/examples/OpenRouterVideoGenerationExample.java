@@ -59,9 +59,10 @@ public class OpenRouterVideoGenerationExample {
                 .execute();
         System.out.println("continuation job " + remixed.id() + " status: " + remixed.status());
 
-        // 4. Download the raw video bytes (typically mp4).
+        // 4. Download the raw video bytes (typically mp4). A multi-output job
+        // can address each generated video with index(0), index(1), ...
         if (finished.isCompleted() && !finished.unsignedUrls().isEmpty()) {
-            byte[] video = client.videos().jobContent(finished.id()).execute().bytes();
+            byte[] video = client.videos().jobContent(finished.id()).index(0).execute().bytes();
             Path out = Path.of("generated-video.mp4");
             Files.write(out, video);
             System.out.println("Wrote " + out.toAbsolutePath() + " (" + video.length + " bytes)");

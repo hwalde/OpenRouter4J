@@ -72,7 +72,8 @@ class OpenRouterResponsesTest {
         for (String absent : List.of("instructions", "max_output_tokens", "max_tool_calls", "top_p", "top_k",
                 "frequency_penalty", "presence_penalty", "tools", "tool_choice", "parallel_tool_calls",
                 "reasoning", "modalities", "include", "background", "store", "metadata", "service_tier",
-                "session_id", "safety_identifier", "user", "prompt_cache_key", "truncation",
+                "session_id", "safety_identifier", "user", "prompt_cache_key", "prompt_cache_options",
+                "truncation", "top_logprobs",
                 "cache_control", "plugins", "trace", "stop_server_tools_when", "provider", "stream",
                 "models", "prompt", "image_config", "debug", "text")) {
             assertThat(body.has(absent)).as(absent).isFalse();
@@ -210,6 +211,41 @@ class OpenRouterResponsesTest {
         assertThat(body.getString("truncation")).isEqualTo("auto");
         assertThat(body.getJSONObject("cache_control").toMap())
                 .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("type", "ephemeral", "ttl", "5m"));
+    }
+
+    @Test
+    void topLogprobsAndPromptCacheOptionsAreEmittedOnlyWhenSet() {
+        OpenRouterResponsesRequest unset = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .build();
+        JSONObject unsetBody = new JSONObject(unset.getBody());
+        assertThat(unsetBody.has("top_logprobs")).isFalse();
+        assertThat(unsetBody.has("prompt_cache_options")).isFalse();
+
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .topLogprobs(5)
+                .promptCacheOptions("explicit")
+                .build();
+        JSONObject modeOnly = new JSONObject(request.getBody());
+        assertThat(modeOnly.getInt("top_logprobs")).isEqualTo(5);
+        assertThat(modeOnly.getJSONObject("prompt_cache_options").toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("mode", "explicit"));
+
+        OpenRouterResponsesRequest withTtl = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .promptCacheOptions("explicit", "30m")
+                .build();
+        JSONObject modeAndTtl = new JSONObject(withTtl.getBody());
+        assertThat(modeAndTtl.getJSONObject("prompt_cache_options").toMap())
+                .containsExactlyInAnyOrderEntriesOf(
+                        java.util.Map.of("mode", "explicit", "ttl", "30m"));
+        assertThat(withTtl.topLogprobs()).isNull();
+        assertThat(withTtl.promptCacheOptionsMode()).isEqualTo("explicit");
+        assertThat(withTtl.promptCacheOptionsTtl()).isEqualTo("30m");
     }
 
     @Test
@@ -490,6 +526,17 @@ class OpenRouterResponsesTest {
         assertThat(response.outputText()).isNull();
         assertThat(response.usage()).isNull();
         assertThat(response.openrouterMetadata()).isNull();
+        assertThat(response.errorType()).isNull();
+    }
+
+    @Test
+    void responseSurfacesErrorTypeFromBothDocumentedLocations() {
+        assertThat(responseOf("{\"error_type\":\"context_length_exceeded\"}").errorType())
+                .isEqualTo("context_length_exceeded");
+        assertThat(responseOf("{\"error\":{\"error_type\":\"provider_overloaded\"}}").errorType())
+                .isEqualTo("provider_overloaded");
+        assertThat(responseOf("{\"error\":{\"code\":429}}").errorType()).isNull();
+        assertThat(responseOf("{\"error_type\":null}").errorType()).isNull();
     }
 
     @Test

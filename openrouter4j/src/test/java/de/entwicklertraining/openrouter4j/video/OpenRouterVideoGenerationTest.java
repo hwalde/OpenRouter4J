@@ -176,6 +176,36 @@ class OpenRouterVideoGenerationTest {
     }
 
     @Test
+    void contentRequestOmitsIndexQueryWhenUnsetAndAppendsItWhenSet() {
+        OpenRouterVideoContentRequest unset =
+                new OpenRouterVideoContentRequest.Builder(client(), "job-abc123").build();
+        assertThat(unset.getRelativeUrl()).isEqualTo("/videos/job-abc123/content");
+        assertThat(unset.index()).isNull();
+
+        OpenRouterVideoContentRequest withIndex =
+                new OpenRouterVideoContentRequest.Builder(client(), "job-abc123")
+                        .index(2)
+                        .build();
+        assertThat(withIndex.getRelativeUrl()).isEqualTo("/videos/job-abc123/content?index=2");
+        assertThat(withIndex.index()).isEqualTo(2);
+
+        OpenRouterVideoContentRequest explicitZero =
+                new OpenRouterVideoContentRequest.Builder(client(), "job-abc123")
+                        .index(0)
+                        .build();
+        assertThat(explicitZero.getRelativeUrl()).isEqualTo("/videos/job-abc123/content?index=0");
+        assertThat(explicitZero.index()).isEqualTo(0);
+    }
+
+    @Test
+    void contentRequestRejectsNegativeIndexLoudly() {
+        assertThatThrownBy(() -> new OpenRouterVideoContentRequest.Builder(client(), "job-abc123")
+                .index(-1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("index");
+    }
+
+    @Test
     void contentResponseHoldsTheVideoBytes() {
         OpenRouterVideoContentRequest request =
                 new OpenRouterVideoContentRequest.Builder(client(), "job-abc123").build();
