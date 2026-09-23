@@ -366,6 +366,19 @@ class OpenRouterActivityTest {
     }
 
     @Test
+    void analyticsRequestOmitsIncludeNullsWhenSetToNull() {
+        OpenRouterAnalyticsQueryRequest request = new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000", "department")
+                .classifierIncludeNulls(null)
+                .build();
+
+        JSONObject classifierDimensions = new JSONObject(request.getBody()).getJSONObject("classifier_dimensions");
+        assertThat(classifierDimensions.has("include_nulls")).isFalse();
+        assertThat(request.classifierIncludeNulls()).isNull();
+    }
+
+    @Test
     void analyticsRequestRejectsInvalidClassifierFilterArguments() {
         assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
                 .metrics("request_count")
@@ -376,8 +389,34 @@ class OpenRouterActivityTest {
         assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
                 .metrics("request_count")
                 .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter(null, "eq", "Engineering"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
                 .classifierFilter("department", "", "Engineering"))
                 .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("department", null, "Engineering"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("department", "eq", (String) null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("value");
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("priority", "eq", (Number) null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("value");
 
         assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
                 .metrics("request_count")
@@ -398,6 +437,11 @@ class OpenRouterActivityTest {
 
         assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
                 .metrics("request_count")
+                .classifierFilterIn("work_type", "in", null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
                 .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
                 .classifierFilterIn("work_type", "in", List.of((Object) List.of("nested"))))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -410,7 +454,19 @@ class OpenRouterActivityTest {
 
         assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
                 .metrics("request_count")
+                .classifierDimensions(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("classifier_id");
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
                 .classifierFilters(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("classifier_id");
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters(null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("classifier_id");
     }

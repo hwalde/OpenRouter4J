@@ -17,8 +17,11 @@ import java.util.List;
  *
  * <p>The endpoint is a metric/dimension query engine: you select metrics, at
  * most two dimensions to group by, optional filters, and an optional time
- * range. The response rows are free-form objects whose keys follow the
- * requested metrics and dimensions, so {@link OpenRouterAnalyticsQueryResponse#rows()}
+ * range. Custom classifier tags can group and filter results via
+ * {@code classifier_dimensions} / {@code classifier_filters} (both must carry
+ * the same {@code classifier_id}). The response rows are free-form objects
+ * whose keys follow the requested metrics and dimensions, so
+ * {@link OpenRouterAnalyticsQueryResponse#rows()}
  * exposes them as raw {@link JSONObject}s. Use {@code GET /analytics/meta} to
  * discover the available metrics and dimensions.
  *
@@ -231,7 +234,7 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
     }
 
     /**
-     * @return the raw {@code classifier_filters.filters} entry objects
+     * @return the raw {@code classifier_filters.filters} entry objects, empty when unset
      */
     public List<JSONObject> classifierFilters() {
         return classifierFilterEntries;
@@ -457,7 +460,7 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * @param classifierId the classifier UUID (required, non-empty)
          * @param dimensionNames at most two classifier dimension names
          * @return this builder
-         * @throws IllegalArgumentException when the id is empty or more than two names are given
+         * @throws IllegalArgumentException when the id is empty, already set to a different value or more than two names are given
          */
         public Builder classifierDimensions(String classifierId, String... dimensionNames) {
             if (classifierId == null || classifierId.isEmpty()) {
@@ -540,7 +543,7 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * @param operator the filter operator ({@code eq} or {@code neq})
          * @param value the scalar tag value
          * @return this builder
-         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded, the operator does not match the scalar value shape or the value type is wrong
+         * @throws IllegalArgumentException when {@code field}, {@code operator} or {@code value} is null or empty, the entry limit is exceeded or the operator does not match the scalar value shape
          */
         public Builder classifierFilter(String field, String operator, String value) {
             return addClassifierFilter(field, operator, value);
@@ -551,13 +554,15 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * numeric tag value (the schema also accepts numbers alongside
          * strings). Only {@code eq} and {@code neq} for scalar values; array
          * values with {@code in} / {@code not_in} belong to
-         * {@link #classifierFilterIn(String, String, Collection)}.
+         * {@link #classifierFilterIn(String, String, Collection)}. Requires
+         * {@link #classifierFilters(String)} to set the classifier id (order of
+         * the calls does not matter). At most 10 entries.
          *
          * @param field the classifier dimension name to filter on (snake_case)
          * @param operator the filter operator ({@code eq} or {@code neq})
          * @param value the scalar numeric tag value
          * @return this builder
-         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded, the operator does not match the scalar value shape or the value type is wrong
+         * @throws IllegalArgumentException when {@code field}, {@code operator} or {@code value} is null or empty, the entry limit is exceeded or the operator does not match the scalar value shape
          */
         public Builder classifierFilter(String field, String operator, Number value) {
             return addClassifierFilter(field, operator, value);
@@ -570,13 +575,15 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * Only {@code in} and {@code not_in} for array values; scalars with
          * {@code eq} / {@code neq} belong to
          * {@link #classifierFilter(String, String, String)}. Element types may
-         * be strings or numbers, matching the schema.
+         * be strings or numbers, matching the schema. Requires
+         * {@link #classifierFilters(String)} to set the classifier id (order of
+         * the calls does not matter). At most 10 entries.
          *
          * @param field the classifier dimension name to filter on (snake_case)
          * @param operator the filter operator ({@code in} or {@code not_in})
          * @param values the tag values (strings or numbers, non-empty)
          * @return this builder
-         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded, the operator does not match the array value shape or an element type is wrong
+         * @throws IllegalArgumentException when {@code field} or {@code operator} is null or empty, {@code values} is null or empty or contains a non-string/non-number element, the entry limit is exceeded or the operator does not match the array value shape
          */
         public Builder classifierFilterIn(String field, String operator, Collection<?> values) {
             if (values == null || values.isEmpty()) {
@@ -599,6 +606,9 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
             }
             if (operator == null || operator.isEmpty()) {
                 throw new IllegalArgumentException("classifier filter operator is required");
+            }
+            if (value == null) {
+                throw new IllegalArgumentException("classifier filter value is required");
             }
             if (classifierFilterEntries.size() >= MAX_CLASSIFIER_FILTERS) {
                 throw new IllegalArgumentException(

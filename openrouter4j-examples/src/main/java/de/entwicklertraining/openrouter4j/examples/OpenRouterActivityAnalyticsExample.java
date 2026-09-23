@@ -6,6 +6,8 @@ import de.entwicklertraining.openrouter4j.activity.OpenRouterAnalyticsQueryRespo
 import de.entwicklertraining.openrouter4j.activity.OpenRouterActivityItem;
 import org.json.JSONObject;
 
+import java.util.List;
+
 /**
  * Demonstrates the usage endpoints:
  *
@@ -65,6 +67,8 @@ public class OpenRouterActivityAnalyticsExample {
                 .classifierIncludeNulls(true)
                 .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
                 .classifierFilter("department", "eq", "Engineering")
+                .classifierFilter("seats", "eq", 25)
+                .classifierFilterIn("work_type", "in", List.of("consulting", "support"))
                 .execute();
 
         System.out.println("Rows by department tag: " + byClassifierTag.rowCount());
