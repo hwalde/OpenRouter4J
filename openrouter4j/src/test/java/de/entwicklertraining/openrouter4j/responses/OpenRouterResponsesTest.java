@@ -392,6 +392,10 @@ class OpenRouterResponsesTest {
                 .toolChoiceAllowedTools("auto", (java.util.Collection<?>) null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> client().responses().model("m").input("hi")
+                .toolChoiceAllowedTools("auto", (Object[]) null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least one tool ref");
+        assertThatThrownBy(() -> client().responses().model("m").input("hi")
                 .toolChoiceAllowedTools("auto", (Object) null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> client().responses().model("m").input("hi")
