@@ -211,8 +211,18 @@ class OpenRouterMessagesTest {
         JSONObject body = new JSONObject(minimalBuilder()
                 .thinking(2048).thinkingBlockBinding("drop_block").build().getBody());
         JSONObject binding = body.getJSONObject("thinking").getJSONObject("block_binding");
+        assertThat(binding.keySet()).containsExactly("prefix_mismatch_behavior");
         assertThat(binding.getString("prefix_mismatch_behavior")).isEqualTo("drop_block");
         assertThat(binding.has("mismatch_behavior")).isFalse();
+    }
+
+    @Test
+    void thinkingBlockBindingNullUnsets() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .thinking(2048).thinkingBlockBinding("error").thinkingBlockBinding(null)
+                .build().getBody());
+        JSONObject thinking = body.getJSONObject("thinking");
+        assertThat(thinking.has("block_binding")).isFalse();
     }
 
     @Test
@@ -840,11 +850,14 @@ class OpenRouterMessagesTest {
         assertThat(safeguards.getJSONObject(0).getString("type"))
                 .isEqualTo("dangerous_tool_use");
         assertThat(safeguards.getJSONObject(0).has("classifier_context")).isFalse();
+        assertThat(safeguards.getJSONObject(0).keySet()).containsExactly("type");
         assertThat(safeguards.getJSONObject(1).getString("type"))
                 .isEqualTo("harmful_content");
         JSONObject ctx = safeguards.getJSONObject(1).getJSONObject("classifier_context");
         assertThat(ctx.getString("permission_mode")).isEqualTo("auto");
         assertThat(ctx.getInt("v")).isEqualTo(1);
+        assertThat(safeguards.getJSONObject(1).keySet())
+                .containsExactlyInAnyOrder("type", "classifier_context");
 
         assertThat(new JSONObject(minimalBuilder().build().getBody())
                 .has("safeguards")).isFalse();
@@ -854,6 +867,30 @@ class OpenRouterMessagesTest {
     @Test
     void safeguardsRawRequiresTypeField() {
         assertThatThrownBy(() -> OpenRouterSafeguard.raw(new JSONObject().put("x", 1)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void safeguardsRawEmitsVerbatim() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addSafeguard(OpenRouterSafeguard.raw(new JSONObject()
+                        .put("type", "future_kind").put("extra", 1)))
+                .build()
+                .getBody());
+
+        JSONObject entry = body.getJSONArray("safeguards").getJSONObject(0);
+        assertThat(entry.keySet()).containsExactlyInAnyOrder("type", "extra");
+        assertThat(entry.getString("type")).isEqualTo("future_kind");
+        assertThat(entry.getInt("extra")).isEqualTo(1);
+    }
+
+    @Test
+    void safeguardsRejectNullArguments() {
+        assertThatThrownBy(() -> minimalBuilder().addSafeguard(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().safeguards((OpenRouterSafeguard[]) null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().safeguards((OpenRouterSafeguard) null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

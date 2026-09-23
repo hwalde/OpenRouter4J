@@ -117,7 +117,8 @@ public final class OpenRouterWorkspaceCreateRequest extends OpenRouterRequest<Op
     /**
      * @return the configured {@code disabled_server_tools} list, empty when
      *         unset (never {@code null}). An empty list when set to empty
-     *         (the API clears the disabled list on an empty array).
+     *         (the API clears the disabled list on an empty array); the two
+     *         are indistinguishable through this accessor.
      */
     public List<String> disabledServerTools() {
         return disabledServerTools == null ? List.of() : disabledServerTools;
@@ -254,9 +255,10 @@ public final class OpenRouterWorkspaceCreateRequest extends OpenRouterRequest<Op
      * {@code openrouter:subagent}, {@code openrouter:tool_search},
      * {@code openrouter:web_fetch}, {@code openrouter:web_search} and allows
      * unknown values - the library keeps the ids verbatim and validates only
-     * that each is non-empty. An empty array or {@code null} clears the list.
-     * Unset (never called) leaves the API default (inherit/none).
-     * Calling this replaces a previously set list.
+     * that each is non-empty. An empty array emits {@code []} and clears the
+     * disabled list; {@code null} unsets the field (same as never calling
+     * this: API default inherit/none). Calling this replaces a previously set
+     * list.
      *
      * @param toolIds the disabled server-tool ids
      * @return this builder
@@ -266,13 +268,14 @@ public final class OpenRouterWorkspaceCreateRequest extends OpenRouterRequest<Op
             this.disabledServerTools = null;
             return this;
         }
-        return disabledServerTools(List.of(toolIds));
+        return disabledServerTools(java.util.Arrays.asList(toolIds));
     }
 
     /**
      * List-based variant of {@link #disabledServerTools(String...)}.
-     * {@code null} unsets the field (API default); an empty list emits
-     * {@code []} and clears the disabled list.
+     * {@code null} unsets the field (same as never calling this: API default
+     * inherit/none); an empty list emits {@code []} and clears the disabled
+     * list.
      *
      * @param toolIds the disabled server-tool ids
      * @return this builder

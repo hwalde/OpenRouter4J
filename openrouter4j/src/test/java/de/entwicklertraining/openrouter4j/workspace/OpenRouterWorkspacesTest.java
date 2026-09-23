@@ -147,6 +147,32 @@ class OpenRouterWorkspacesTest {
     }
 
     @Test
+    void createRequestDisabledServerToolsSetterReplaces() {
+        OpenRouterWorkspaceCreateRequest request = new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("Production")
+                .slug("production")
+                .addDisabledServerTool("openrouter:bash")
+                .disabledServerTools(List.of("openrouter:shell"))
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).getJSONArray("disabled_server_tools").toList())
+                .containsExactly("openrouter:shell");
+    }
+
+    @Test
+    void createRequestDisabledServerToolsSetterToEmptyClearsPrevious() {
+        OpenRouterWorkspaceCreateRequest request = new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("Production")
+                .slug("production")
+                .addDisabledServerTool("openrouter:bash")
+                .disabledServerTools(List.of())
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).getJSONArray("disabled_server_tools").length())
+                .isEqualTo(0);
+    }
+
+    @Test
     void getAndDeleteRequestsUrlEncodeTheId() {
         assertThat(client().workspaces().get("id with space").build().getRelativeUrl())
                 .isEqualTo("/workspaces/id+with+space");
@@ -200,6 +226,36 @@ class OpenRouterWorkspacesTest {
 
         assertThat(new JSONObject(request.getBody()).has("disabled_server_tools")).isFalse();
         assertThat(request.disabledServerTools()).isEmpty();
+    }
+
+    @Test
+    void updateRequestDisabledServerToolsRejectsEmptyId() {
+        assertThatThrownBy(() -> new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .disabledServerTools(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .addDisabledServerTool(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .disabledServerTools((String) null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void updateRequestDisabledServerToolsAddAccumulatesAndSetterReplaces() {
+        OpenRouterWorkspaceUpdateRequest request = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .addDisabledServerTool("openrouter:bash")
+                .addDisabledServerTool("openrouter:shell")
+                .build();
+        assertThat(new JSONObject(request.getBody()).getJSONArray("disabled_server_tools").toList())
+                .containsExactly("openrouter:bash", "openrouter:shell");
+
+        OpenRouterWorkspaceUpdateRequest replaced = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .addDisabledServerTool("openrouter:bash")
+                .disabledServerTools(List.of("openrouter:web_search"))
+                .build();
+        assertThat(new JSONObject(replaced.getBody()).getJSONArray("disabled_server_tools").toList())
+                .containsExactly("openrouter:web_search");
     }
 
     @Test
@@ -301,6 +357,7 @@ class OpenRouterWorkspacesTest {
         assertThat(workspace.isDataDiscountLoggingEnabled()).isTrue();
         assertThat(workspace.ioLoggingSamplingRate()).isEqualTo(1.0);
         assertThat(workspace.ioLoggingApiKeyIds()).containsExactly(1, 2);
+        assertThat(workspace.disabledServerTools()).isEmpty();
         assertThat(workspace.defaultGuardrailId()).isEqualTo("595d5849-7e86-51fd-a7c0-705c34e4afff");
         assertThat(workspace.createdBy()).isEqualTo("user_abc123");
     }

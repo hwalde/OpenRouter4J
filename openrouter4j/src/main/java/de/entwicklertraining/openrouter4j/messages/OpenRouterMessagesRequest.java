@@ -873,15 +873,16 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * @return this builder
          */
         public Builder thinkingBlockBinding(String prefixMismatchBehavior) {
-            if (prefixMismatchBehavior != null
-                    && !List.of("error", "drop_block").contains(prefixMismatchBehavior)) {
+            if (prefixMismatchBehavior == null) {
+                this.thinkingBlockBinding = null;
+                return this;
+            }
+            if (!List.of("error", "drop_block").contains(prefixMismatchBehavior)) {
                 throw new IllegalArgumentException(
                         "prefix_mismatch_behavior must be error or drop_block, got: " + prefixMismatchBehavior);
             }
             JSONObject binding = new JSONObject();
-            if (prefixMismatchBehavior != null) {
-                binding.put("prefix_mismatch_behavior", prefixMismatchBehavior);
-            }
+            binding.put("prefix_mismatch_behavior", prefixMismatchBehavior);
             this.thinkingBlockBinding = binding;
             return this;
         }

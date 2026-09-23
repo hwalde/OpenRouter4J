@@ -1217,6 +1217,8 @@ class OpenRouterChatCompletionRequestTest {
 
         JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
         JSONObject userLocation = parameters.getJSONObject("user_location");
+        assertThat(userLocation.keySet()).containsExactlyInAnyOrder(
+                "type", "city", "country", "region", "timezone");
         assertThat(userLocation.getString("type")).isEqualTo("approximate");
         assertThat(userLocation.getString("city")).isEqualTo("Paris");
         assertThat(userLocation.getString("country")).isEqualTo("FR");
@@ -1239,6 +1241,9 @@ class OpenRouterChatCompletionRequestTest {
 
         JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
         JSONObject xSearch = parameters.getJSONObject("x_search");
+        assertThat(xSearch.keySet()).containsExactlyInAnyOrder(
+                "allowed_x_handles", "from_date", "to_date",
+                "enable_image_understanding", "enable_video_understanding");
         assertThat(xSearch.getJSONArray("allowed_x_handles").toList())
                 .containsExactly("openabor", "xai");
         assertThat(xSearch.has("excluded_x_handles")).isFalse();
@@ -1259,13 +1264,23 @@ class OpenRouterChatCompletionRequestTest {
 
         JSONObject xSearch = body.getJSONArray("tools").getJSONObject(0)
                 .getJSONObject("parameters").getJSONObject("x_search");
+        assertThat(xSearch.keySet()).containsExactly("excluded_x_handles");
         assertThat(xSearch.getJSONArray("excluded_x_handles").toList())
                 .containsExactly("spam_bot");
-        assertThat(xSearch.has("allowed_x_handles")).isFalse();
-        assertThat(xSearch.has("from_date")).isFalse();
-        assertThat(xSearch.has("to_date")).isFalse();
-        assertThat(xSearch.has("enable_image_understanding")).isFalse();
-        assertThat(xSearch.has("enable_video_understanding")).isFalse();
+    }
+
+    @Test
+    void webSearchServerToolXSearchEnableImageUnderstandingFalseIsEmitted() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterWebSearchServerTool.builder()
+                        .xSearch(OpenRouterWebSearchServerTool.XSearchOptions.builder()
+                                .enableImageUnderstanding(false)
+                                .build())
+                        .build()));
+
+        JSONObject xSearch = body.getJSONArray("tools").getJSONObject(0)
+                .getJSONObject("parameters").getJSONObject("x_search");
+        assertThat(xSearch.getBoolean("enable_image_understanding")).isFalse();
     }
 
     @Test

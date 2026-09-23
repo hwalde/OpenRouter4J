@@ -8,8 +8,8 @@ import org.json.JSONObject;
 /**
  * A typed view of one workspace of the management endpoints
  * (GET /workspaces, GET /workspaces/{id}, the {@code data} of POST and PATCH
- * /workspaces/{id}): name, slug, defaults, I/O-logging and observability
- * settings.
+ * /workspaces/{id}): name, slug, defaults, I/O-logging, observability and
+ * governance settings.
  *
  * <p>All accessors follow the swallow-and-return-{@code null} convention; use
  * {@link #json()} for fields without a typed accessor.

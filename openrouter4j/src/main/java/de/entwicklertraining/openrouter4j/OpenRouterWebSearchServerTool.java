@@ -375,8 +375,9 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
          * Sets {@code parameters.x_search}: enable X (Twitter) search alongside
          * native web search. Emitted only when set.
          * <p>
-         * Trap: X search only applies to providers with native search and is
-         * billed separately. {@code allowed_x_handles} and
+         * Trap: X search is only used with native provider search on
+         * SpaceXAI (Grok) models; ignored everywhere else. It is billed
+         * separately. {@code allowed_x_handles} and
          * {@code excluded_x_handles} are mutually exclusive - set at most one.
          *
          * @param xSearch the X search options
@@ -416,9 +417,10 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
      * alongside native web search ({@code XSearchOptions} in the OpenAPI
      * schema). Only explicitly configured fields are emitted.
      * <p>
-     * Trap: X search only applies to providers with native search and is
-     * billed separately. {@code allowed_x_handles} and
-     * {@code excluded_x_handles} are mutually exclusive - set at most one.
+     * Trap: X search is only used with native provider search on SpaceXAI
+     * (Grok) models; ignored everywhere else. It is billed separately.
+     * {@code allowed_x_handles} and {@code excluded_x_handles} are mutually
+     * exclusive - set at most one.
      */
     public static final class XSearchOptions {
 
