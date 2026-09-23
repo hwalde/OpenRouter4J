@@ -173,6 +173,40 @@ class OpenRouterWorkspacesTest {
     }
 
     @Test
+    void createRequestDisabledServerToolsNullUnsets() {
+        OpenRouterWorkspaceCreateRequest request = new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("Production")
+                .slug("production")
+                .addDisabledServerTool("openrouter:bash")
+                .disabledServerTools((String[]) null)
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).has("disabled_server_tools")).isFalse();
+    }
+
+    @Test
+    void createRequestDisabledServerToolsNullListUnsets() {
+        OpenRouterWorkspaceCreateRequest request = new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("Production")
+                .slug("production")
+                .addDisabledServerTool("openrouter:bash")
+                .disabledServerTools((List<String>) null)
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).has("disabled_server_tools")).isFalse();
+    }
+
+    @Test
+    void createRequestAddDisabledServerToolRejectsNull() {
+        assertThatThrownBy(() -> new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("P").slug("p").addDisabledServerTool(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("P").slug("p").disabledServerTools((String) null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void getAndDeleteRequestsUrlEncodeTheId() {
         assertThat(client().workspaces().get("id with space").build().getRelativeUrl())
                 .isEqualTo("/workspaces/id+with+space");
@@ -239,6 +273,19 @@ class OpenRouterWorkspacesTest {
         assertThatThrownBy(() -> new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
                 .disabledServerTools((String) null))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .addDisabledServerTool(null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void updateRequestDisabledServerToolsNullUnsets() {
+        OpenRouterWorkspaceUpdateRequest request = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .addDisabledServerTool("openrouter:bash")
+                .disabledServerTools((String[]) null)
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).has("disabled_server_tools")).isFalse();
     }
 
     @Test

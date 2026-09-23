@@ -144,9 +144,10 @@ public final class OpenRouterWorkspace {
  * JSON path: {@code disabled_server_tools} - the OpenRouter server tools that
  * requests in this workspace may not invoke (a request naming a disabled tool
  * is rejected with HTTP 403), empty when absent or when the list is empty
- * (an empty array or {@code null} clears the list). The ids are kept verbatim;
- * the schema enumerates twelve {@code openrouter:*} values and allows unknown
- * ones.
+ * (cleared by sending an empty array; on the request builders {@code null}
+ * means "not set" - on update the stored list stays unchanged). The ids are
+ * kept verbatim; the schema enumerates twelve {@code openrouter:*} values and
+ * allows unknown ones.
  */
     public List<String> disabledServerTools() {
         List<String> result = new ArrayList<>();

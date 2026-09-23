@@ -237,6 +237,16 @@ class OpenRouterMessagesTest {
     }
 
     @Test
+    void thinkingBlockBindingRawNullUnsets() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .thinking(2048)
+                .thinkingBlockBindingRaw(new JSONObject().put("mismatch_behavior", "error"))
+                .thinkingBlockBindingRaw(null)
+                .build().getBody());
+        assertThat(body.getJSONObject("thinking").has("block_binding")).isFalse();
+    }
+
+    @Test
     void thinkingDisplayAndBlockBindingRequireEnabledThinking() {
         assertThatThrownBy(() -> minimalBuilder().thinkingDisplay("summarized").build())
                 .isInstanceOf(IllegalStateException.class);
@@ -892,6 +902,28 @@ class OpenRouterMessagesTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> minimalBuilder().safeguards((OpenRouterSafeguard) null))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void safeguardsOfWithNullClassifierContextEmitsTypeOnly() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addSafeguard(OpenRouterSafeguard.of("dangerous_tool_use", null))
+                .build()
+                .getBody());
+
+        JSONObject entry = body.getJSONArray("safeguards").getJSONObject(0);
+        assertThat(entry.keySet()).containsExactly("type");
+    }
+
+    @Test
+    void safeguardsEmptySetterClearsAndOmits() {
+        OpenRouterMessagesRequest request = minimalBuilder()
+                .addSafeguard(OpenRouterSafeguard.of("dangerous_tool_use"))
+                .safeguards(List.of())
+                .build();
+
+        assertThat(request.safeguards()).isEmpty();
+        assertThat(new JSONObject(request.getBody()).has("safeguards")).isFalse();
     }
 
     @Test

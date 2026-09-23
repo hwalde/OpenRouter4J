@@ -715,9 +715,10 @@ public final class OpenRouterMessagesResponse extends OpenRouterResponse<OpenRou
         }
 
         /**
-         * JSON path: {@code safeguard_results[].status} - the status object
-         * ({@code {"type": <string>, ...} keyed by tool-use id}), or
-         * {@code null} when absent.
+         * JSON path: {@code safeguard_results[].status} - a JSON object whose
+         * shape varies per safeguard type (typically mapping tool-use ids to
+         * status entries, each with a {@code type} field), or {@code null} when
+         * absent. Use {@link #json()} for the raw form.
          *
          * @return the status object, or {@code null} when absent
          */

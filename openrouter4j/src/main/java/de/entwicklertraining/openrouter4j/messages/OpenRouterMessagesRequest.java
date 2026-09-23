@@ -842,8 +842,12 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * and {@code thinkingMode("adaptive")}; rejected with
          * {@code thinkingMode("disabled")} or without any thinking mode
          * (the {@code disabled} shape has no {@code display} field).
+         * Emitted only when set ({@code null} unsets, same as never calling
+         * this) - the {@code thinking} object then carries no {@code display}
+         * key.
          *
-         * @param display one of {@code summarized}, {@code omitted}, {@code updates}
+         * @param display one of {@code summarized}, {@code omitted},
+         *        {@code updates}, or {@code null} to unset
          * @return this builder
          */
         public Builder thinkingDisplay(String display) {
@@ -862,6 +866,12 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * handled: {@code error} (fail the request) or {@code drop_block}
          * (discard the stale thinking block). Emits
          * {@code {"prefix_mismatch_behavior": ...}}. Validated loudly.
+         * Requires an enabled thinking mode ({@code thinking(budgetTokens)} or
+         * {@code thinkingMode("adaptive")}); {@code build()} rejects this
+         * option otherwise - the {@code disabled} shape has no
+         * {@code block_binding} field. Emitted only when set ({@code null}
+         * unsets, same as never calling this) - the {@code thinking} object
+         * then carries no {@code block_binding} key.
          * <p>
          * Trap: the schema also accepts a deprecated legacy alias
          * {@code mismatch_behavior} with the same values - send only one of
@@ -869,7 +879,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * alias stays reachable via
          * {@link #thinkingBlockBindingRaw(JSONObject)}.
          *
-         * @param prefixMismatchBehavior {@code error} or {@code drop_block}
+         * @param prefixMismatchBehavior {@code error} or {@code drop_block},
+         *        or {@code null} to unset
          * @return this builder
          */
         public Builder thinkingBlockBinding(String prefixMismatchBehavior) {
@@ -891,9 +902,13 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * Verbatim escape hatch for {@code thinking.block_binding}: emits the
          * given object unchanged. Use it for the deprecated
          * {@code mismatch_behavior} alias or for keys Anthropic adds after
-         * this library was released.
+         * this library was released. Requires an enabled thinking mode
+         * ({@code thinking(budgetTokens)} or {@code thinkingMode("adaptive")});
+         * {@code build()} rejects this option otherwise. Emitted only when set
+         * ({@code null} unsets, same as never calling this).
          *
-         * @param blockBinding the raw block_binding JSON
+         * @param blockBinding the raw block_binding JSON, or {@code null} to
+         *        unset
          * @return this builder
          */
         public Builder thinkingBlockBindingRaw(JSONObject blockBinding) {
