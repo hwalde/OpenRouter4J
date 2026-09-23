@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterVideoProcessing;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionResponse;
 import org.json.JSONObject;
@@ -55,10 +56,14 @@ public class OpenRouterChatCompletionWithFileAudioVideoExample {
                 .execute();
         System.out.println("Audio answer: " + audioResponse.assistantMessage());
 
-        // 3. Video by URL (or base64 data URL).
+        // 3. Video by URL (or base64 data URL), with an optional processing
+        //    mode: AGENTIC enables agentic video processing, STATIC forces
+        //    fixed-rate frame sampling (Google Gemini). Omit the mode for the
+        //    provider default.
         OpenRouterChatCompletionResponse videoResponse = client.chat().completion()
                 .model("google/gemini-3.5-flash-lite")
-                .addVideoByUrl("https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4")
+                .addVideoByUrl("https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
+                        OpenRouterVideoProcessing.AGENTIC)
                 .addMessage("user", "Describe what happens in this clip in one sentence.")
                 .execute();
         System.out.println("Video answer: " + videoResponse.assistantMessage());

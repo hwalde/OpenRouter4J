@@ -9,6 +9,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterGenericPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterImageDetail;
+import de.entwicklertraining.openrouter4j.OpenRouterVideoProcessing;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
@@ -2617,6 +2618,29 @@ class OpenRouterChatCompletionRequestTest {
         JSONObject part = body.getJSONArray("messages").getJSONObject(1).getJSONArray("content").getJSONObject(0);
         assertThat(part.getString("type")).isEqualTo("video_url");
         assertThat(part.getJSONObject("video_url").getString("url")).isEqualTo("https://example.com/clip.mp4");
+        assertThat(part.getJSONObject("video_url").has("processing")).isFalse();
+    }
+
+    @Test
+    void videoContentPartProcessingIsEmittedOnlyWhenSet() {
+        JSONObject agentic = bodyOf(baseBuilder()
+                .addVideoByUrl("https://example.com/clip.mp4", OpenRouterVideoProcessing.AGENTIC));
+        JSONObject agenticUrl = agentic.getJSONArray("messages").getJSONObject(1)
+                .getJSONArray("content").getJSONObject(0).getJSONObject("video_url");
+        assertThat(agenticUrl.getString("url")).isEqualTo("https://example.com/clip.mp4");
+        assertThat(agenticUrl.getString("processing")).isEqualTo("agentic");
+
+        JSONObject statik = bodyOf(baseBuilder()
+                .addVideoByUrl("https://example.com/clip.mp4", OpenRouterVideoProcessing.STATIC));
+        JSONObject staticUrl = statik.getJSONArray("messages").getJSONObject(1)
+                .getJSONArray("content").getJSONObject(0).getJSONObject("video_url");
+        assertThat(staticUrl.getString("processing")).isEqualTo("static");
+
+        JSONObject unset = bodyOf(baseBuilder()
+                .addVideoByUrl("https://example.com/clip.mp4", null));
+        assertThat(unset.getJSONArray("messages").getJSONObject(1)
+                .getJSONArray("content").getJSONObject(0).getJSONObject("video_url").has("processing"))
+                .isFalse();
     }
 
     @Test

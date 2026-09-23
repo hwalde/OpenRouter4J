@@ -3587,6 +3587,29 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/videos">Videos</a>
          */
         public Builder addVideoByUrl(String url) {
+            return addVideoByUrl(url, null);
+        }
+
+        /**
+         * Adds a {@code video_url} content part carrying a video, with an
+         * explicit {@code processing} mode.
+         * <p>
+         * Emitted as {@code {"type":"video_url","video_url":{"url":...[,"processing":...]}}}
+         * on a user message; {@code processing} is emitted only when non-null.
+         * {@link OpenRouterVideoProcessing#AGENTIC} enables agentic video
+         * processing; {@link OpenRouterVideoProcessing#STATIC} forces
+         * fixed-rate frame sampling on providers that support it (currently
+         * Google Gemini). Trap: the mode is provider-dependent - a provider
+         * without the requested behaviour may ignore it or reject the request;
+         * the same field exists on the legacy {@code input_video} variant,
+         * which has no typed helper (use {@link #addContentPart(JSONObject)}).
+         *
+         * @param url the video URL or data URL
+         * @param processing the processing mode, or {@code null} for the provider default
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/overview/multimodal/videos">Videos</a>
+         */
+        public Builder addVideoByUrl(String url, OpenRouterVideoProcessing processing) {
             Objects.requireNonNull(url, "url must not be null");
 
             JSONObject msg = new JSONObject();
@@ -3597,6 +3620,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             videoContent.put("type", "video_url");
             JSONObject videoUrl = new JSONObject();
             videoUrl.put("url", url);
+            if (processing != null) {
+                videoUrl.put("processing", processing.wireName());
+            }
             videoContent.put("video_url", videoUrl);
             contentArr.put(videoContent);
 
