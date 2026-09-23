@@ -65,6 +65,10 @@ public class OpenRouterMessagesExample {
                         OpenRouterSafeguard.of("dangerous_tool_use"),
                         OpenRouterSafeguard.of("harmful_content",
                                 new JSONObject().put("permission_mode", "auto").put("v", 1)))
+                // Thinking presentation and cache-prefix binding.
+                .thinking(2048)
+                .thinkingDisplay("summarized")
+                .thinkingBlockBinding("drop_block")
                 .effort("medium")
                 .execute();
 

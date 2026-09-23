@@ -191,6 +191,73 @@ class OpenRouterMessagesTest {
     }
 
     @Test
+    void thinkingDisplayIsEmittedWithBudgetAndAdaptive() {
+        JSONObject budget = new JSONObject(minimalBuilder()
+                .thinking(2048).thinkingDisplay("summarized").build().getBody());
+        JSONObject thinkingBudget = budget.getJSONObject("thinking");
+        assertThat(thinkingBudget.getString("type")).isEqualTo("enabled");
+        assertThat(thinkingBudget.getInt("budget_tokens")).isEqualTo(2048);
+        assertThat(thinkingBudget.getString("display")).isEqualTo("summarized");
+
+        JSONObject adaptive = new JSONObject(minimalBuilder()
+                .thinkingMode("adaptive").thinkingDisplay("updates").build().getBody());
+        JSONObject thinkingAdaptive = adaptive.getJSONObject("thinking");
+        assertThat(thinkingAdaptive.getString("type")).isEqualTo("adaptive");
+        assertThat(thinkingAdaptive.getString("display")).isEqualTo("updates");
+    }
+
+    @Test
+    void thinkingBlockBindingIsEmittedWithPrefixMismatchBehavior() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .thinking(2048).thinkingBlockBinding("drop_block").build().getBody());
+        JSONObject binding = body.getJSONObject("thinking").getJSONObject("block_binding");
+        assertThat(binding.getString("prefix_mismatch_behavior")).isEqualTo("drop_block");
+        assertThat(binding.has("mismatch_behavior")).isFalse();
+    }
+
+    @Test
+    void thinkingBlockBindingRawEscapeHatchEmitsVerbatim() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .thinkingMode("adaptive")
+                .thinkingBlockBindingRaw(new JSONObject().put("mismatch_behavior", "error"))
+                .build().getBody());
+        JSONObject binding = body.getJSONObject("thinking").getJSONObject("block_binding");
+        assertThat(binding.getString("mismatch_behavior")).isEqualTo("error");
+        assertThat(binding.has("prefix_mismatch_behavior")).isFalse();
+    }
+
+    @Test
+    void thinkingDisplayAndBlockBindingRequireEnabledThinking() {
+        assertThatThrownBy(() -> minimalBuilder().thinkingDisplay("summarized").build())
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> minimalBuilder().thinkingBlockBinding("error").build())
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> minimalBuilder()
+                .thinkingMode("disabled").thinkingDisplay("summarized").build())
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void thinkingDisplayValidatesAllowedValues() {
+        assertThatThrownBy(() -> minimalBuilder().thinking(2048).thinkingDisplay("verbose"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void thinkingBlockBindingValidatesPrefixMismatchBehavior() {
+        assertThatThrownBy(() -> minimalBuilder().thinking(2048).thinkingBlockBinding("warn"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void thinkingDisplayAndBlockBindingAreAbsentWhenUnset() {
+        JSONObject body = new JSONObject(minimalBuilder().thinking(2048).build().getBody());
+        JSONObject thinking = body.getJSONObject("thinking");
+        assertThat(thinking.has("display")).isFalse();
+        assertThat(thinking.has("block_binding")).isFalse();
+    }
+
+    @Test
     void outputConfigCarriesEffortFormatAndTaskBudget() {
         OpenRouterJsonSchema schema = OpenRouterJsonSchema.objectSchema()
                 .property("answer", OpenRouterJsonSchema.stringSchema("the answer"), true);

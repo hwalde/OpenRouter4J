@@ -56,6 +56,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
     private final Boolean stream;
     private final Integer thinkingBudgetTokens;
     private final String thinkingMode;
+    private final String thinkingDisplay;
+    private final JSONObject thinkingBlockBinding;
     private final String effort;
     private final OpenRouterJsonSchema outputFormat;
     private final Integer taskBudgetTotal;
@@ -164,6 +166,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         this.stream = builder.streamRequested();
         this.thinkingBudgetTokens = builder.thinkingBudgetTokens;
         this.thinkingMode = builder.thinkingMode;
+        this.thinkingDisplay = builder.thinkingDisplay;
+        this.thinkingBlockBinding = builder.thinkingBlockBinding;
         this.effort = builder.effort;
         this.outputFormat = builder.outputFormat;
         this.taskBudgetTotal = builder.taskBudgetTotal;
@@ -239,6 +243,22 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         return safeguards == null ? List.of() : safeguards;
     }
 
+    /**
+     * @return the configured {@code thinking.display} value, or {@code null}
+     *         when unset
+     */
+    public String thinkingDisplay() {
+        return thinkingDisplay;
+    }
+
+    /**
+     * @return the configured {@code thinking.block_binding} object, or
+     *         {@code null} when unset
+     */
+    public JSONObject thinkingBlockBinding() {
+        return thinkingBlockBinding == null ? null : new JSONObject(thinkingBlockBinding.toString());
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/messages";
@@ -254,7 +274,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
      * (required by the schema), {@code max_tokens} (required by Anthropic
      * semantics), the top-level {@code system} (string or text-block array),
      * {@code temperature}, {@code top_p}, {@code top_k},
-     * {@code stop_sequences}, {@code stream}, {@code thinking},
+     * {@code stop_sequences}, {@code stream}, {@code thinking}
+     * (including {@code display} and {@code block_binding} when set),
      * {@code output_config} (effort, format, task_budget), {@code metadata},
      * {@code models}, {@code fallbacks} (mutually exclusive per the API),
      * {@code service_tier}, {@code speed}, {@code session_id}, {@code user},
@@ -309,11 +330,20 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         if (stream) {
             root.put("stream", true);
         }
-        if (thinkingBudgetTokens != null) {
-            root.put("thinking", new JSONObject()
-                    .put("type", "enabled").put("budget_tokens", thinkingBudgetTokens));
-        } else if (thinkingMode != null) {
-            JSONObject thinking = new JSONObject().put("type", thinkingMode);
+        if (thinkingBudgetTokens != null || thinkingMode != null) {
+            JSONObject thinking = new JSONObject();
+            if (thinkingBudgetTokens != null) {
+                thinking.put("type", "enabled");
+                thinking.put("budget_tokens", thinkingBudgetTokens);
+            } else {
+                thinking.put("type", thinkingMode);
+            }
+            if (thinkingDisplay != null) {
+                thinking.put("display", thinkingDisplay);
+            }
+            if (thinkingBlockBinding != null) {
+                thinking.put("block_binding", new JSONObject(thinkingBlockBinding.toString()));
+            }
             root.put("thinking", thinking);
         }
         if (effort != null || outputFormat != null || taskBudgetTotal != null) {
@@ -496,6 +526,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         private boolean streamEnabled;
         private Integer thinkingBudgetTokens;
         private String thinkingMode;
+        private String thinkingDisplay;
+        private JSONObject thinkingBlockBinding;
         private String effort;
         private OpenRouterJsonSchema outputFormat;
         private Integer taskBudgetTotal;
@@ -799,6 +831,73 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
             }
             this.thinkingMode = mode;
             this.thinkingBudgetTokens = null;
+            return this;
+        }
+
+        /**
+         * Sets {@code thinking.display} - how the thinking output is presented:
+         * {@code summarized} (a summary is shown), {@code omitted} (thinking is
+         * hidden) or {@code updates} (streamed as incremental updates).
+         * Validated loudly. Valid with {@code thinking(budgetTokens)} (enabled)
+         * and {@code thinkingMode("adaptive")}; rejected with
+         * {@code thinkingMode("disabled")} or without any thinking mode
+         * (the {@code disabled} shape has no {@code display} field).
+         *
+         * @param display one of {@code summarized}, {@code omitted}, {@code updates}
+         * @return this builder
+         */
+        public Builder thinkingDisplay(String display) {
+            if (display != null
+                    && !List.of("summarized", "omitted", "updates").contains(display)) {
+                throw new IllegalArgumentException(
+                        "thinking display must be one of summarized, omitted, updates, got: " + display);
+            }
+            this.thinkingDisplay = display;
+            return this;
+        }
+
+        /**
+         * Sets {@code thinking.block_binding.prefix_mismatch_behavior} - how a
+         * mismatch between the cached prompt prefix and the thinking blocks is
+         * handled: {@code error} (fail the request) or {@code drop_block}
+         * (discard the stale thinking block). Emits
+         * {@code {"prefix_mismatch_behavior": ...}}. Validated loudly.
+         * <p>
+         * Trap: the schema also accepts a deprecated legacy alias
+         * {@code mismatch_behavior} with the same values - send only one of
+         * the two. The library deliberately types only the current name; the
+         * alias stays reachable via
+         * {@link #thinkingBlockBindingRaw(JSONObject)}.
+         *
+         * @param prefixMismatchBehavior {@code error} or {@code drop_block}
+         * @return this builder
+         */
+        public Builder thinkingBlockBinding(String prefixMismatchBehavior) {
+            if (prefixMismatchBehavior != null
+                    && !List.of("error", "drop_block").contains(prefixMismatchBehavior)) {
+                throw new IllegalArgumentException(
+                        "prefix_mismatch_behavior must be error or drop_block, got: " + prefixMismatchBehavior);
+            }
+            JSONObject binding = new JSONObject();
+            if (prefixMismatchBehavior != null) {
+                binding.put("prefix_mismatch_behavior", prefixMismatchBehavior);
+            }
+            this.thinkingBlockBinding = binding;
+            return this;
+        }
+
+        /**
+         * Verbatim escape hatch for {@code thinking.block_binding}: emits the
+         * given object unchanged. Use it for the deprecated
+         * {@code mismatch_behavior} alias or for keys Anthropic adds after
+         * this library was released.
+         *
+         * @param blockBinding the raw block_binding JSON
+         * @return this builder
+         */
+        public Builder thinkingBlockBindingRaw(JSONObject blockBinding) {
+            this.thinkingBlockBinding = blockBinding == null
+                    ? null : new JSONObject(blockBinding.toString());
             return this;
         }
 
@@ -1364,6 +1463,12 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
             if (models != null && !models.isEmpty() && fallbacks != null && !fallbacks.isEmpty()) {
                 throw new IllegalStateException(
                         "models and fallbacks cannot be combined on a messages request");
+            }
+            if ((thinkingDisplay != null || thinkingBlockBinding != null)
+                    && thinkingBudgetTokens == null && !"adaptive".equals(thinkingMode)) {
+                throw new IllegalStateException(
+                        "thinkingDisplay and thinkingBlockBinding require thinking to be enabled"
+                                + " via thinking(budgetTokens) or thinkingMode(\"adaptive\")");
             }
             return new OpenRouterMessagesRequest(this);
         }
