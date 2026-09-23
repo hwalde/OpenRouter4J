@@ -48,6 +48,9 @@ public class OpenRouterWorkspacesExample {
                 .slug("example-workspace")
                 .description("Created by OpenRouterWorkspacesExample")
                 .defaultProviderSort("price")
+                // Governance: disable server tools for this workspace - a
+                // request naming a disabled tool is rejected with HTTP 403.
+                .disabledServerTools("openrouter:bash", "openrouter:shell")
                 .execute();
         String id = created.data() != null ? created.data().id() : null;
         System.out.println("Created workspace " + id);

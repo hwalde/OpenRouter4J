@@ -86,6 +86,67 @@ class OpenRouterWorkspacesTest {
     }
 
     @Test
+    void createRequestEmitsDisabledServerTools() {
+        OpenRouterWorkspaceCreateRequest request = new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("Production")
+                .slug("production")
+                .disabledServerTools("openrouter:bash", "openrouter:web_search")
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getJSONArray("disabled_server_tools").toList())
+                .containsExactly("openrouter:bash", "openrouter:web_search");
+        assertThat(request.disabledServerTools())
+                .containsExactly("openrouter:bash", "openrouter:web_search");
+    }
+
+    @Test
+    void createRequestDisabledServerToolsAbsentWhenUnset() {
+        OpenRouterWorkspaceCreateRequest request = new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("Production")
+                .slug("production")
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).has("disabled_server_tools")).isFalse();
+        assertThat(request.disabledServerTools()).isEmpty();
+    }
+
+    @Test
+    void createRequestDisabledServerToolsEmptyArrayClears() {
+        OpenRouterWorkspaceCreateRequest request = new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("Production")
+                .slug("production")
+                .disabledServerTools(List.of())
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getJSONArray("disabled_server_tools").length()).isEqualTo(0);
+    }
+
+    @Test
+    void createRequestDisabledServerToolsRejectsEmptyId() {
+        assertThatThrownBy(() -> new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("P").slug("p").disabledServerTools(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("P").slug("p").addDisabledServerTool(""))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void createRequestDisabledServerToolsAddAccumulates() {
+        OpenRouterWorkspaceCreateRequest request = new OpenRouterWorkspaceCreateRequest.Builder(client())
+                .name("Production")
+                .slug("production")
+                .addDisabledServerTool("openrouter:bash")
+                .addDisabledServerTool("openrouter:shell")
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).getJSONArray("disabled_server_tools").toList())
+                .containsExactly("openrouter:bash", "openrouter:shell");
+    }
+
+    @Test
     void getAndDeleteRequestsUrlEncodeTheId() {
         assertThat(client().workspaces().get("id with space").build().getRelativeUrl())
                 .isEqualTo("/workspaces/id+with+space");
@@ -117,6 +178,28 @@ class OpenRouterWorkspacesTest {
         assertThat(body.get("slug")).isEqualTo("updated-workspace");
         assertThat(body.has("description")).isFalse();
         assertThat(body.has("default_text_model")).isFalse();
+    }
+
+    @Test
+    void updateRequestEmitsDisabledServerTools() {
+        OpenRouterWorkspaceUpdateRequest request = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .disabledServerTools(List.of("openrouter:web_fetch"))
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getJSONArray("disabled_server_tools").toList())
+                .containsExactly("openrouter:web_fetch");
+        assertThat(request.disabledServerTools()).containsExactly("openrouter:web_fetch");
+    }
+
+    @Test
+    void updateRequestDisabledServerToolsAbsentWhenUnset() {
+        OpenRouterWorkspaceUpdateRequest request = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .name("Updated")
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).has("disabled_server_tools")).isFalse();
+        assertThat(request.disabledServerTools()).isEmpty();
     }
 
     @Test
@@ -220,6 +303,27 @@ class OpenRouterWorkspacesTest {
         assertThat(workspace.ioLoggingApiKeyIds()).containsExactly(1, 2);
         assertThat(workspace.defaultGuardrailId()).isEqualTo("595d5849-7e86-51fd-a7c0-705c34e4afff");
         assertThat(workspace.createdBy()).isEqualTo("user_abc123");
+    }
+
+    @Test
+    void workspaceViewExposesDisabledServerTools() {
+        OpenRouterWorkspacesListResponse response = responseOf("""
+                {
+                  "data": [
+                    {
+                      "id": "ws-1",
+                      "name": "Restricted",
+                      "slug": "restricted",
+                      "disabled_server_tools": ["openrouter:bash", "openrouter:web_search"]
+                    }
+                  ],
+                  "total_count": 1
+                }
+                """, json -> new OpenRouterWorkspacesListResponse(json, null));
+
+        OpenRouterWorkspace workspace = response.items().get(0);
+        assertThat(workspace.disabledServerTools())
+                .containsExactly("openrouter:bash", "openrouter:web_search");
     }
 
     @Test

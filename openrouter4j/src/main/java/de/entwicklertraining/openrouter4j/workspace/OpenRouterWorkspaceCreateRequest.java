@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.workspace;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
+import java.util.ArrayList;
 import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -33,6 +34,7 @@ public final class OpenRouterWorkspaceCreateRequest extends OpenRouterRequest<Op
     private final Boolean isDataDiscountLoggingEnabled;
     private final Boolean isObservabilityBroadcastEnabled;
     private final Boolean isObservabilityIoLoggingEnabled;
+    private final List<String> disabledServerTools;
 
     private OpenRouterWorkspaceCreateRequest(Builder builder) {
         super(builder);
@@ -48,6 +50,8 @@ public final class OpenRouterWorkspaceCreateRequest extends OpenRouterRequest<Op
         this.isDataDiscountLoggingEnabled = builder.isDataDiscountLoggingEnabled;
         this.isObservabilityBroadcastEnabled = builder.isObservabilityBroadcastEnabled;
         this.isObservabilityIoLoggingEnabled = builder.isObservabilityIoLoggingEnabled;
+        this.disabledServerTools = builder.disabledServerTools == null
+                ? null : List.copyOf(builder.disabledServerTools);
     }
 
 
@@ -99,12 +103,24 @@ public final class OpenRouterWorkspaceCreateRequest extends OpenRouterRequest<Op
         if (isObservabilityIoLoggingEnabled != null) {
             body.put("is_observability_io_logging_enabled", isObservabilityIoLoggingEnabled);
         }
+        if (disabledServerTools != null) {
+            body.put("disabled_server_tools", new JSONArray(disabledServerTools));
+        }
         return body.toString();
     }
 
     @Override
     public OpenRouterWorkspaceCreateResponse createResponse(String responseBody) {
         return new OpenRouterWorkspaceCreateResponse(new JSONObject(responseBody), this);
+    }
+
+    /**
+     * @return the configured {@code disabled_server_tools} list, empty when
+     *         unset (never {@code null}). An empty list when set to empty
+     *         (the API clears the disabled list on an empty array).
+     */
+    public List<String> disabledServerTools() {
+        return disabledServerTools == null ? List.of() : disabledServerTools;
     }
 
     /**
@@ -124,6 +140,7 @@ public final class OpenRouterWorkspaceCreateRequest extends OpenRouterRequest<Op
     private Boolean isDataDiscountLoggingEnabled;
     private Boolean isObservabilityBroadcastEnabled;
     private Boolean isObservabilityIoLoggingEnabled;
+    private List<String> disabledServerTools;
 
 
     /**
@@ -223,6 +240,73 @@ public final class OpenRouterWorkspaceCreateRequest extends OpenRouterRequest<Op
  */
     public Builder isObservabilityIoLoggingEnabled(Boolean isObservabilityIoLoggingEnabled) {
         this.isObservabilityIoLoggingEnabled = isObservabilityIoLoggingEnabled;
+        return this;
+    }
+
+    /**
+     * Sets the body field {@code disabled_server_tools} - the OpenRouter
+     * server tools that requests in this workspace may not invoke. A request
+     * naming a disabled tool is rejected with HTTP 403. The schema enumerates
+     * {@code openrouter:advisor}, {@code openrouter:apply_patch},
+     * {@code openrouter:bash}, {@code openrouter:datetime},
+     * {@code openrouter:fusion}, {@code openrouter:image_generation},
+     * {@code openrouter:experimental__search_models}, {@code openrouter:shell},
+     * {@code openrouter:subagent}, {@code openrouter:tool_search},
+     * {@code openrouter:web_fetch}, {@code openrouter:web_search} and allows
+     * unknown values - the library keeps the ids verbatim and validates only
+     * that each is non-empty. An empty array or {@code null} clears the list.
+     * Unset (never called) leaves the API default (inherit/none).
+     * Calling this replaces a previously set list.
+     *
+     * @param toolIds the disabled server-tool ids
+     * @return this builder
+     */
+    public Builder disabledServerTools(String... toolIds) {
+        if (toolIds == null) {
+            this.disabledServerTools = null;
+            return this;
+        }
+        return disabledServerTools(List.of(toolIds));
+    }
+
+    /**
+     * List-based variant of {@link #disabledServerTools(String...)}.
+     * {@code null} unsets the field (API default); an empty list emits
+     * {@code []} and clears the disabled list.
+     *
+     * @param toolIds the disabled server-tool ids
+     * @return this builder
+     */
+    public Builder disabledServerTools(List<String> toolIds) {
+        if (toolIds == null) {
+            this.disabledServerTools = null;
+            return this;
+        }
+        for (String toolId : toolIds) {
+            if (toolId == null || toolId.isEmpty()) {
+                throw new IllegalArgumentException("disabled server tool id must not be empty");
+            }
+        }
+        this.disabledServerTools = new ArrayList<>(toolIds);
+        return this;
+    }
+
+    /**
+     * Adds a single server-tool id to {@code disabled_server_tools} (see
+     * {@link #disabledServerTools(String...)}). Unlike the setter, this
+     * accumulates: repeated calls append one id each.
+     *
+     * @param toolId the disabled server-tool id
+     * @return this builder
+     */
+    public Builder addDisabledServerTool(String toolId) {
+        if (toolId == null || toolId.isEmpty()) {
+            throw new IllegalArgumentException("disabled server tool id must not be empty");
+        }
+        if (this.disabledServerTools == null) {
+            this.disabledServerTools = new ArrayList<>();
+        }
+        this.disabledServerTools.add(toolId);
         return this;
     }
         @Override
