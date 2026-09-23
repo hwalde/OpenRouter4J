@@ -458,9 +458,9 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * mismatch, and {@link #build()} does too.
          *
          * @param classifierId the classifier UUID (required, non-empty)
-         * @param dimensionNames at most two classifier dimension names
+         * @param dimensionNames classifier dimension names; null and empty entries are skipped, at most two non-empty names in total across all calls
          * @return this builder
-         * @throws IllegalArgumentException when the id is empty, already set to a different value or more than two names are given
+         * @throws IllegalArgumentException when the id is null or empty, already set to a different value, or a further non-empty name would bring the total above two
          */
         public Builder classifierDimensions(String classifierId, String... dimensionNames) {
             if (classifierId == null || classifierId.isEmpty()) {
@@ -513,7 +513,7 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          *
          * @param classifierId the classifier UUID (required, non-empty)
          * @return this builder
-         * @throws IllegalArgumentException when the id is empty or already set to a different value
+         * @throws IllegalArgumentException when the id is null or empty or already set to a different value
          */
         public Builder classifierFilters(String classifierId) {
             if (classifierId == null || classifierId.isEmpty()) {
@@ -534,10 +534,9 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * Only {@code eq} and {@code neq} for scalar values; array values with
          * {@code in} / {@code not_in} belong to
          * {@link #classifierFilterIn(String, String, Collection)}. Ordered
-         * comparisons are not available because classification values are
-         * strings. Requires {@link #classifierFilters(String)} to set the
-         * classifier id (order of the calls does not matter). At most 10
-         * entries.
+         * comparisons are not available for classification tags. Requires
+         * {@link #classifierFilters(String)} to set the classifier id (order of
+         * the calls does not matter). At most 10 entries.
          *
          * @param field the classifier dimension name to filter on (snake_case)
          * @param operator the filter operator ({@code eq} or {@code neq})
@@ -554,7 +553,8 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * numeric tag value (the schema also accepts numbers alongside
          * strings). Only {@code eq} and {@code neq} for scalar values; array
          * values with {@code in} / {@code not_in} belong to
-         * {@link #classifierFilterIn(String, String, Collection)}. Requires
+         * {@link #classifierFilterIn(String, String, Collection)}. Ordered
+         * comparisons are not available for classification tags. Requires
          * {@link #classifierFilters(String)} to set the classifier id (order of
          * the calls does not matter). At most 10 entries.
          *
@@ -562,7 +562,7 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * @param operator the filter operator ({@code eq} or {@code neq})
          * @param value the scalar numeric tag value
          * @return this builder
-         * @throws IllegalArgumentException when {@code field}, {@code operator} or {@code value} is null or empty, the entry limit is exceeded or the operator does not match the scalar value shape
+         * @throws IllegalArgumentException when {@code field} or {@code operator} is null or empty, {@code value} is {@code null}, the entry limit is exceeded or the operator does not match the scalar value shape
          */
         public Builder classifierFilter(String field, String operator, Number value) {
             return addClassifierFilter(field, operator, value);
@@ -581,9 +581,9 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          *
          * @param field the classifier dimension name to filter on (snake_case)
          * @param operator the filter operator ({@code in} or {@code not_in})
-         * @param values the tag values (strings or numbers, non-empty)
+         * @param values the tag values (strings or numbers; the collection itself must be non-empty and must not contain null or empty strings)
          * @return this builder
-         * @throws IllegalArgumentException when {@code field} or {@code operator} is null or empty, {@code values} is null or empty or contains a non-string/non-number element, the entry limit is exceeded or the operator does not match the array value shape
+         * @throws IllegalArgumentException when {@code field} or {@code operator} is null or empty, {@code values} is null or empty or contains a null/empty-string/non-string/non-number element, the entry limit is exceeded or the operator does not match the array value shape
          */
         public Builder classifierFilterIn(String field, String operator, Collection<?> values) {
             if (values == null || values.isEmpty()) {
@@ -591,6 +591,9 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
             }
             JSONArray arr = new JSONArray();
             for (Object value : values) {
+                if (value instanceof String && ((String) value).isEmpty()) {
+                    throw new IllegalArgumentException("classifier filter array elements must not be empty");
+                }
                 if (!(value instanceof String) && !(value instanceof Number)) {
                     throw new IllegalArgumentException(
                             "classifier filter array elements must be strings or numbers");
@@ -609,6 +612,9 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
             }
             if (value == null) {
                 throw new IllegalArgumentException("classifier filter value is required");
+            }
+            if (value instanceof String && ((String) value).isEmpty()) {
+                throw new IllegalArgumentException("classifier filter value must not be empty");
             }
             if (classifierFilterEntries.size() >= MAX_CLASSIFIER_FILTERS) {
                 throw new IllegalArgumentException(
