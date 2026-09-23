@@ -56,5 +56,17 @@ public class OpenRouterActivityAnalyticsExample {
         if (!analytics.warnings().isEmpty()) {
             System.out.println("Warnings: " + analytics.warnings());
         }
+
+        // 3. Classifier dimensions and filters (custom tags; requires an active
+        //    classifier on the workspace). Both objects must share one classifier_id.
+        OpenRouterAnalyticsQueryResponse byClassifierTag = client.analyticsQuery()
+                .metrics("request_count")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000", "department")
+                .classifierIncludeNulls(true)
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("department", "eq", "Engineering")
+                .execute();
+
+        System.out.println("Rows by department tag: " + byClassifierTag.rowCount());
     }
 }

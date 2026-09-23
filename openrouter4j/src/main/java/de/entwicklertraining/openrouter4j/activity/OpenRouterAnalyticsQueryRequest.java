@@ -8,6 +8,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -38,6 +39,11 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
     private final Integer groupLimit;
     private final String orderByField;
     private final String orderByDirection;
+    private final String classifierDimensionsId;
+    private final List<String> classifierDimensionNames;
+    private final Boolean classifierIncludeNulls;
+    private final String classifierFiltersId;
+    private final List<JSONObject> classifierFilterEntries;
     private final List<JSONObject> extraOptions;
 
     private OpenRouterAnalyticsQueryRequest(Builder builder) {
@@ -53,6 +59,11 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
         this.groupLimit = builder.groupLimit;
         this.orderByField = builder.orderByField;
         this.orderByDirection = builder.orderByDirection;
+        this.classifierDimensionsId = builder.classifierDimensionsId;
+        this.classifierDimensionNames = List.copyOf(builder.classifierDimensionNames);
+        this.classifierIncludeNulls = builder.classifierIncludeNulls;
+        this.classifierFiltersId = builder.classifierFiltersId;
+        this.classifierFilterEntries = List.copyOf(builder.classifierFilterEntries);
         this.extraOptions = List.copyOf(builder.extraOptions);
     }
 
@@ -70,9 +81,10 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
      * JSON path: the request body - {@code metrics} (required),
      * {@code dimensions} (max 2), {@code filters}, {@code granularity},
      * {@code time_range}, {@code limit}, {@code group_limit},
-     * {@code order_by} and any options added via
-     * {@link Builder#option(String, Object)} (e.g. the
-     * {@code classifier_dimensions} / {@code classifier_filters} objects).
+     * {@code order_by}, {@code classifier_dimensions}
+     * ({@code classifier_id} / {@code dimension_names} / {@code include_nulls}),
+     * {@code classifier_filters} ({@code classifier_id} / {@code filters}),
+     * and any options added via {@link Builder#option(String, Object)}.
      * Each key is emitted only when configured.
      *
      * @return the JSON body of this request
@@ -133,6 +145,33 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
             root.put("order_by", orderBy);
         }
 
+        if (classifierDimensionsId != null) {
+            JSONObject classifierDimensions = new JSONObject();
+            classifierDimensions.put("classifier_id", classifierDimensionsId);
+            if (!classifierDimensionNames.isEmpty()) {
+                JSONArray namesArr = new JSONArray();
+                for (String name : classifierDimensionNames) {
+                    namesArr.put(name);
+                }
+                classifierDimensions.put("dimension_names", namesArr);
+            }
+            if (classifierIncludeNulls != null) {
+                classifierDimensions.put("include_nulls", classifierIncludeNulls);
+            }
+            root.put("classifier_dimensions", classifierDimensions);
+        }
+
+        if (classifierFiltersId != null) {
+            JSONObject classifierFilters = new JSONObject();
+            classifierFilters.put("classifier_id", classifierFiltersId);
+            JSONArray classifierFiltersArr = new JSONArray();
+            for (JSONObject filter : classifierFilterEntries) {
+                classifierFiltersArr.put(filter);
+            }
+            classifierFilters.put("filters", classifierFiltersArr);
+            root.put("classifier_filters", classifierFilters);
+        }
+
         for (JSONObject option : extraOptions) {
             for (String key : option.keySet()) {
                 root.put(key, option.get(key));
@@ -163,6 +202,41 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
         return filters;
     }
 
+    /**
+     * @return the {@code classifier_dimensions.classifier_id}, or {@code null} when unset
+     */
+    public String classifierDimensionsId() {
+        return classifierDimensionsId;
+    }
+
+    /**
+     * @return the {@code classifier_dimensions.dimension_names} (at most 2), empty when unset
+     */
+    public List<String> classifierDimensionNames() {
+        return classifierDimensionNames;
+    }
+
+    /**
+     * @return the {@code classifier_dimensions.include_nulls} flag, or {@code null} when unset
+     */
+    public Boolean classifierIncludeNulls() {
+        return classifierIncludeNulls;
+    }
+
+    /**
+     * @return the {@code classifier_filters.classifier_id}, or {@code null} when unset
+     */
+    public String classifierFiltersId() {
+        return classifierFiltersId;
+    }
+
+    /**
+     * @return the raw {@code classifier_filters.filters} entry objects
+     */
+    public List<JSONObject> classifierFilters() {
+        return classifierFilterEntries;
+    }
+
     @Override
     public OpenRouterAnalyticsQueryResponse createResponse(String responseBody) {
         return new OpenRouterAnalyticsQueryResponse(new JSONObject(responseBody), this);
@@ -174,12 +248,16 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
     public static final class Builder extends ApiRequestBuilderBase<Builder, OpenRouterAnalyticsQueryRequest> {
 
         private static final int MAX_DIMENSIONS = 2;
+        private static final int MAX_CLASSIFIER_DIMENSION_NAMES = 2;
+        private static final int MAX_CLASSIFIER_FILTERS = 10;
 
         private final OpenRouterClient client;
         private final List<String> metrics = new ArrayList<>();
         private final List<String> dimensions = new ArrayList<>();
         private final List<JSONObject> filters = new ArrayList<>();
         private final List<JSONObject> extraOptions = new ArrayList<>();
+        private final List<String> classifierDimensionNames = new ArrayList<>();
+        private final List<JSONObject> classifierFilterEntries = new ArrayList<>();
         private String granularity;
         private String timeRangeStart;
         private String timeRangeEnd;
@@ -187,6 +265,9 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
         private Integer groupLimit;
         private String orderByField;
         private String orderByDirection;
+        private String classifierDimensionsId;
+        private Boolean classifierIncludeNulls;
+        private String classifierFiltersId;
 
         /**
          * Creates a builder bound to the given client.
@@ -361,10 +442,191 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
         }
 
         /**
-         * Adds any other documented body key verbatim - the classifier
-         * extensions ({@code classifier_dimensions}, {@code classifier_filters},
-         * each an object) and anything OpenRouter adds later. {@code null}
-         * values are ignored.
+         * Sets the JSON object {@code classifier_dimensions} - group results by
+         * custom classifier tags. Required inside it:
+         * {@code classifier_id} (the UUID of the classifier whose tags to group
+         * by); optional {@code dimension_names} (snake_case identifiers, at most
+         * 2 - each name becomes its own column key in the response; with no
+         * names the response uses {@code clf_dimension_name} /
+         * {@code clf_dimension_value} columns). Requires an active classifier
+         * on the workspace. Trap: when combined with
+         * {@link #classifierFilters(String)} / {@link #classifierFilter(String, String, String)}
+         * the two must carry the same {@code classifier_id} - the API rejects a
+         * mismatch, and {@link #build()} does too.
+         *
+         * @param classifierId the classifier UUID (required, non-empty)
+         * @param dimensionNames at most two classifier dimension names
+         * @return this builder
+         * @throws IllegalArgumentException when the id is empty or more than two names are given
+         */
+        public Builder classifierDimensions(String classifierId, String... dimensionNames) {
+            if (classifierId == null || classifierId.isEmpty()) {
+                throw new IllegalArgumentException("classifier_id is required for classifier_dimensions");
+            }
+            if (this.classifierDimensionsId != null && !this.classifierDimensionsId.equals(classifierId)) {
+                throw new IllegalArgumentException(
+                        "classifier_dimensions.classifier_id is already set to " + this.classifierDimensionsId);
+            }
+            this.classifierDimensionsId = classifierId;
+            if (dimensionNames != null) {
+                for (String name : dimensionNames) {
+                    if (name != null && !name.isEmpty()) {
+                        if (this.classifierDimensionNames.size() >= MAX_CLASSIFIER_DIMENSION_NAMES) {
+                            throw new IllegalArgumentException(
+                                    "At most " + MAX_CLASSIFIER_DIMENSION_NAMES
+                                            + " classifier dimension_names are supported");
+                        }
+                        this.classifierDimensionNames.add(name);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code classifier_dimensions.include_nulls} -
+         * when {@code true}, generations without any tag of this classifier are
+         * included in the result. API default {@code false} (only classified
+         * generations). {@code false} is a set option and is emitted. Only
+         * emitted together with {@link #classifierDimensions(String, String...)}
+         * (see the loud check in {@link #build()}).
+         *
+         * @param includeNulls the flag, {@code null} to leave unset
+         * @return this builder
+         */
+        public Builder classifierIncludeNulls(Boolean includeNulls) {
+            this.classifierIncludeNulls = includeNulls;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code classifier_filters.classifier_id} - the
+         * UUID of the classifier whose tag values
+         * {@link #classifierFilter(String, String, String)} restricts the result
+         * to. Required (with at least one filter entry) whenever classifier
+         * filters are used; may also be combined with
+         * {@link #classifierDimensions(String, String...)}, but only with the
+         * same {@code classifier_id}.
+         *
+         * @param classifierId the classifier UUID (required, non-empty)
+         * @return this builder
+         * @throws IllegalArgumentException when the id is empty or already set to a different value
+         */
+        public Builder classifierFilters(String classifierId) {
+            if (classifierId == null || classifierId.isEmpty()) {
+                throw new IllegalArgumentException("classifier_id is required for classifier_filters");
+            }
+            if (this.classifierFiltersId != null && !this.classifierFiltersId.equals(classifierId)) {
+                throw new IllegalArgumentException(
+                        "classifier_filters.classifier_id is already set to " + this.classifierFiltersId);
+            }
+            this.classifierFiltersId = classifierId;
+            return this;
+        }
+
+        /**
+         * Adds one entry to {@code classifier_filters.filters} with a scalar
+         * string tag value:
+         * {@code {"field": field, "operator": operator, "value": value}}.
+         * Only equality/set operators are supported ({@code eq}, {@code neq},
+         * {@code in}, {@code not_in}) - ordered comparisons are not available
+         * because classification values are strings. Requires
+         * {@link #classifierFilters(String)} to set the classifier id (order of
+         * the calls does not matter). At most 10 entries.
+         *
+         * @param field the classifier dimension name to filter on (snake_case)
+         * @param operator the filter operator ({@code eq} or {@code neq})
+         * @param value the scalar tag value
+         * @return this builder
+         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded or the value type is wrong
+         */
+        public Builder classifierFilter(String field, String operator, String value) {
+            return addClassifierFilter(field, operator, value);
+        }
+
+        /**
+         * Adds one entry to {@code classifier_filters.filters} with a scalar
+         * numeric tag value (the schema also accepts numbers alongside
+         * strings). See {@link #classifierFilter(String, String, String)} for
+         * the operator restrictions.
+         *
+         * @param field the classifier dimension name to filter on (snake_case)
+         * @param operator the filter operator ({@code eq} or {@code neq})
+         * @param value the scalar numeric tag value
+         * @return this builder
+         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded or the value type is wrong
+         */
+        public Builder classifierFilter(String field, String operator, Number value) {
+            return addClassifierFilter(field, operator, value);
+        }
+
+        /**
+         * Adds one entry to {@code classifier_filters.filters} with an array
+         * value (for the set operators {@code in} / {@code not_in}):
+         * {@code {"field": field, "operator": operator, "value": [values...]}}.
+         * Element types may be strings or numbers, matching the schema. See
+         * {@link #classifierFilter(String, String, String)} for the operator
+         * restrictions.
+         *
+         * @param field the classifier dimension name to filter on (snake_case)
+         * @param operator the filter operator ({@code in} or {@code not_in})
+         * @param values the tag values (strings or numbers, non-empty)
+         * @return this builder
+         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded or an element type is wrong
+         */
+        public Builder classifierFilterIn(String field, String operator, Collection<?> values) {
+            if (values == null || values.isEmpty()) {
+                throw new IllegalArgumentException("classifier filter values must not be empty");
+            }
+            JSONArray arr = new JSONArray();
+            for (Object value : values) {
+                arr.put(requireClassifierFilterValue(value));
+            }
+            return addClassifierFilter(field, operator, arr);
+        }
+
+        private Builder addClassifierFilter(String field, String operator, Object value) {
+            if (field == null || field.isEmpty()) {
+                throw new IllegalArgumentException("classifier filter field is required");
+            }
+            if (operator == null || operator.isEmpty()) {
+                throw new IllegalArgumentException("classifier filter operator is required");
+            }
+            if (classifierFilterEntries.size() >= MAX_CLASSIFIER_FILTERS) {
+                throw new IllegalArgumentException(
+                        "At most " + MAX_CLASSIFIER_FILTERS + " classifier_filters.filters entries are supported");
+            }
+            boolean isArrayValue = value instanceof JSONArray;
+            if (isArrayValue) {
+                if (!"in".equals(operator) && !"not_in".equals(operator)) {
+                    throw new IllegalArgumentException(
+                            "classifier filter array values require operator in or not_in, got " + operator);
+                }
+            } else if (!"eq".equals(operator) && !"neq".equals(operator)) {
+                throw new IllegalArgumentException(
+                        "classifier filter scalar values require operator eq or neq, got " + operator);
+            }
+            JSONObject filter = new JSONObject();
+            filter.put("field", field);
+            filter.put("operator", operator);
+            filter.put("value", requireClassifierFilterValue(value));
+            classifierFilterEntries.add(filter);
+            return this;
+        }
+
+        private static Object requireClassifierFilterValue(Object value) {
+            if (value instanceof String || value instanceof Number || value instanceof JSONArray) {
+                return value;
+            }
+            throw new IllegalArgumentException(
+                    "classifier filter value must be a string, a number or an array of those");
+        }
+
+        /**
+         * Adds any other documented body key verbatim - anything OpenRouter
+         * adds beyond the typed surface. Applied last, so a verbatim key
+         * overwrites the typed field of the same name. {@code null} values are
+         * ignored.
          *
          * @param name the body key
          * @param value the body value (usually a {@link JSONObject})
@@ -381,6 +643,24 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
         public OpenRouterAnalyticsQueryRequest build() {
             if (metrics.isEmpty()) {
                 throw new IllegalStateException("At least one metric is required");
+            }
+            if (classifierIncludeNulls != null && classifierDimensionsId == null) {
+                throw new IllegalStateException(
+                        "classifierIncludeNulls requires classifierDimensions(classifierId, ...)");
+            }
+            if (classifierFiltersId != null && classifierFilterEntries.isEmpty()) {
+                throw new IllegalStateException(
+                        "classifierFilters(classifierId) requires at least one classifierFilter entry");
+            }
+            if (!classifierFilterEntries.isEmpty() && classifierFiltersId == null) {
+                throw new IllegalStateException(
+                        "classifierFilter entries require classifierFilters(classifierId)");
+            }
+            if (classifierDimensionsId != null && classifierFiltersId != null
+                    && !classifierDimensionsId.equals(classifierFiltersId)) {
+                throw new IllegalStateException(
+                        "classifier_dimensions and classifier_filters must use the same classifier_id, got "
+                                + classifierDimensionsId + " and " + classifierFiltersId);
             }
             return new OpenRouterAnalyticsQueryRequest(this);
         }

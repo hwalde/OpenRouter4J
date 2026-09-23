@@ -166,6 +166,186 @@ class OpenRouterActivityTest {
     }
 
     @Test
+    void analyticsRequestEmitsTypedClassifierDimensions() {
+        OpenRouterAnalyticsQueryRequest request = new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000", "department", "work_type")
+                .classifierIncludeNulls(true)
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        JSONObject classifierDimensions = body.getJSONObject("classifier_dimensions");
+        assertThat(classifierDimensions.getString("classifier_id"))
+                .isEqualTo("550e8400-e29b-41d4-a716-446655440000");
+        assertThat(classifierDimensions.getJSONArray("dimension_names").join(","))
+                .isEqualTo("\"department\",\"work_type\"");
+        assertThat(classifierDimensions.getBoolean("include_nulls")).isTrue();
+
+        assertThat(request.classifierDimensionsId()).isEqualTo("550e8400-e29b-41d4-a716-446655440000");
+        assertThat(request.classifierDimensionNames()).containsExactly("department", "work_type");
+        assertThat(request.classifierIncludeNulls()).isTrue();
+    }
+
+    @Test
+    void analyticsRequestEmitsClassifierDimensionsWithoutNamesAndWithFalseIncludeNulls() {
+        OpenRouterAnalyticsQueryRequest request = new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000")
+                .classifierIncludeNulls(false)
+                .build();
+
+        JSONObject classifierDimensions = new JSONObject(request.getBody()).getJSONObject("classifier_dimensions");
+        assertThat(classifierDimensions.keySet()).containsExactlyInAnyOrder("classifier_id", "include_nulls");
+        assertThat(classifierDimensions.getBoolean("include_nulls")).isFalse();
+    }
+
+    @Test
+    void analyticsRequestOmitsClassifierFieldsWhenUnset() {
+        OpenRouterAnalyticsQueryRequest request = new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.has("classifier_dimensions")).isFalse();
+        assertThat(body.has("classifier_filters")).isFalse();
+        assertThat(request.classifierDimensionsId()).isNull();
+        assertThat(request.classifierDimensionNames()).isEmpty();
+        assertThat(request.classifierIncludeNulls()).isNull();
+        assertThat(request.classifierFiltersId()).isNull();
+        assertThat(request.classifierFilters()).isEmpty();
+    }
+
+    @Test
+    void analyticsRequestEmitsTypedClassifierFilters() {
+        OpenRouterAnalyticsQueryRequest request = new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("department", "eq", "Engineering")
+                .classifierFilter("priority", "eq", 2)
+                .classifierFilterIn("work_type", "in", List.of("consulting", "support"))
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        JSONObject classifierFilters = body.getJSONObject("classifier_filters");
+        assertThat(classifierFilters.getString("classifier_id"))
+                .isEqualTo("550e8400-e29b-41d4-a716-446655440000");
+        assertThat(classifierFilters.getJSONArray("filters").length()).isEqualTo(3);
+
+        JSONObject first = classifierFilters.getJSONArray("filters").getJSONObject(0);
+        assertThat(first.getString("field")).isEqualTo("department");
+        assertThat(first.getString("operator")).isEqualTo("eq");
+        assertThat(first.getString("value")).isEqualTo("Engineering");
+
+        JSONObject second = classifierFilters.getJSONArray("filters").getJSONObject(1);
+        assertThat(second.getInt("value")).isEqualTo(2);
+
+        JSONObject third = classifierFilters.getJSONArray("filters").getJSONObject(2);
+        assertThat(third.getJSONArray("value").join(",")).isEqualTo("\"consulting\",\"support\"");
+
+        assertThat(request.classifierFiltersId()).isEqualTo("550e8400-e29b-41d4-a716-446655440000");
+        assertThat(request.classifierFilters()).hasSize(3);
+    }
+
+    @Test
+    void analyticsRequestCombinesClassifierDimensionsAndFiltersWithTheSameId() {
+        OpenRouterAnalyticsQueryRequest request = new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilter("department", "eq", "Engineering")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000", "department")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getJSONObject("classifier_dimensions").getString("classifier_id"))
+                .isEqualTo(body.getJSONObject("classifier_filters").getString("classifier_id"));
+    }
+
+    @Test
+    void analyticsRequestRejectsMismatchedClassifierIds() {
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilters("660e8400-e29b-41d4-a716-446655440001")
+                .classifierFilter("department", "eq", "Engineering")
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("same classifier_id");
+    }
+
+    @Test
+    void analyticsRequestRejectsIncompleteClassifierFilterConfiguration() {
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilter("department", "eq", "Engineering")
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("classifierFilters");
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("classifierFilter");
+    }
+
+    @Test
+    void analyticsRequestRejectsIncludeNullsWithoutClassifierDimensions() {
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierIncludeNulls(true)
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("classifierDimensions");
+    }
+
+    @Test
+    void analyticsRequestRejectsTooManyClassifierDimensionNames() {
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000", "a", "b", "c"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void analyticsRequestRejectsTooManyClassifierFilterEntries() {
+        OpenRouterAnalyticsQueryRequest.Builder builder = new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000");
+        for (int i = 0; i < 10; i++) {
+            builder.classifierFilter("field_" + i, "eq", "v" + i);
+        }
+        assertThatThrownBy(() -> builder.classifierFilter("overflow", "eq", "v"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("10");
+    }
+
+    @Test
+    void analyticsRequestRejectsInvalidClassifierFilterArguments() {
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("", "eq", "Engineering"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("department", "gt", "Engineering"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilterIn("work_type", "in", List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters(""))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void analyticsResponseSurfacesRowsAndMetadata() {
         OpenRouterAnalyticsQueryResponse response = queryResponseOf("""
                 {
