@@ -84,18 +84,48 @@ class OpenRouterByokTest {
                 .key("sk-proj-abc123")
                 .declaredZdr(null)
                 .build().getBody());
-        assertThat(withNull.has("declared_zdr")).isFalse();
+        assertThat(withNull.has("declared_zdr")).isTrue();
+        assertThat(withNull.isNull("declared_zdr")).isTrue();
 
-        JSONObject update = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+        JSONObject createUnset = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .build().getBody());
+        assertThat(createUnset.has("declared_zdr")).isFalse();
+    }
+
+    @Test
+    void declaredZdrOnUpdateDistinguishesUnsetFromExplicitNull() {
+        JSONObject updateTrue = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredZdr(true)
+                .build().getBody());
+        assertThat(updateTrue.getBoolean("declared_zdr")).isTrue();
+
+        JSONObject updateFalse = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
                 .declaredZdr(false)
                 .build().getBody());
-        assertThat(update.keySet()).containsExactly("declared_zdr");
-        assertThat(update.getBoolean("declared_zdr")).isFalse();
+        assertThat(updateFalse.getBoolean("declared_zdr")).isFalse();
 
+        // Explicit null emits a JSON null and clears the declaration to inherit.
+        JSONObject updateClear = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredZdr(null)
+                .build().getBody());
+        assertThat(updateClear.has("declared_zdr")).isTrue();
+        assertThat(updateClear.isNull("declared_zdr")).isTrue();
+
+        // Unset omits the key and leaves the stored value unchanged.
         JSONObject updateUnset = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
                 .name("n")
                 .build().getBody());
         assertThat(updateUnset.has("declared_zdr")).isFalse();
+    }
+
+    @Test
+    void declaredZdrViewAccessorIsThreeState() {
+        assertThat(new OpenRouterByokKey(new JSONObject()).declaredZdr()).isNull();
+        assertThat(new OpenRouterByokKey(new JSONObject().put("declared_zdr", JSONObject.NULL)).declaredZdr()).isNull();
+        assertThat(new OpenRouterByokKey(new JSONObject().put("declared_zdr", false)).declaredZdr()).isFalse();
+        assertThat(new OpenRouterByokKey(new JSONObject().put("declared_zdr", true)).declaredZdr()).isTrue();
     }
 
     @Test
