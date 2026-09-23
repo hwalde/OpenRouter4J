@@ -4,6 +4,7 @@ import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClearToolUsesEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterCompactEdit;
+import de.entwicklertraining.openrouter4j.OpenRouterSafeguard;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterAnthropicTool;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesRequest;
@@ -59,6 +60,11 @@ public class OpenRouterMessagesExample {
                         .instructions("Preserve the task state and the last user request")
                         .triggerInputTokens(150000)
                         .build())
+                // Anthropic server-side safeguards (Anthropic-provider semantics).
+                .safeguards(
+                        OpenRouterSafeguard.of("dangerous_tool_use"),
+                        OpenRouterSafeguard.of("harmful_content",
+                                new JSONObject().put("permission_mode", "auto").put("v", 1)))
                 .effort("medium")
                 .execute();
 
@@ -83,6 +89,12 @@ public class OpenRouterMessagesExample {
                 : response.inputTransformations()) {
             System.out.println("input transformed: " + transformation.type()
                     + " at " + transformation.path() + " (" + transformation.reason() + ")");
+        }
+
+        // Safeguard outcomes (Anthropic-provider semantics).
+        for (OpenRouterMessagesResponse.OpenRouterSafeguardResult result
+                : response.safeguardResults()) {
+            System.out.println("safeguard " + result.type() + ": " + result.status());
         }
 
         // 2. Streaming: enable SSE and parse the Anthropic event model. The

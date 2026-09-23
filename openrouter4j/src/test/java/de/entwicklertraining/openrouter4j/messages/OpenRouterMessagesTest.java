@@ -8,6 +8,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterCompactEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterContextManagementEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterModerationPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterSafeguard;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
@@ -75,6 +76,7 @@ class OpenRouterMessagesTest {
         assertThat(body.has("plugins")).isFalse();
         assertThat(body.has("stop_server_tools_when")).isFalse();
         assertThat(body.has("trace")).isFalse();
+        assertThat(body.has("safeguards")).isFalse();
         assertThat(body.has("provider")).isFalse();
     }
 
@@ -506,6 +508,7 @@ class OpenRouterMessagesTest {
         assertThat(response.cost()).isNull();
         assertThat(response.appliedContextEdits()).isEmpty();
         assertThat(response.inputTransformations()).isEmpty();
+        assertThat(response.safeguardResults()).isEmpty();
     }
 
     @Test
@@ -752,5 +755,122 @@ class OpenRouterMessagesTest {
                 .getJSONObject("context_management").getJSONArray("edits");
         assertThat(edits).hasSize(1);
         assertThat(edits.getJSONObject(0).getString("type")).isEqualTo("compact_20260112");
+    }
+
+    @Test
+    void safeguardsAreEmittedOnlyWhenSet() {
+        JSONObject bodyWith = new JSONObject(minimalBuilder()
+                .safeguards(
+                        OpenRouterSafeguard.of("dangerous_tool_use"),
+                        OpenRouterSafeguard.of("harmful_content",
+                                new JSONObject().put("permission_mode", "auto").put("v", 1)))
+                .build()
+                .getBody());
+
+        assertThat(bodyWith.has("safeguards")).isTrue();
+        JSONArray safeguards = bodyWith.getJSONArray("safeguards");
+        assertThat(safeguards.length()).isEqualTo(2);
+        assertThat(safeguards.getJSONObject(0).getString("type"))
+                .isEqualTo("dangerous_tool_use");
+        assertThat(safeguards.getJSONObject(0).has("classifier_context")).isFalse();
+        assertThat(safeguards.getJSONObject(1).getString("type"))
+                .isEqualTo("harmful_content");
+        JSONObject ctx = safeguards.getJSONObject(1).getJSONObject("classifier_context");
+        assertThat(ctx.getString("permission_mode")).isEqualTo("auto");
+        assertThat(ctx.getInt("v")).isEqualTo(1);
+
+        assertThat(new JSONObject(minimalBuilder().build().getBody())
+                .has("safeguards")).isFalse();
+        assertThat(minimalBuilder().build().safeguards()).isEmpty();
+    }
+
+    @Test
+    void safeguardsRawRequiresTypeField() {
+        assertThatThrownBy(() -> OpenRouterSafeguard.raw(new JSONObject().put("x", 1)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void safeguardsAddAccumulatesInsteadOfReplacing() {
+        OpenRouterMessagesRequest request = minimalBuilder()
+                .addSafeguard(OpenRouterSafeguard.of("dangerous_tool_use"))
+                .addSafeguard(OpenRouterSafeguard.of("harmful_content"))
+                .build();
+
+        assertThat(request.safeguards()).hasSize(2);
+        JSONArray safeguards = new JSONObject(request.getBody()).getJSONArray("safeguards");
+        assertThat(safeguards.length()).isEqualTo(2);
+        assertThat(safeguards.getJSONObject(0).getString("type"))
+                .isEqualTo("dangerous_tool_use");
+        assertThat(safeguards.getJSONObject(1).getString("type"))
+                .isEqualTo("harmful_content");
+    }
+
+    @Test
+    void safeguardsSetterReplacesPreviouslyAddedEntries() {
+        OpenRouterMessagesRequest request = minimalBuilder()
+                .addSafeguard(OpenRouterSafeguard.of("dangerous_tool_use"))
+                .safeguards(List.of(OpenRouterSafeguard.of("harmful_content")))
+                .build();
+
+        assertThat(request.safeguards()).hasSize(1);
+        JSONArray safeguards = new JSONObject(request.getBody()).getJSONArray("safeguards");
+        assertThat(safeguards.length()).isEqualTo(1);
+        assertThat(safeguards.getJSONObject(0).getString("type"))
+                .isEqualTo("harmful_content");
+    }
+
+    @Test
+    void responseExposesSafeguardResults() {
+        String fixture = """
+                {
+                  "id": "msg_01XYZ",
+                  "type": "message",
+                  "role": "assistant",
+                  "model": "claude-sonnet-4-5-20250929",
+                  "content": [{"type": "text", "text": "ok"}],
+                  "stop_reason": "end_turn",
+                  "safeguard_results": [
+                    {"type": "dangerous_tool_use",
+                     "status": {"type": "allowed", "toolu_01": "passed"}},
+                    {"type": "harmful_content",
+                     "status": {"type": "blocked"}}
+                  ],
+                  "usage": {"input_tokens": 12, "output_tokens": 8}
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.safeguardResults()).hasSize(2);
+        assertThat(response.safeguardResults().get(0).type())
+                .isEqualTo("dangerous_tool_use");
+        assertThat(response.safeguardResults().get(0).status().getString("type"))
+                .isEqualTo("allowed");
+        assertThat(response.safeguardResults().get(0).status().getString("toolu_01"))
+                .isEqualTo("passed");
+        assertThat(response.safeguardResults().get(0).json().getString("type"))
+                .isEqualTo("dangerous_tool_use");
+        assertThat(response.safeguardResults().get(1).type())
+                .isEqualTo("harmful_content");
+        assertThat(response.safeguardResults().get(1).status().getString("type"))
+                .isEqualTo("blocked");
+    }
+
+    @Test
+    void responseSafeguardResultsAreEmptyWithoutTheField() {
+        String fixture = """
+                {
+                  "id": "msg_01ABC",
+                  "type": "message",
+                  "role": "assistant",
+                  "model": "claude-sonnet-4-5-20250929",
+                  "content": [{"type": "text", "text": "ok"}],
+                  "stop_reason": "end_turn",
+                  "usage": {"input_tokens": 12, "output_tokens": 8}
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.safeguardResults()).isEmpty();
     }
 }

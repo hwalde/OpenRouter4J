@@ -263,6 +263,32 @@ public final class OpenRouterMessagesResponse extends OpenRouterResponse<OpenRou
     }
 
     /**
+     * JSON path: {@code safeguard_results} - the outcome of each Anthropic
+     * server-side safeguard the request opted into via
+     * {@code safeguards(...)}. Swallow-and-return-empty convention.
+     * Anthropic-provider semantics.
+     *
+     * @return the safeguard results, empty when absent or on a malformed body
+     */
+    public List<OpenRouterSafeguardResult> safeguardResults() {
+        List<OpenRouterSafeguardResult> result = new ArrayList<>();
+        try {
+            JSONArray results = json.optJSONArray("safeguard_results");
+            if (results != null) {
+                for (int i = 0; i < results.length(); i++) {
+                    JSONObject entry = results.optJSONObject(i);
+                    if (entry != null) {
+                        result.add(new OpenRouterSafeguardResult(entry));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // swallow-and-return-empty convention
+        }
+        return result;
+    }
+
+    /**
      * JSON path: {@code provider} - the provider that served the request
      * (OpenRouter extension).
      *
@@ -659,6 +685,55 @@ public final class OpenRouterMessagesResponse extends OpenRouterResponse<OpenRou
             } catch (Exception e) {
                 return null;
             }
+        }
+    }
+
+    /**
+     * One entry of {@code safeguard_results} - the outcome of an Anthropic
+     * server-side safeguard.
+     */
+    public static final class OpenRouterSafeguardResult {
+
+        private final JSONObject json;
+
+        OpenRouterSafeguardResult(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * JSON path: {@code safeguard_results[].type} - the safeguard type
+         * (e.g. {@code dangerous_tool_use}).
+         *
+         * @return the type, or {@code null} when absent
+         */
+        public String type() {
+            try {
+                return json.optString("type", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * JSON path: {@code safeguard_results[].status} - the status object
+         * ({@code {"type": <string>, ...} keyed by tool-use id}), or
+         * {@code null} when absent.
+         *
+         * @return the status object, or {@code null} when absent
+         */
+        public JSONObject status() {
+            try {
+                return json.optJSONObject("status");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the verbatim result object
+         */
+        public JSONObject json() {
+            return json;
         }
     }
 }

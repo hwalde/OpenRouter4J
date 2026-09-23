@@ -9,6 +9,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterContextManagementEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterSafeguard;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
@@ -76,6 +77,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
     private final List<OpenRouterStopCondition> stopServerToolsWhen;
     private final OpenRouterTraceConfig trace;
     private final List<OpenRouterContextManagementEdit> contextManagementEdits;
+    private final List<OpenRouterSafeguard> safeguards;
     private final List<String> providerOrder;
     private final List<String> providerOnly;
     private final List<String> providerIgnore;
@@ -185,6 +187,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         this.trace = builder.trace;
         this.contextManagementEdits = builder.contextManagementEdits.isEmpty()
                 ? null : List.copyOf(builder.contextManagementEdits);
+        this.safeguards = builder.safeguards.isEmpty()
+                ? null : List.copyOf(builder.safeguards);
         this.providerOrder = builder.providerOrder == null ? null : List.copyOf(builder.providerOrder);
         this.providerOnly = builder.providerOnly == null ? null : List.copyOf(builder.providerOnly);
         this.providerIgnore = builder.providerIgnore == null ? null : List.copyOf(builder.providerIgnore);
@@ -228,6 +232,13 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         return contextManagementEdits == null ? List.of() : contextManagementEdits;
     }
 
+    /**
+     * @return the {@code safeguards} entries, empty when unset
+     */
+    public List<OpenRouterSafeguard> safeguards() {
+        return safeguards == null ? List.of() : safeguards;
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/messages";
@@ -250,7 +261,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
      * {@code cache_control} (request-root), {@code tools},
      * {@code tool_choice}, {@code plugins}, {@code stop_server_tools_when},
      * {@code context_management} (the {@code edits} array, omitted when no
-     * strategy is set), {@code trace} (all omitted when unset) and the
+     * strategy is set), {@code safeguards} (omitted when empty),
+     * {@code trace} (all omitted when unset) and the
      * {@code provider} object (omitted unless any provider option is set).
      *
      * @return the JSON body of this request
@@ -410,6 +422,13 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
             }
             root.put("context_management", new JSONObject().put("edits", edits));
         }
+        if (safeguards != null && !safeguards.isEmpty()) {
+            JSONArray arr = new JSONArray();
+            for (OpenRouterSafeguard safeguard : safeguards) {
+                arr.put(safeguard.toJson());
+            }
+            root.put("safeguards", arr);
+        }
 
         // The provider object is emitted whenever any provider option is set,
         // so an unset option never appears in the JSON.
@@ -497,6 +516,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         private List<OpenRouterPlugin> plugins;
         private final List<OpenRouterStopCondition> stopServerToolsWhen = new ArrayList<>();
         private final List<OpenRouterContextManagementEdit> contextManagementEdits = new ArrayList<>();
+        private final List<OpenRouterSafeguard> safeguards = new ArrayList<>();
         private OpenRouterTraceConfig trace;
         private List<String> providerOrder;
         private List<String> providerOnly;
@@ -1193,6 +1213,64 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          */
         public Builder trace(OpenRouterTraceConfig trace) {
             this.trace = trace;
+            return this;
+        }
+
+        /**
+         * Sets the {@code safeguards} array - Anthropic server-side
+         * safeguards evaluated alongside the completion (e.g.
+         * {@code dangerous_tool_use}). Each entry is
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterSafeguard};
+         * unknown safeguard types travel via
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterSafeguard#raw(JSONObject)}.
+         * The array is emitted only when at least one entry is set. Calling
+         * this replaces a previously set list.
+         *
+         * @param entries the safeguard entries
+         * @return this builder
+         */
+        public Builder safeguards(OpenRouterSafeguard... entries) {
+            if (entries == null) {
+                throw new IllegalArgumentException("safeguards must not be null");
+            }
+            safeguards.clear();
+            for (OpenRouterSafeguard entry : entries) {
+                if (entry == null) {
+                    throw new IllegalArgumentException("safeguard must not be null");
+                }
+                safeguards.add(entry);
+            }
+            return this;
+        }
+
+        /**
+         * List-based variant of
+         * {@link #safeguards(OpenRouterSafeguard...)}.
+         *
+         * @param entries the safeguard entries
+         * @return this builder
+         */
+        public Builder safeguards(List<OpenRouterSafeguard> entries) {
+            if (entries == null) {
+                throw new IllegalArgumentException("safeguards must not be null");
+            }
+            return safeguards(entries.toArray(new OpenRouterSafeguard[0]));
+        }
+
+        /**
+         * Adds a single safeguard entry to {@code safeguards} (see
+         * {@link #safeguards(OpenRouterSafeguard...)}). Unlike the setter,
+         * this accumulates: repeated calls append one entry each, following
+         * the {@code addPlugin} / {@code addTool} convention of this builder.
+         *
+         * @param entry the safeguard entry
+         * @return this builder
+         */
+        public Builder addSafeguard(OpenRouterSafeguard entry) {
+            if (entry == null) {
+                throw new IllegalArgumentException("safeguard must not be null");
+            }
+            safeguards.add(entry);
             return this;
         }
 
