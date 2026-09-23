@@ -35,6 +35,7 @@ public final class OpenRouterByokUpdateRequest extends OpenRouterRequest<OpenRou
     private final Boolean isFallback;
     private final Boolean isRequired;
     private final Boolean isByokOnly;
+    private final Boolean declaredZdr;
     private final List<String> allowedModels;
     private final List<String> allowedApiKeyHashes;
     private final List<String> allowedUserIds;
@@ -49,6 +50,7 @@ public final class OpenRouterByokUpdateRequest extends OpenRouterRequest<OpenRou
         this.isFallback = builder.isFallback;
         this.isRequired = builder.isRequired;
         this.isByokOnly = builder.isByokOnly;
+        this.declaredZdr = builder.declaredZdr;
         this.allowedModels = builder.allowedModels;
         this.allowedApiKeyHashes = builder.allowedApiKeyHashes;
         this.allowedUserIds = builder.allowedUserIds;
@@ -98,6 +100,9 @@ public final class OpenRouterByokUpdateRequest extends OpenRouterRequest<OpenRou
         if (isByokOnly != null) {
             body.put("is_byok_only", isByokOnly);
         }
+        if (declaredZdr != null) {
+            body.put("declared_zdr", declaredZdr);
+        }
         if (allowedModels != null) {
             body.put("allowed_models", new JSONArray(allowedModels));
         }
@@ -128,6 +133,7 @@ public final class OpenRouterByokUpdateRequest extends OpenRouterRequest<OpenRou
     private Boolean isFallback;
     private Boolean isRequired;
     private Boolean isByokOnly;
+    private Boolean declaredZdr;
     private List<String> allowedModels;
     private List<String> allowedApiKeyHashes;
     private List<String> allowedUserIds;
@@ -197,6 +203,22 @@ public final class OpenRouterByokUpdateRequest extends OpenRouterRequest<OpenRou
  */
     public Builder isByokOnly(Boolean isByokOnly) {
         this.isByokOnly = isByokOnly;
+        return this;
+    }
+    /**
+ * Sets the body field {@code declared_zdr} (optional) - your self-declaration
+ * of whether the upstream provider account behind this credential has zero
+ * data retention (ZDR). Unset (the key is not sent) and explicit {@code null}
+ * both mean "inherit OpenRouter's data policy for the provider's endpoint";
+ * {@code true} declares the account ZDR so requests that require ZDR (e.g.
+ * {@code zdr(true)} on the chat completions request - the credential-side
+ * counterpart of that request-side routing flag) may route to this credential
+ * even when the shared endpoint retains data; {@code false} declares it
+ * non-ZDR so such requests never route to it. {@code false} is a set option
+ * and is emitted. Self-declared and not verified by OpenRouter.
+ */
+    public Builder declaredZdr(Boolean declaredZdr) {
+        this.declaredZdr = declaredZdr;
         return this;
     }
     /**

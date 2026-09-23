@@ -32,25 +32,32 @@ public class OpenRouterByokExample {
         }
 
         // 2. Create a credential for one provider. The raw key is a secret:
-        //    encrypted at rest, never returned, never logged.
+        //    encrypted at rest, never returned, never logged. declaredZdr is
+        //    the credential-side counterpart of request-side zdr(true) routing:
+        //    true declares the upstream account zero-data-retention so ZDR-
+        //    routed requests may use this credential; false keeps them away.
         OpenRouterByokCreateResponse created = client.byok().create()
                 .provider("deepseek")
                 .key("sk-example-do-not-log")
                 .name("Example DeepSeek Key")
                 .allowedModels(List.of("deepseek/deepseek-v4-flash-0731"))
+                .declaredZdr(true)
                 .execute();
         String id = created.data() != null ? created.data().id() : null;
         System.out.println("Created credential " + id
-                + " with masked label " + (created.data() != null ? created.data().label() : null));
+                + " with masked label " + (created.data() != null ? created.data().label() : null)
+                + ", declared ZDR: " + (created.data() != null ? created.data().declaredZdr() : null));
 
         // 3. Read one credential by id (metadata only - the raw key never
         //    comes back).
         OpenRouterByokKey fetched = client.byok().get(id).execute().data();
         System.out.println("Fetched credential " + fetched.provider() + ", disabled: " + fetched.disabled());
 
-        // 4. Rotate the credential in-place (the masked label regenerates).
+        // 4. Rotate the credential in-place (the masked label regenerates)
+        //    and revise the ZDR self-declaration.
         client.byok().update(id)
                 .key("sk-example-rotated-do-not-log")
+                .declaredZdr(false)
                 .execute();
         System.out.println("Rotated credential " + id);
 

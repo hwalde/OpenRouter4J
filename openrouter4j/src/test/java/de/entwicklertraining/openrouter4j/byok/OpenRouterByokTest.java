@@ -60,6 +60,42 @@ class OpenRouterByokTest {
                 .containsExactly("c56454edb818d6b14bc0d61c46025f1450b0f4012d12304ab40aacb519fcbc93");
         assertThat(body.has("disabled")).isFalse();
         assertThat(body.has("is_byok_only")).isFalse();
+        assertThat(body.has("declared_zdr")).isFalse();
+    }
+
+    @Test
+    void declaredZdrIsEmittedOnlyWhenSet() {
+        JSONObject withTrue = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredZdr(true)
+                .build().getBody());
+        assertThat(withTrue.getBoolean("declared_zdr")).isTrue();
+
+        JSONObject withFalse = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredZdr(false)
+                .build().getBody());
+        assertThat(withFalse.getBoolean("declared_zdr")).isFalse();
+
+        JSONObject withNull = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredZdr(null)
+                .build().getBody());
+        assertThat(withNull.has("declared_zdr")).isFalse();
+
+        JSONObject update = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredZdr(false)
+                .build().getBody());
+        assertThat(update.keySet()).containsExactly("declared_zdr");
+        assertThat(update.getBoolean("declared_zdr")).isFalse();
+
+        JSONObject updateUnset = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .name("n")
+                .build().getBody());
+        assertThat(updateUnset.has("declared_zdr")).isFalse();
     }
 
     @Test
@@ -149,6 +185,7 @@ class OpenRouterByokTest {
                       "is_fallback": false,
                       "is_required": false,
                       "is_byok_only": false,
+                      "declared_zdr": true,
                       "allowed_models": null,
                       "allowed_api_key_hashes": null,
                       "allowed_user_ids": null,
@@ -169,6 +206,7 @@ class OpenRouterByokTest {
         assertThat(key.name()).isEqualTo("Production OpenAI Key");
         assertThat(key.disabled()).isFalse();
         assertThat(key.isByokOnly()).isFalse();
+        assertThat(key.declaredZdr()).isTrue();
         assertThat(key.allowedModels()).isEmpty();
         assertThat(key.allowedApiKeyHashes()).isEmpty();
         assertThat(key.sortOrder()).isEqualTo(0);

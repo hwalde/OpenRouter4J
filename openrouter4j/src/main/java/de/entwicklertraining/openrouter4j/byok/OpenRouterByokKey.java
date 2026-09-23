@@ -103,6 +103,19 @@ public final class OpenRouterByokKey {
         return json.optBoolean("is_byok_only");
     }
     /**
+ * JSON path: {@code declared_zdr} - your self-declaration of whether the
+ * upstream provider account behind this credential has zero data retention
+ * ({@code null} = inherit OpenRouter's data policy, {@code true} = the account
+ * is ZDR so ZDR-routed requests may use this credential, {@code false} =
+ * non-ZDR so they never do). Self-declared and not verified by OpenRouter.
+ */
+    public Boolean declaredZdr() {
+        if (!json.has("declared_zdr") || json.isNull("declared_zdr")) {
+            return null;
+        }
+        return json.optBoolean("declared_zdr");
+    }
+    /**
  * JSON path: {@code allowed_models} - model slugs this credential may be used
  * for, empty when absent or null (no restriction).
  */
