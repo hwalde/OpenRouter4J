@@ -28,9 +28,9 @@ import org.json.JSONObject;
  *
  * <p>Constraint in either case: at least one tool must remain non-deferred
  * (the {@code get_weather} tool below). On the tool-search path, {@code
- * tool_choice} must also be omitted or left at the default {@code "auto"}
- * (the docs also accept the {@code allowed_tools} form, which this library
- * does not offer).
+ * tool_choice} must also be omitted, left at the default {@code "auto"}, or
+ * set to the {@code allowed_tools} form (the Responses builder offers it via
+ * {@code toolChoiceAllowedTools}; this chat example has no equivalent).
  */
 public class OpenRouterChatCompletionWithToolSearchExample {
 

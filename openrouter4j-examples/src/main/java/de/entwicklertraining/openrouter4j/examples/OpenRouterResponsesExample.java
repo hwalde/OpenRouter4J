@@ -4,6 +4,7 @@ import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import org.json.JSONObject;
+import de.entwicklertraining.openrouter4j.OpenRouterApplyPatchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
 import de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesRequest;
 import de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesResponse;
@@ -154,13 +155,15 @@ public class OpenRouterResponsesExample {
                 .build();
         System.out.println("Allowed-tools tool_choice:  " + allowedToolsChoice.getBody());
 
-        // Tool-type shorthand {"type":"<type>"} - web_search_preview, apply_patch,
-        // shell, or the OpenRouter-prefixed TOOL_TYPE of a typed server tool.
+        // Tool-type shorthand {"type":"<type>"} - the bare documented variants
+        // web_search_preview, web_search_preview_2025_03_11, apply_patch, shell.
+        // apply_patch / shell force the tool entries whose tools[].type is
+        // OpenRouterApplyPatchServerTool.TOOL_TYPE / OpenRouterShellServerTool.TOOL_TYPE.
         OpenRouterResponsesRequest typeChoice = client.responses()
                 .model("openai/gpt-4o")
-                .input("Search the web for recent JDK 25 notes.")
-                .addTool(OpenRouterWebSearchServerTool.builder().build().toJson())
-                .toolChoiceType("web_search_preview")
+                .input("Rewrite this function to be iterative.")
+                .addTool(OpenRouterApplyPatchServerTool.builder().build().toJson())
+                .toolChoiceType("apply_patch")
                 .build();
         System.out.println("Tool-type tool_choice:      " + typeChoice.getBody());
     }

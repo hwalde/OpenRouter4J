@@ -1061,10 +1061,13 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * {@link #toolChoiceType(String)}) win when several forms are set -
          * see the precedence documented there.
          *
-         * <p>Trap: when deferred tools ({@code deferLoading(true)} +
-         * {@code openrouter:tool_search}) are in play, {@code tool_choice}
-         * must be omitted or left at {@code "auto"} - any other form makes the
-         * request fail (see {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
+         * <p>Trap: when deferred tools (e.g. {@code openrouter:tool_search}
+         * with top-level {@code defer_loading} on the tool entries) are in
+         * play, {@code tool_choice} must be omitted, left at {@code "auto"},
+         * or set to the {@code allowed_tools} form
+         * ({@link #toolChoiceAllowedTools(String, Object...)}) - any other
+         * setting makes the request fail (see
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
          *
          * @param toolChoice the tool choice keyword
          * @return this builder
@@ -1088,10 +1091,13 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * {@link #toolChoiceType(String)}, then the plain string keywords
          * ({@link #toolChoice(String)}).
          *
-         * <p>Trap: when deferred tools ({@code deferLoading(true)} +
-         * {@code openrouter:tool_search}) are in play, {@code tool_choice}
-         * must be omitted or left at {@code "auto"} - any other form makes the
-         * request fail (see {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
+         * <p>Trap: when deferred tools (e.g. {@code openrouter:tool_search}
+         * with top-level {@code defer_loading} on the tool entries) are in
+         * play, {@code tool_choice} must be omitted, left at {@code "auto"},
+         * or set to the {@code allowed_tools} form
+         * ({@link #toolChoiceAllowedTools(String, Object...)}) - any other
+         * setting makes the request fail (see
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
          *
          * @param name name of the tool definition to force (must match a tool in {@code tools})
          * @return this builder
@@ -1121,9 +1127,9 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * whole allowed_tools form (mode and refs), it does not append.
          *
          * <p>Trap: this is the one object form the docs accept alongside
-         * deferred tools ({@code deferLoading(true)} +
-         * {@code openrouter:tool_search}); the other forms must stay at
-         * {@code "auto"} or unset there (see
+         * deferred tools (e.g. {@code openrouter:tool_search} with top-level
+         * {@code defer_loading} on the tool entries); the other forms must
+         * stay at {@code "auto"} or unset there (see
          * {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
          *
          * @param mode {@code "auto"} or {@code "required"}
@@ -1136,7 +1142,10 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         }
 
         /**
-         * Collection form of {@link #toolChoiceAllowedTools(String, Object...)}.
+         * Collection form of {@link #toolChoiceAllowedTools(String, Object...)}:
+         * same semantics (JSON field {@code tool_choice} allowed_tools form,
+         * default unset, a later call replaces the whole form, and this is the
+         * one object form the docs accept alongside deferred tools).
          *
          * @param mode {@code "auto"} or {@code "required"}
          * @param toolRefs at least one tool ref ({@link String} function name or verbatim {@link JSONObject})
@@ -1171,14 +1180,16 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         }
 
         /**
-         * Forces a tool-type shorthand object - {@code {"type":"<type>"}} -
-         * covering the documented variants {@code web_search_preview},
-         * {@code web_search_preview_2025_03_11}, {@code apply_patch} and
-         * {@code shell}, and the OpenRouter-prefixed spellings of the typed
-         * server tools (pass {@link de.entwicklertraining.openrouter4j.OpenRouterApplyPatchServerTool#TOOL_TYPE}
-         * / {@link de.entwicklertraining.openrouter4j.OpenRouterShellServerTool#TOOL_TYPE}
-         * to force those tool entries). The type string is accepted verbatim
-         * so future variants work without a library update.
+         * Forces a tool-type shorthand object - {@code {"type":"<type>"}}.
+         * {@code tool_choice.type} takes the bare documented variants
+         * {@code web_search_preview}, {@code web_search_preview_2025_03_11},
+         * {@code apply_patch} and {@code shell}; {@code apply_patch} /
+         * {@code shell} force the tool entries whose {@code tools[].type} is
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterApplyPatchServerTool#TOOL_TYPE} /
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterShellServerTool#TOOL_TYPE}.
+         * The type string is accepted verbatim, so an unknown variant travels
+         * as an escape hatch - the schema union is closed, so a value outside
+         * the four documented ones is up to the API to accept or reject.
          *
          * <p>JSON field: {@code tool_choice} (tool-type form). Default: unset
          * (the key is not sent). Unlike the chat builder, the key is emitted
@@ -1189,12 +1200,15 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * tool-type form, then the plain string keywords
          * ({@link #toolChoice(String)}).
          *
-         * <p>Trap: when deferred tools ({@code deferLoading(true)} +
-         * {@code openrouter:tool_search}) are in play, {@code tool_choice}
-         * must be omitted or left at {@code "auto"} - any other form makes the
-         * request fail (see {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
+         * <p>Trap: when deferred tools (e.g. {@code openrouter:tool_search}
+         * with top-level {@code defer_loading} on the tool entries) are in
+         * play, {@code tool_choice} must be omitted, left at {@code "auto"},
+         * or set to the {@code allowed_tools} form
+         * ({@link #toolChoiceAllowedTools(String, Object...)}) - any other
+         * setting makes the request fail (see
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
          *
-         * @param type the tool type to force (e.g. {@code "apply_patch"} or {@code "openrouter:apply_patch"})
+         * @param type the tool type to force (e.g. {@code "apply_patch"} or {@code "web_search_preview"})
          * @return this builder
          * @throws IllegalArgumentException when {@code type} is null or empty
          */

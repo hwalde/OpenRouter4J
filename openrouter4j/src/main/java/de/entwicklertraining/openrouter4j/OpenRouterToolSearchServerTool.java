@@ -32,9 +32,11 @@ import java.util.Map;
  *
  * <p>API constraint of the tool-search flow: at least one tool must remain
  * non-deferred. Also note {@code tool_choice} conflicts with deferral - it must
- * be omitted or left at the default {@code "auto"}, otherwise the request fails
- * with a 400 (the docs also accept the {@code allowed_tools} form there, which
- * this library does not offer).
+ * be omitted, left at the default {@code "auto"}, or set to the
+ * {@code allowed_tools} form, otherwise the request fails with a 400. The
+ * Responses builder expresses {@code allowed_tools} via
+ * {@link de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesRequest.Builder#toolChoiceAllowedTools(String, Object...)};
+ * the chat and Messages builders do not offer it.
  *
  * @see <a href="https://openrouter.ai/docs/guides/features/server-tools/tool-search">Tool search server tool</a>
  */

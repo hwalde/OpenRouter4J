@@ -284,13 +284,12 @@ class OpenRouterResponsesTest {
                         new JSONObject("{\"type\":\"web_search\"}"))
                 .build();
         JSONObject allowedBody = new JSONObject(allowed.getBody()).getJSONObject("tool_choice");
-        assertThat(allowedBody.getString("type")).isEqualTo("allowed_tools");
-        assertThat(allowedBody.getString("mode")).isEqualTo("required");
-        assertThat(allowedBody.keySet()).containsExactlyInAnyOrder("type", "mode", "tools");
-        assertThat(allowedBody.getJSONArray("tools").getJSONObject(0).toMap())
-                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("type", "function", "name", "get_weather"));
-        assertThat(allowedBody.getJSONArray("tools").getJSONObject(1).toMap())
-                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("type", "web_search"));
+        assertThat(allowedBody.toMap()).containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                "type", "allowed_tools",
+                "mode", "required",
+                "tools", List.of(
+                        java.util.Map.of("type", "function", "name", "get_weather"),
+                        java.util.Map.of("type", "web_search"))));
         assertThat(allowed.toolChoiceAllowedToolsMode()).isEqualTo("required");
         assertThat(allowed.toolChoiceAllowedTools()).hasSize(2);
 
