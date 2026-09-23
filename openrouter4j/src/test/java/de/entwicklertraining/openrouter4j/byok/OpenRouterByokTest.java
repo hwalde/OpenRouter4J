@@ -99,18 +99,20 @@ class OpenRouterByokTest {
         JSONObject updateTrue = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
                 .declaredZdr(true)
                 .build().getBody());
+        assertThat(updateTrue.keySet()).containsExactly("declared_zdr");
         assertThat(updateTrue.getBoolean("declared_zdr")).isTrue();
 
         JSONObject updateFalse = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
                 .declaredZdr(false)
                 .build().getBody());
+        assertThat(updateFalse.keySet()).containsExactly("declared_zdr");
         assertThat(updateFalse.getBoolean("declared_zdr")).isFalse();
 
         // Explicit null emits a JSON null and clears the declaration to inherit.
         JSONObject updateClear = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
                 .declaredZdr(null)
                 .build().getBody());
-        assertThat(updateClear.has("declared_zdr")).isTrue();
+        assertThat(updateClear.keySet()).containsExactly("declared_zdr");
         assertThat(updateClear.isNull("declared_zdr")).isTrue();
 
         // Unset omits the key and leaves the stored value unchanged.
@@ -118,6 +120,38 @@ class OpenRouterByokTest {
                 .name("n")
                 .build().getBody());
         assertThat(updateUnset.has("declared_zdr")).isFalse();
+    }
+
+    @Test
+    void declaredZdrSetTwiceReplacesThePreviousValue() {
+        JSONObject clearLast = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredZdr(true)
+                .declaredZdr(null)
+                .build().getBody());
+        assertThat(clearLast.keySet()).containsExactly("declared_zdr");
+        assertThat(clearLast.isNull("declared_zdr")).isTrue();
+
+        JSONObject trueLast = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredZdr(null)
+                .declaredZdr(true)
+                .build().getBody());
+        assertThat(trueLast.getBoolean("declared_zdr")).isTrue();
+
+        JSONObject createClearLast = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredZdr(true)
+                .declaredZdr(null)
+                .build().getBody());
+        assertThat(createClearLast.isNull("declared_zdr")).isTrue();
+
+        JSONObject createTrueLast = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredZdr(null)
+                .declaredZdr(true)
+                .build().getBody());
+        assertThat(createTrueLast.getBoolean("declared_zdr")).isTrue();
     }
 
     @Test
