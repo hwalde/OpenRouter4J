@@ -528,17 +528,19 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
          * Adds one entry to {@code classifier_filters.filters} with a scalar
          * string tag value:
          * {@code {"field": field, "operator": operator, "value": value}}.
-         * Only equality/set operators are supported ({@code eq}, {@code neq},
-         * {@code in}, {@code not_in}) - ordered comparisons are not available
-         * because classification values are strings. Requires
-         * {@link #classifierFilters(String)} to set the classifier id (order of
-         * the calls does not matter). At most 10 entries.
+         * Only {@code eq} and {@code neq} for scalar values; array values with
+         * {@code in} / {@code not_in} belong to
+         * {@link #classifierFilterIn(String, String, Collection)}. Ordered
+         * comparisons are not available because classification values are
+         * strings. Requires {@link #classifierFilters(String)} to set the
+         * classifier id (order of the calls does not matter). At most 10
+         * entries.
          *
          * @param field the classifier dimension name to filter on (snake_case)
          * @param operator the filter operator ({@code eq} or {@code neq})
          * @param value the scalar tag value
          * @return this builder
-         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded or the value type is wrong
+         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded, the operator does not match the scalar value shape or the value type is wrong
          */
         public Builder classifierFilter(String field, String operator, String value) {
             return addClassifierFilter(field, operator, value);
@@ -547,14 +549,15 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
         /**
          * Adds one entry to {@code classifier_filters.filters} with a scalar
          * numeric tag value (the schema also accepts numbers alongside
-         * strings). See {@link #classifierFilter(String, String, String)} for
-         * the operator restrictions.
+         * strings). Only {@code eq} and {@code neq} for scalar values; array
+         * values with {@code in} / {@code not_in} belong to
+         * {@link #classifierFilterIn(String, String, Collection)}.
          *
          * @param field the classifier dimension name to filter on (snake_case)
          * @param operator the filter operator ({@code eq} or {@code neq})
          * @param value the scalar numeric tag value
          * @return this builder
-         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded or the value type is wrong
+         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded, the operator does not match the scalar value shape or the value type is wrong
          */
         public Builder classifierFilter(String field, String operator, Number value) {
             return addClassifierFilter(field, operator, value);
@@ -562,17 +565,18 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
 
         /**
          * Adds one entry to {@code classifier_filters.filters} with an array
-         * value (for the set operators {@code in} / {@code not_in}):
+         * value (for the set operators):
          * {@code {"field": field, "operator": operator, "value": [values...]}}.
-         * Element types may be strings or numbers, matching the schema. See
-         * {@link #classifierFilter(String, String, String)} for the operator
-         * restrictions.
+         * Only {@code in} and {@code not_in} for array values; scalars with
+         * {@code eq} / {@code neq} belong to
+         * {@link #classifierFilter(String, String, String)}. Element types may
+         * be strings or numbers, matching the schema.
          *
          * @param field the classifier dimension name to filter on (snake_case)
          * @param operator the filter operator ({@code in} or {@code not_in})
          * @param values the tag values (strings or numbers, non-empty)
          * @return this builder
-         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded or an element type is wrong
+         * @throws IllegalArgumentException when any argument is empty, the entry limit is exceeded, the operator does not match the array value shape or an element type is wrong
          */
         public Builder classifierFilterIn(String field, String operator, Collection<?> values) {
             if (values == null || values.isEmpty()) {
@@ -580,7 +584,11 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
             }
             JSONArray arr = new JSONArray();
             for (Object value : values) {
-                arr.put(requireClassifierFilterValue(value));
+                if (!(value instanceof String) && !(value instanceof Number)) {
+                    throw new IllegalArgumentException(
+                            "classifier filter array elements must be strings or numbers");
+                }
+                arr.put(value);
             }
             return addClassifierFilter(field, operator, arr);
         }
@@ -609,17 +617,9 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
             JSONObject filter = new JSONObject();
             filter.put("field", field);
             filter.put("operator", operator);
-            filter.put("value", requireClassifierFilterValue(value));
+            filter.put("value", value);
             classifierFilterEntries.add(filter);
             return this;
-        }
-
-        private static Object requireClassifierFilterValue(Object value) {
-            if (value instanceof String || value instanceof Number || value instanceof JSONArray) {
-                return value;
-            }
-            throw new IllegalArgumentException(
-                    "classifier filter value must be a string, a number or an array of those");
         }
 
         /**
@@ -639,6 +639,14 @@ public final class OpenRouterAnalyticsQueryRequest extends OpenRouterRequest<Ope
             return this;
         }
 
+        /**
+         * Validates the required metric and the classifier combination (the
+         * same {@code classifier_id} for {@code classifier_dimensions} and
+         * {@code classifier_filters}, no half-configured classifier object).
+         *
+         * @return the built request
+         * @throws IllegalStateException when no metric is configured or a classifier combination is incomplete or the two {@code classifier_id}s mismatch
+         */
         @Override
         public OpenRouterAnalyticsQueryRequest build() {
             if (metrics.isEmpty()) {

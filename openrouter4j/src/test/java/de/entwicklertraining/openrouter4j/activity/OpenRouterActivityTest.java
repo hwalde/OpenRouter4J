@@ -1,5 +1,6 @@
 package de.entwicklertraining.openrouter4j.activity;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import org.junit.jupiter.api.Test;
@@ -253,11 +254,38 @@ class OpenRouterActivityTest {
                 .classifierFilter("department", "eq", "Engineering")
                 .classifierDimensions("550e8400-e29b-41d4-a716-446655440000", "department")
                 .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
                 .build();
 
         JSONObject body = new JSONObject(request.getBody());
-        assertThat(body.getJSONObject("classifier_dimensions").getString("classifier_id"))
-                .isEqualTo(body.getJSONObject("classifier_filters").getString("classifier_id"));
+        JSONObject classifierDimensions = body.getJSONObject("classifier_dimensions");
+        assertThat(classifierDimensions.getString("classifier_id"))
+                .isEqualTo("550e8400-e29b-41d4-a716-446655440000");
+        assertThat(classifierDimensions.has("include_nulls")).isFalse();
+        assertThat(classifierDimensions.keySet()).containsExactlyInAnyOrder("classifier_id", "dimension_names");
+        assertThat(body.getJSONObject("classifier_filters").getString("classifier_id"))
+                .isEqualTo("550e8400-e29b-41d4-a716-446655440000");
+    }
+
+    @Test
+    void analyticsRequestEmitsTheDocumentedClassifierFilterOperatorVariants() {
+        OpenRouterAnalyticsQueryRequest request = new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("priority", "neq", 2)
+                .classifierFilterIn("work_type", "not_in", List.of("consulting", 7))
+                .build();
+
+        JSONArray filters = new JSONObject(request.getBody())
+                .getJSONObject("classifier_filters")
+                .getJSONArray("filters");
+        assertThat(filters.getJSONObject(0).getString("operator")).isEqualTo("neq");
+        assertThat(filters.getJSONObject(0).getInt("value")).isEqualTo(2);
+        assertThat(filters.getJSONObject(1).getString("operator")).isEqualTo("not_in");
+        JSONArray values = filters.getJSONObject(1).getJSONArray("value");
+        assertThat(values.getString(0)).isEqualTo("consulting");
+        assertThat(values.getInt(1)).isEqualTo(7);
     }
 
     @Test
@@ -270,6 +298,23 @@ class OpenRouterActivityTest {
                 .build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("same classifier_id");
+    }
+
+    @Test
+    void analyticsRequestRejectsReSettingAClassifierIdToADifferentValue() {
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierDimensions("550e8400-e29b-41d4-a716-446655440000")
+                .classifierDimensions("660e8400-e29b-41d4-a716-446655440001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("classifier_dimensions.classifier_id");
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilters("660e8400-e29b-41d4-a716-446655440001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("classifier_filters.classifier_id");
     }
 
     @Test
@@ -331,7 +376,19 @@ class OpenRouterActivityTest {
         assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
                 .metrics("request_count")
                 .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilter("department", "", "Engineering"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
                 .classifierFilter("department", "gt", "Engineering"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilterIn("work_type", "eq", List.of("x")))
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
@@ -341,8 +398,21 @@ class OpenRouterActivityTest {
 
         assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
                 .metrics("request_count")
-                .classifierFilters(""))
+                .classifierFilters("550e8400-e29b-41d4-a716-446655440000")
+                .classifierFilterIn("work_type", "in", List.of((Object) List.of("nested"))))
                 .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierDimensions(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("classifier_id");
+
+        assertThatThrownBy(() -> new OpenRouterAnalyticsQueryRequest.Builder(client())
+                .metrics("request_count")
+                .classifierFilters(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("classifier_id");
     }
 
     @Test
