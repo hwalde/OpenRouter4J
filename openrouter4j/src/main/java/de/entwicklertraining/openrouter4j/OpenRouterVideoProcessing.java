@@ -5,7 +5,8 @@ package de.entwicklertraining.openrouter4j;
  * {@code video_url} content part -
  * {@code OpenRouterChatCompletionRequest.Builder#addVideoByUrl(String, OpenRouterVideoProcessing)}.
  * <p>
- * {@code AGENTIC} enables agentic video processing; {@code STATIC} forces
+ * {@link #AGENTIC} lets the model actively seek and search through the video
+ * instead of sampling frames at a fixed rate; {@link #STATIC} forces
  * fixed-rate frame sampling on providers that support it (currently Google
  * Gemini). Omitting the mode leaves the provider default. The same field
  * exists on the legacy {@code input_video} variant, which has no typed helper -
@@ -13,7 +14,8 @@ package de.entwicklertraining.openrouter4j;
  */
 public enum OpenRouterVideoProcessing {
 
-    /** Enables agentic video processing. */
+    /** Lets the model actively seek and search through the video instead of
+     * sampling frames at a fixed rate - the counterpart of {@link #STATIC}. */
     AGENTIC("agentic"),
 
     /** Forces fixed-rate frame sampling (Google Gemini only today). */

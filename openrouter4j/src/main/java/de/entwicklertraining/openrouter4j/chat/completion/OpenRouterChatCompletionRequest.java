@@ -3579,7 +3579,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          * <p>
          * Emitted as {@code {"type":"video_url","video_url":{"url":...}}} on a
          * user message; {@code url} is either an external URL or a base64 data
-         * URL. The legacy {@code input_video} variant has no typed helper - use
+         * URL. No {@code processing} key is sent (provider default) - see
+         * {@link #addVideoByUrl(String, OpenRouterVideoProcessing)} to set one.
+         * The legacy {@code input_video} variant has no typed helper - use
          * the verbatim escape hatch {@link #addContentPart(JSONObject)} for it.
          *
          * @param url the video URL or data URL

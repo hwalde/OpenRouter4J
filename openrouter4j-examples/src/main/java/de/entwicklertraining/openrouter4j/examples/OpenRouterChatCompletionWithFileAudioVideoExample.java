@@ -25,7 +25,9 @@ import java.util.Base64;
  *   or a base64 data URL.
  * - {@code addAudioByBase64(base64, format)}: an {@code input_audio} content
  *   part (wav, mp3, flac, m4a, ogg, aiff, aac, pcm16, pcm24).
- * - {@code addVideoByUrl(url)}: a {@code video_url} content part.
+ * - {@code addVideoByUrl(url, OpenRouterVideoProcessing)}: a {@code video_url}
+ *   content part with an optional {@code processing} mode (AGENTIC/STATIC;
+ *   omit or pass {@code null} for the provider default).
  * - {@code addFileById(fileId, filename)}: the Files-API variant - needs a real
  *   upload id, so this example only prints its wire format.
  * - {@code addContentPart(JSONObject)}: the verbatim escape hatch for other or
