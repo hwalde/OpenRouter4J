@@ -15,6 +15,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -67,6 +68,10 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
     private final Double presencePenalty;
     private final List<JSONObject> tools;
     private final String toolChoice;
+    private final String toolChoiceFunctionName;
+    private final String toolChoiceAllowedToolsMode;
+    private final List<JSONObject> toolChoiceAllowedTools;
+    private final String toolChoiceType;
     private final Boolean parallelToolCalls;
     private final String reasoningEffort;
     private final Integer reasoningMaxTokens;
@@ -121,6 +126,11 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         this.presencePenalty = builder.presencePenalty;
         this.tools = builder.tools == null ? null : List.copyOf(builder.tools);
         this.toolChoice = builder.toolChoice;
+        this.toolChoiceFunctionName = builder.toolChoiceFunctionName;
+        this.toolChoiceAllowedToolsMode = builder.toolChoiceAllowedToolsMode;
+        this.toolChoiceAllowedTools = builder.toolChoiceAllowedTools == null
+                ? null : List.copyOf(builder.toolChoiceAllowedTools);
+        this.toolChoiceType = builder.toolChoiceType;
         this.parallelToolCalls = builder.parallelToolCalls;
         this.reasoningEffort = builder.reasoningEffort;
         this.reasoningMaxTokens = builder.reasoningMaxTokens;
@@ -286,6 +296,56 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         return promptCacheOptionsTtl;
     }
 
+    /**
+     * JSON field: {@code tool_choice} (string form) - the plain keyword, or
+     * {@code null} when unset or when an object form is configured.
+     *
+     * @return the tool-choice keyword, or {@code null}
+     */
+    public String toolChoice() {
+        return toolChoice;
+    }
+
+    /**
+     * JSON field: {@code tool_choice.name} of the named function form, or
+     * {@code null} when that form is not configured.
+     *
+     * @return the forced function name, or {@code null}
+     */
+    public String toolChoiceFunctionName() {
+        return toolChoiceFunctionName;
+    }
+
+    /**
+     * JSON field: {@code tool_choice.mode} of the allowed_tools form, or
+     * {@code null} when that form is not configured.
+     *
+     * @return the allowed-tools mode, or {@code null}
+     */
+    public String toolChoiceAllowedToolsMode() {
+        return toolChoiceAllowedToolsMode;
+    }
+
+    /**
+     * JSON field: {@code tool_choice.tools} of the allowed_tools form, empty
+     * when that form is not configured.
+     *
+     * @return the tool refs, empty when unset
+     */
+    public List<JSONObject> toolChoiceAllowedTools() {
+        return toolChoiceAllowedTools == null ? List.of() : toolChoiceAllowedTools;
+    }
+
+    /**
+     * JSON field: {@code tool_choice.type} of the tool-type form, or
+     * {@code null} when that form is not configured.
+     *
+     * @return the forced tool type, or {@code null}
+     */
+    public String toolChoiceType() {
+        return toolChoiceType;
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/responses";
@@ -303,8 +363,9 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
      * {@code max_output_tokens}, {@code max_tool_calls}, {@code temperature},
      * {@code top_p}, {@code top_k}, {@code top_logprobs},
      * {@code frequency_penalty},
-     * {@code presence_penalty}, {@code tools}, {@code tool_choice},
-     * {@code parallel_tool_calls}, {@code reasoning}, {@code modalities},
+     * {@code presence_penalty}, {@code tools}, {@code tool_choice}
+     * (string keyword or one of the object forms), {@code parallel_tool_calls},
+     * {@code reasoning}, {@code modalities},
      * {@code include}, {@code background}, {@code store}, {@code metadata},
      * {@code service_tier}, {@code session_id}, {@code safety_identifier},
      * {@code user}, {@code prompt_cache_key}, {@code prompt_cache_options},
@@ -394,7 +455,26 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
             }
             root.put("tools", array);
         }
-        if (toolChoice != null) {
+        if (toolChoiceFunctionName != null) {
+            JSONObject functionChoice = new JSONObject();
+            functionChoice.put("type", "function");
+            functionChoice.put("name", toolChoiceFunctionName);
+            root.put("tool_choice", functionChoice);
+        } else if (toolChoiceAllowedToolsMode != null) {
+            JSONObject allowedToolsChoice = new JSONObject();
+            allowedToolsChoice.put("type", "allowed_tools");
+            allowedToolsChoice.put("mode", toolChoiceAllowedToolsMode);
+            JSONArray allowedToolsArr = new JSONArray();
+            for (JSONObject toolRef : toolChoiceAllowedTools) {
+                allowedToolsArr.put(toolRef);
+            }
+            allowedToolsChoice.put("tools", allowedToolsArr);
+            root.put("tool_choice", allowedToolsChoice);
+        } else if (toolChoiceType != null) {
+            JSONObject typeChoice = new JSONObject();
+            typeChoice.put("type", toolChoiceType);
+            root.put("tool_choice", typeChoice);
+        } else if (toolChoice != null) {
             root.put("tool_choice", toolChoice);
         }
         if (parallelToolCalls != null) {
@@ -534,6 +614,10 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         private Double presencePenalty;
         private List<JSONObject> tools;
         private String toolChoice;
+        private String toolChoiceFunctionName;
+        private String toolChoiceAllowedToolsMode;
+        private List<JSONObject> toolChoiceAllowedTools;
+        private String toolChoiceType;
         private Boolean parallelToolCalls;
         private String reasoningEffort;
         private Integer reasoningMaxTokens;
@@ -962,15 +1046,127 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         }
 
         /**
-         * Sets the JSON field {@code tool_choice} ({@code "auto"},
-         * {@code "none"}, {@code "required"} or a provider-specific object
-         * via the raw tools escape hatch).
+         * Sets the JSON field {@code tool_choice} to one of the plain string
+         * keywords ({@code "auto"}, {@code "none"}, {@code "required"}).
          *
-         * @param toolChoice the tool choice
+         * <p>JSON field: {@code tool_choice} (string form). Default: unset
+         * (the key is not sent). The object forms
+         * ({@link #toolChoiceFunction(String)},
+         * {@link #toolChoiceAllowedTools(String, Object...)},
+         * {@link #toolChoiceType(String)}) win when several forms are set -
+         * see the precedence documented there.
+         *
+         * @param toolChoice the tool choice keyword
          * @return this builder
          */
         public Builder toolChoice(String toolChoice) {
             this.toolChoice = toolChoice;
+            return this;
+        }
+
+        /**
+         * Forces the model to call one specific tool - the named object form
+         * {@code {"type":"function","name":<name>}} (flat {@code name}, not
+         * the chat-completions nested {@code function.name} shape).
+         *
+         * <p>JSON field: {@code tool_choice} (named function form). Default:
+         * unset (the key is not sent). Precedence when several forms are set:
+         * this named function form wins, then
+         * {@link #toolChoiceAllowedTools(String, Object...)}, then
+         * {@link #toolChoiceType(String)}, then the plain string keywords
+         * ({@link #toolChoice(String)}).
+         *
+         * @param name name of the tool definition to force (must match a tool in {@code tools})
+         * @return this builder
+         * @throws IllegalArgumentException when {@code name} is null or empty
+         */
+        public Builder toolChoiceFunction(String name) {
+            if (name == null || name.isEmpty()) {
+                throw new IllegalArgumentException("tool_choice function name is required");
+            }
+            this.toolChoiceFunctionName = name;
+            return this;
+        }
+
+        /**
+         * Constrains the model to a pre-defined set of allowed tools - the
+         * {@code {"type":"allowed_tools","mode":...,"tools":[...]}} form.
+         *
+         * <p>Each tool ref is either a {@link String} (emitted as
+         * {@code {"type":"function","name":...}}) or a verbatim
+         * {@link JSONObject} used as-is. JSON field: {@code tool_choice}
+         * (allowed_tools form). Default: unset (the key is not sent).
+         * Precedence when several forms are set: {@link #toolChoiceFunction(String)}
+         * wins, then this allowed_tools form, then {@link #toolChoiceType(String)},
+         * then the plain string keywords ({@link #toolChoice(String)}).
+         *
+         * @param mode {@code "auto"} or {@code "required"}
+         * @param toolRefs at least one tool ref ({@link String} function name or verbatim {@link JSONObject})
+         * @return this builder
+         * @throws IllegalArgumentException when {@code mode} is not {@code "auto"}/{@code "required"}, no tool ref is given or a ref is neither a non-empty {@link String} nor a {@link JSONObject}
+         */
+        public Builder toolChoiceAllowedTools(String mode, Object... toolRefs) {
+            return toolChoiceAllowedTools(mode, toolRefs == null ? null : java.util.Arrays.asList(toolRefs));
+        }
+
+        /**
+         * Collection form of {@link #toolChoiceAllowedTools(String, Object...)}.
+         *
+         * @param mode {@code "auto"} or {@code "required"}
+         * @param toolRefs at least one tool ref ({@link String} function name or verbatim {@link JSONObject})
+         * @return this builder
+         * @throws IllegalArgumentException when {@code mode} is not {@code "auto"}/{@code "required"}, no tool ref is given or a ref is neither a non-empty {@link String} nor a {@link JSONObject}
+         */
+        public Builder toolChoiceAllowedTools(String mode, Collection<?> toolRefs) {
+            if (!"auto".equals(mode) && !"required".equals(mode)) {
+                throw new IllegalArgumentException(
+                        "tool_choice allowed_tools mode must be auto or required, got " + mode);
+            }
+            if (toolRefs == null || toolRefs.isEmpty()) {
+                throw new IllegalArgumentException("tool_choice allowed_tools needs at least one tool ref");
+            }
+            List<JSONObject> refs = new ArrayList<>();
+            for (Object toolRef : toolRefs) {
+                if (toolRef instanceof JSONObject) {
+                    refs.add((JSONObject) toolRef);
+                } else if (toolRef instanceof String && !((String) toolRef).isEmpty()) {
+                    JSONObject functionRef = new JSONObject();
+                    functionRef.put("type", "function");
+                    functionRef.put("name", toolRef);
+                    refs.add(functionRef);
+                } else {
+                    throw new IllegalArgumentException(
+                            "tool_choice allowed_tools tool refs must be non-empty strings or JSONObjects");
+                }
+            }
+            this.toolChoiceAllowedToolsMode = mode;
+            this.toolChoiceAllowedTools = refs;
+            return this;
+        }
+
+        /**
+         * Forces a tool-type shorthand object - {@code {"type":"<type>"}} -
+         * covering the documented variants {@code web_search_preview},
+         * {@code web_search_preview_2025_03_11}, {@code apply_patch} and
+         * {@code shell}. The type string is accepted verbatim so future
+         * variants work without a library update.
+         *
+         * <p>JSON field: {@code tool_choice} (tool-type form). Default: unset
+         * (the key is not sent). Precedence when several forms are set:
+         * {@link #toolChoiceFunction(String)} wins, then
+         * {@link #toolChoiceAllowedTools(String, Object...)}, then this
+         * tool-type form, then the plain string keywords
+         * ({@link #toolChoice(String)}).
+         *
+         * @param type the tool type to force (e.g. {@code "apply_patch"})
+         * @return this builder
+         * @throws IllegalArgumentException when {@code type} is null or empty
+         */
+        public Builder toolChoiceType(String type) {
+            if (type == null || type.isEmpty()) {
+                throw new IllegalArgumentException("tool_choice type is required");
+            }
+            this.toolChoiceType = type;
             return this;
         }
 

@@ -265,6 +265,102 @@ class OpenRouterResponsesTest {
     }
 
     @Test
+    void toolChoiceObjectFormsAreEmittedExactly() {
+        OpenRouterResponsesRequest named = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .toolChoiceFunction("get_weather")
+                .build();
+        JSONObject namedBody = new JSONObject(named.getBody()).getJSONObject("tool_choice");
+        assertThat(namedBody.getString("type")).isEqualTo("function");
+        assertThat(namedBody.getString("name")).isEqualTo("get_weather");
+        assertThat(namedBody.has("function")).isFalse();
+        assertThat(named.toolChoiceFunctionName()).isEqualTo("get_weather");
+        assertThat(named.toolChoice()).isNull();
+
+        OpenRouterResponsesRequest allowed = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .toolChoiceAllowedTools("required", "get_weather",
+                        new JSONObject("{\"type\":\"function\",\"name\":\"raw\"}"))
+                .build();
+        JSONObject allowedBody = new JSONObject(allowed.getBody()).getJSONObject("tool_choice");
+        assertThat(allowedBody.getString("type")).isEqualTo("allowed_tools");
+        assertThat(allowedBody.getString("mode")).isEqualTo("required");
+        assertThat(allowedBody.getJSONArray("tools").length()).isEqualTo(2);
+        assertThat(allowedBody.getJSONArray("tools").getJSONObject(0).getString("name")).isEqualTo("get_weather");
+        assertThat(allowedBody.getJSONArray("tools").getJSONObject(0).getString("type")).isEqualTo("function");
+        assertThat(allowedBody.getJSONArray("tools").getJSONObject(1).getString("name")).isEqualTo("raw");
+        assertThat(allowed.toolChoiceAllowedToolsMode()).isEqualTo("required");
+        assertThat(allowed.toolChoiceAllowedTools()).hasSize(2);
+
+        OpenRouterResponsesRequest typed = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .toolChoiceType("apply_patch")
+                .build();
+        JSONObject typedBody = new JSONObject(typed.getBody()).getJSONObject("tool_choice");
+        assertThat(typedBody.toMap()).containsExactlyInAnyOrderEntriesOf(java.util.Map.of("type", "apply_patch"));
+        assertThat(typed.toolChoiceType()).isEqualTo("apply_patch");
+    }
+
+    @Test
+    void toolChoiceObjectFormsWinOverTheStringForm() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .toolChoice("auto")
+                .toolChoiceType("shell")
+                .toolChoiceAllowedTools("auto", "get_weather")
+                .toolChoiceFunction("get_weather")
+                .build();
+        JSONObject toolChoice = new JSONObject(request.getBody()).getJSONObject("tool_choice");
+        assertThat(toolChoice.getString("type")).isEqualTo("function");
+        assertThat(toolChoice.getString("name")).isEqualTo("get_weather");
+
+        OpenRouterResponsesRequest allowedOverType = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .toolChoiceType("shell")
+                .toolChoiceAllowedTools("auto", "get_weather")
+                .build();
+        assertThat(new JSONObject(allowedOverType.getBody()).getJSONObject("tool_choice").getString("type"))
+                .isEqualTo("allowed_tools");
+
+        OpenRouterResponsesRequest typeOverString = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .toolChoice("none")
+                .toolChoiceType("shell")
+                .build();
+        assertThat(new JSONObject(typeOverString.getBody()).getJSONObject("tool_choice").getString("type"))
+                .isEqualTo("shell");
+    }
+
+    @Test
+    void toolChoiceObjectFormsRejectInvalidArguments() {
+        assertThatThrownBy(() -> client().responses().model("m").input("hi").toolChoiceFunction(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("hi").toolChoiceFunction(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("hi").toolChoiceType(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("hi")
+                .toolChoiceAllowedTools("sometimes", "get_weather"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("mode");
+        assertThatThrownBy(() -> client().responses().model("m").input("hi")
+                .toolChoiceAllowedTools("auto"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("hi")
+                .toolChoiceAllowedTools("auto", (Object) null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("hi")
+                .toolChoiceAllowedTools("auto", ""))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void reasoningObjectIsEmittedOnlyWhenAnyReasoningOptionIsSet() {
         OpenRouterResponsesRequest request = client().responses()
                 .model("openai/gpt-4o")

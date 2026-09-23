@@ -42,7 +42,11 @@ public class OpenRouterResponsesExample {
                 .topLogprobs(3)
                 .promptCacheOptions("explicit")
                 .addTool(OpenRouterWebSearchServerTool.builder().build().toJson())
-                .toolChoice("auto")
+                // tool_choice object forms: named function {"type":"function","name":...},
+                // allowed_tools {"type":"allowed_tools","mode":...,"tools":[...]},
+                // tool-type shorthand {"type":"apply_patch"} / {"type":"shell"} / web_search_preview.
+                // Precedence: named function > allowed_tools > tool-type > plain string keyword.
+                .toolChoiceFunction("web_search")
                 .execute();
 
         System.out.println("Response id:   " + response.id());
