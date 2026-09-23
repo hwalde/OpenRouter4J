@@ -247,6 +247,16 @@ class OpenRouterMessagesTest {
     }
 
     @Test
+    void thinkingDisplayNullUnsets() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .thinking(2048)
+                .thinkingDisplay("summarized")
+                .thinkingDisplay(null)
+                .build().getBody());
+        assertThat(body.getJSONObject("thinking").has("display")).isFalse();
+    }
+
+    @Test
     void thinkingDisplayAndBlockBindingRequireEnabledThinking() {
         assertThatThrownBy(() -> minimalBuilder().thinkingDisplay("summarized").build())
                 .isInstanceOf(IllegalStateException.class);
@@ -901,6 +911,8 @@ class OpenRouterMessagesTest {
         assertThatThrownBy(() -> minimalBuilder().safeguards((OpenRouterSafeguard[]) null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> minimalBuilder().safeguards((OpenRouterSafeguard) null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().safeguards((List<OpenRouterSafeguard>) null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

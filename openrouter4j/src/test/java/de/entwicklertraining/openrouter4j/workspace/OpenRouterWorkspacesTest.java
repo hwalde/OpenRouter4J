@@ -289,6 +289,27 @@ class OpenRouterWorkspacesTest {
     }
 
     @Test
+    void updateRequestDisabledServerToolsNullListUnsets() {
+        OpenRouterWorkspaceUpdateRequest request = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .addDisabledServerTool("openrouter:bash")
+                .disabledServerTools((List<String>) null)
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).has("disabled_server_tools")).isFalse();
+    }
+
+    @Test
+    void updateRequestDisabledServerToolsEmptyListClearsPrevious() {
+        OpenRouterWorkspaceUpdateRequest request = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
+                .addDisabledServerTool("openrouter:bash")
+                .disabledServerTools(List.of())
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).getJSONArray("disabled_server_tools").length())
+                .isEqualTo(0);
+    }
+
+    @Test
     void updateRequestDisabledServerToolsAddAccumulatesAndSetterReplaces() {
         OpenRouterWorkspaceUpdateRequest request = new OpenRouterWorkspaceUpdateRequest.Builder(client(), "ws-1")
                 .addDisabledServerTool("openrouter:bash")
