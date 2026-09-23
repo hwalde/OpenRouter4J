@@ -1204,6 +1204,81 @@ class OpenRouterChatCompletionRequestTest {
     }
 
     @Test
+    void webSearchServerToolUserLocationIsEmittedWhenSet() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterWebSearchServerTool.builder()
+                        .userLocation(OpenRouterWebSearchPlugin.UserLocation.builder()
+                                .city("Paris")
+                                .country("FR")
+                                .region("IDF")
+                                .timezone("Europe/Paris")
+                                .build())
+                        .build()));
+
+        JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
+        JSONObject userLocation = parameters.getJSONObject("user_location");
+        assertThat(userLocation.getString("type")).isEqualTo("approximate");
+        assertThat(userLocation.getString("city")).isEqualTo("Paris");
+        assertThat(userLocation.getString("country")).isEqualTo("FR");
+        assertThat(userLocation.getString("region")).isEqualTo("IDF");
+        assertThat(userLocation.getString("timezone")).isEqualTo("Europe/Paris");
+    }
+
+    @Test
+    void webSearchServerToolXSearchIsEmittedWhenSet() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterWebSearchServerTool.builder()
+                        .xSearch(OpenRouterWebSearchServerTool.XSearchOptions.builder()
+                                .allowedXHandles(List.of("openabor", "xai"))
+                                .fromDate("2025-01-01")
+                                .toDate("2025-12-31")
+                                .enableImageUnderstanding(true)
+                                .enableVideoUnderstanding(false)
+                                .build())
+                        .build()));
+
+        JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
+        JSONObject xSearch = parameters.getJSONObject("x_search");
+        assertThat(xSearch.getJSONArray("allowed_x_handles").toList())
+                .containsExactly("openabor", "xai");
+        assertThat(xSearch.has("excluded_x_handles")).isFalse();
+        assertThat(xSearch.getString("from_date")).isEqualTo("2025-01-01");
+        assertThat(xSearch.getString("to_date")).isEqualTo("2025-12-31");
+        assertThat(xSearch.getBoolean("enable_image_understanding")).isTrue();
+        assertThat(xSearch.getBoolean("enable_video_understanding")).isFalse();
+    }
+
+    @Test
+    void webSearchServerToolXSearchOnlyConfiguredFieldsAreEmitted() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterWebSearchServerTool.builder()
+                        .xSearch(OpenRouterWebSearchServerTool.XSearchOptions.builder()
+                                .excludedXHandles(List.of("spam_bot"))
+                                .build())
+                        .build()));
+
+        JSONObject xSearch = body.getJSONArray("tools").getJSONObject(0)
+                .getJSONObject("parameters").getJSONObject("x_search");
+        assertThat(xSearch.getJSONArray("excluded_x_handles").toList())
+                .containsExactly("spam_bot");
+        assertThat(xSearch.has("allowed_x_handles")).isFalse();
+        assertThat(xSearch.has("from_date")).isFalse();
+        assertThat(xSearch.has("to_date")).isFalse();
+        assertThat(xSearch.has("enable_image_understanding")).isFalse();
+        assertThat(xSearch.has("enable_video_understanding")).isFalse();
+    }
+
+    @Test
+    void webSearchServerToolUserLocationAndXSearchAreAbsentWhenUnset() {
+        JSONObject body = bodyOf(baseBuilder().addServerTool(
+                OpenRouterWebSearchServerTool.builder().maxUses(3).build()));
+
+        JSONObject parameters = body.getJSONArray("tools").getJSONObject(0).getJSONObject("parameters");
+        assertThat(parameters.has("user_location")).isFalse();
+        assertThat(parameters.has("x_search")).isFalse();
+    }
+
+    @Test
     void webFetchServerToolWithAllSettersIsSerialized() {
         JSONObject body = bodyOf(baseBuilder().addServerTool(
                 OpenRouterWebFetchServerTool.builder()

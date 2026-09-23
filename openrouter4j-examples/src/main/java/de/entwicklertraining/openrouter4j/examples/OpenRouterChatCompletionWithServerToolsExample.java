@@ -7,9 +7,12 @@ import de.entwicklertraining.openrouter4j.OpenRouterServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolDefinition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolResult;
+import de.entwicklertraining.openrouter4j.OpenRouterWebSearchPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionResponse;
 import org.json.JSONObject;
+
+import java.util.List;
 
 /**
  * Demonstrates built-in OpenRouter <em>server tools</em> inside the {@code tools}
@@ -46,6 +49,18 @@ public class OpenRouterChatCompletionWithServerToolsExample {
                 .addServerTool(OpenRouterWebSearchServerTool.builder()
                         .maxResults(5)                       // parameters.max_results
                         .searchContextSize("medium")         // parameters.search_context_size
+                        // Approximate user location for location-aware results
+                        // (passed through to native providers only).
+                        .userLocation(OpenRouterWebSearchPlugin.UserLocation.builder()
+                                .city("Cologne")
+                                .country("DE")
+                                .build())
+                        // X (Twitter) search alongside native web search
+                        // (native-search providers only, billed separately).
+                        .xSearch(OpenRouterWebSearchServerTool.XSearchOptions.builder()
+                                .allowedXHandles(List.of("openabor"))
+                                .enableImageUnderstanding(true)
+                                .build())
                         .build())
                 // Another built-in server tool (default configuration emits only the type):
                 .addServerTool(OpenRouterDatetimeServerTool.unconfigured())

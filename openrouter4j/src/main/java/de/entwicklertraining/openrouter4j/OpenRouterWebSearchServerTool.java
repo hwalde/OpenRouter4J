@@ -38,6 +38,8 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
     private final String searchContextSize;
     private final List<String> allowedDomains;
     private final List<String> excludedDomains;
+    private final OpenRouterWebSearchPlugin.UserLocation userLocation;
+    private final XSearchOptions xSearch;
     private final Map<String, Object> extraOptions;
 
     private OpenRouterWebSearchServerTool(Builder builder) {
@@ -50,6 +52,8 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
         this.searchContextSize = builder.searchContextSize;
         this.allowedDomains = builder.allowedDomains == null ? null : List.copyOf(builder.allowedDomains);
         this.excludedDomains = builder.excludedDomains == null ? null : List.copyOf(builder.excludedDomains);
+        this.userLocation = builder.userLocation;
+        this.xSearch = builder.xSearch;
         this.extraOptions = new LinkedHashMap<>(builder.extraOptions);
     }
 
@@ -133,6 +137,23 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
     }
 
     /**
+     * Returns the configured {@code parameters.user_location} value
+     * (approximate user location for location-aware results), or {@code null}
+     * when unset.
+     */
+    public OpenRouterWebSearchPlugin.UserLocation userLocation() {
+        return userLocation;
+    }
+
+    /**
+     * Returns the configured {@code parameters.x_search} value (X/Twitter
+     * search alongside native web search), or {@code null} when unset.
+     */
+    public XSearchOptions xSearch() {
+        return xSearch;
+    }
+
+    /**
      * Returns the JSON object emitted into the {@code tools} request array:
      * {@code {"type": "openrouter:web_search"}} plus a {@code parameters} object
      * when at least one option is set. The {@code parameters} object carries only
@@ -175,6 +196,12 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
             excludedDomains.forEach(arr::put);
             parameters.put("excluded_domains", arr);
         }
+        if (userLocation != null) {
+            parameters.put("user_location", userLocation.toJson());
+        }
+        if (xSearch != null) {
+            parameters.put("x_search", xSearch.toJson());
+        }
         for (Map.Entry<String, Object> e : extraOptions.entrySet()) {
             parameters.put(e.getKey(), e.getValue() == null ? JSONObject.NULL : e.getValue());
         }
@@ -201,6 +228,8 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
         private String searchContextSize;
         private List<String> allowedDomains;
         private List<String> excludedDomains;
+        private OpenRouterWebSearchPlugin.UserLocation userLocation;
+        private XSearchOptions xSearch;
         private final Map<String, Object> extraOptions = new LinkedHashMap<>();
 
         private Builder() {
@@ -327,6 +356,38 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
         }
 
         /**
+         * Sets {@code parameters.user_location}: approximate user location for
+         * location-aware results (e.g. local business search). Reuses the
+         * {@link OpenRouterWebSearchPlugin.UserLocation} type (the plugin's
+         * {@code user_location} has the same wire shape). Emitted only when set.
+         * Trap: passed through to native providers only; Exa / Parallel /
+         * Firecrawl / Perplexity ignore it.
+         *
+         * @param userLocation the approximate user location
+         * @return this builder
+         */
+        public Builder userLocation(OpenRouterWebSearchPlugin.UserLocation userLocation) {
+            this.userLocation = userLocation;
+            return this;
+        }
+
+        /**
+         * Sets {@code parameters.x_search}: enable X (Twitter) search alongside
+         * native web search. Emitted only when set.
+         * <p>
+         * Trap: X search only applies to providers with native search and is
+         * billed separately. {@code allowed_x_handles} and
+         * {@code excluded_x_handles} are mutually exclusive - set at most one.
+         *
+         * @param xSearch the X search options
+         * @return this builder
+         */
+        public Builder xSearch(XSearchOptions xSearch) {
+            this.xSearch = xSearch;
+            return this;
+        }
+
+        /**
          * Adds a {@code parameters} entry verbatim - escape hatch for
          * configuration keys this library does not know yet (e.g. a future
          * engine-specific option). Null values are emitted as JSON {@code null}.
@@ -347,6 +408,200 @@ public final class OpenRouterWebSearchServerTool implements OpenRouterServerTool
          */
         public OpenRouterWebSearchServerTool build() {
             return new OpenRouterWebSearchServerTool(this);
+        }
+    }
+
+    /**
+     * Typed options for {@code parameters.x_search} - X (Twitter) search
+     * alongside native web search ({@code XSearchOptions} in the OpenAPI
+     * schema). Only explicitly configured fields are emitted.
+     * <p>
+     * Trap: X search only applies to providers with native search and is
+     * billed separately. {@code allowed_x_handles} and
+     * {@code excluded_x_handles} are mutually exclusive - set at most one.
+     */
+    public static final class XSearchOptions {
+
+        private final List<String> allowedXHandles;
+        private final List<String> excludedXHandles;
+        private final String fromDate;
+        private final String toDate;
+        private final Boolean enableImageUnderstanding;
+        private final Boolean enableVideoUnderstanding;
+
+        private XSearchOptions(Builder builder) {
+            this.allowedXHandles = builder.allowedXHandles == null ? null : List.copyOf(builder.allowedXHandles);
+            this.excludedXHandles = builder.excludedXHandles == null ? null : List.copyOf(builder.excludedXHandles);
+            this.fromDate = builder.fromDate;
+            this.toDate = builder.toDate;
+            this.enableImageUnderstanding = builder.enableImageUnderstanding;
+            this.enableVideoUnderstanding = builder.enableVideoUnderstanding;
+        }
+
+        /**
+         * Creates a new builder for X search options.
+         */
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        /** Returns the configured {@code allowed_x_handles}, empty when unset (never {@code null}). */
+        public List<String> allowedXHandles() {
+            return allowedXHandles == null ? List.of() : allowedXHandles;
+        }
+
+        /** Returns the configured {@code excluded_x_handles}, empty when unset (never {@code null}). */
+        public List<String> excludedXHandles() {
+            return excludedXHandles == null ? List.of() : excludedXHandles;
+        }
+
+        /** Returns the configured {@code from_date} value, or {@code null} when unset. */
+        public String fromDate() {
+            return fromDate;
+        }
+
+        /** Returns the configured {@code to_date} value, or {@code null} when unset. */
+        public String toDate() {
+            return toDate;
+        }
+
+        /** Returns the configured {@code enable_image_understanding} value, or {@code null} when unset. */
+        public Boolean enableImageUnderstanding() {
+            return enableImageUnderstanding;
+        }
+
+        /** Returns the configured {@code enable_video_understanding} value, or {@code null} when unset. */
+        public Boolean enableVideoUnderstanding() {
+            return enableVideoUnderstanding;
+        }
+
+        JSONObject toJson() {
+            JSONObject json = new JSONObject();
+            if (allowedXHandles != null && !allowedXHandles.isEmpty()) {
+                JSONArray arr = new JSONArray();
+                allowedXHandles.forEach(arr::put);
+                json.put("allowed_x_handles", arr);
+            }
+            if (excludedXHandles != null && !excludedXHandles.isEmpty()) {
+                JSONArray arr = new JSONArray();
+                excludedXHandles.forEach(arr::put);
+                json.put("excluded_x_handles", arr);
+            }
+            if (fromDate != null) {
+                json.put("from_date", fromDate);
+            }
+            if (toDate != null) {
+                json.put("to_date", toDate);
+            }
+            if (enableImageUnderstanding != null) {
+                json.put("enable_image_understanding", enableImageUnderstanding);
+            }
+            if (enableVideoUnderstanding != null) {
+                json.put("enable_video_understanding", enableVideoUnderstanding);
+            }
+            return json;
+        }
+
+        /**
+         * Builder for {@link XSearchOptions}. Only explicitly configured
+         * fields are emitted.
+         */
+        public static final class Builder {
+
+            private List<String> allowedXHandles;
+            private List<String> excludedXHandles;
+            private String fromDate;
+            private String toDate;
+            private Boolean enableImageUnderstanding;
+            private Boolean enableVideoUnderstanding;
+
+            private Builder() {
+            }
+
+            /**
+             * Sets {@code allowed_x_handles}: restrict X search to these handles
+             * (max 20). Mutually exclusive with
+             * {@link #excludedXHandles(List)}.
+             *
+             * @param handles the allowed X handles (without or with {@code @})
+             * @return this builder
+             */
+            public Builder allowedXHandles(List<String> handles) {
+                this.allowedXHandles = handles;
+                return this;
+            }
+
+            /**
+             * Sets {@code excluded_x_handles}: exclude these handles from X
+             * search (max 20). Mutually exclusive with
+             * {@link #allowedXHandles(List)}.
+             *
+             * @param handles the excluded X handles (without or with {@code @})
+             * @return this builder
+             */
+            public Builder excludedXHandles(List<String> handles) {
+                this.excludedXHandles = handles;
+                return this;
+            }
+
+            /**
+             * Sets {@code from_date}: only include X posts from this date
+             * (ISO 8601 date, e.g. {@code 2025-01-01}).
+             *
+             * @param fromDate the start date
+             * @return this builder
+             */
+            public Builder fromDate(String fromDate) {
+                this.fromDate = fromDate;
+                return this;
+            }
+
+            /**
+             * Sets {@code to_date}: only include X posts up to this date
+             * (ISO 8601 date, e.g. {@code 2025-12-31}).
+             *
+             * @param toDate the end date
+             * @return this builder
+             */
+            public Builder toDate(String toDate) {
+                this.toDate = toDate;
+                return this;
+            }
+
+            /**
+             * Sets {@code enable_image_understanding}: allow the model to
+             * understand images in X posts. {@code false} is a set option and
+             * is emitted.
+             *
+             * @param enable whether image understanding is enabled
+             * @return this builder
+             */
+            public Builder enableImageUnderstanding(Boolean enable) {
+                this.enableImageUnderstanding = enable;
+                return this;
+            }
+
+            /**
+             * Sets {@code enable_video_understanding}: allow the model to
+             * understand videos in X posts. {@code false} is a set option and
+             * is emitted.
+             *
+             * @param enable whether video understanding is enabled
+             * @return this builder
+             */
+            public Builder enableVideoUnderstanding(Boolean enable) {
+                this.enableVideoUnderstanding = enable;
+                return this;
+            }
+
+            /**
+             * Builds the X search options.
+             *
+             * @return the X search options
+             */
+            public XSearchOptions build() {
+                return new XSearchOptions(this);
+            }
         }
     }
 }
