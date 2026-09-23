@@ -159,6 +159,8 @@ public class OpenRouterResponsesExample {
         // web_search_preview, web_search_preview_2025_03_11, apply_patch, shell.
         // apply_patch / shell force the tool entries whose tools[].type is
         // OpenRouterApplyPatchServerTool.TOOL_TYPE / OpenRouterShellServerTool.TOOL_TYPE.
+        // web_search_preview forces a tools[] entry of that same bare variant -
+        // it does NOT pair with OpenRouterWebSearchServerTool (openrouter:web_search).
         OpenRouterResponsesRequest typeChoice = client.responses()
                 .model("openai/gpt-4o")
                 .input("Rewrite this function to be iterative.")

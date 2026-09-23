@@ -1128,9 +1128,9 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          *
          * <p>Trap: this is the one object form the docs accept alongside
          * deferred tools (e.g. {@code openrouter:tool_search} with top-level
-         * {@code defer_loading} on the tool entries); the other forms must
-         * stay at {@code "auto"} or unset there (see
-         * {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
+         * {@code defer_loading} on the tool entries); there any <em>other</em>
+         * {@code tool_choice} setting must stay at {@code "auto"} or unset
+         * (see {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
          *
          * @param mode {@code "auto"} or {@code "required"}
          * @param toolRefs at least one tool ref ({@link String} function name or verbatim {@link JSONObject})
@@ -1183,13 +1183,20 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * Forces a tool-type shorthand object - {@code {"type":"<type>"}}.
          * {@code tool_choice.type} takes the bare documented variants
          * {@code web_search_preview}, {@code web_search_preview_2025_03_11},
-         * {@code apply_patch} and {@code shell}; {@code apply_patch} /
-         * {@code shell} force the tool entries whose {@code tools[].type} is
+         * {@code apply_patch} and {@code shell}. Pairing trap:
+         * {@code apply_patch} / {@code shell} force the tool entries whose
+         * {@code tools[].type} is
          * {@link de.entwicklertraining.openrouter4j.OpenRouterApplyPatchServerTool#TOOL_TYPE} /
-         * {@link de.entwicklertraining.openrouter4j.OpenRouterShellServerTool#TOOL_TYPE}.
-         * The type string is accepted verbatim, so an unknown variant travels
-         * as an escape hatch - the schema union is closed, so a value outside
-         * the four documented ones is up to the API to accept or reject.
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterShellServerTool#TOOL_TYPE},
+         * while {@code web_search_preview} / {@code web_search_preview_2025_03_11}
+         * force a {@code tools[]} entry whose {@code tools[].type} is that same
+         * bare variant (an OpenAI-style built-in, add it verbatim via
+         * {@code addTool}) - they do <em>not</em> pair with
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool},
+         * whose {@code tools[].type} is {@code openrouter:web_search}. The
+         * type string is accepted verbatim, so an unknown variant travels as
+         * an escape hatch - the schema union is closed, so a value outside the
+         * four documented ones is up to the API to accept or reject.
          *
          * <p>JSON field: {@code tool_choice} (tool-type form). Default: unset
          * (the key is not sent). Unlike the chat builder, the key is emitted

@@ -325,8 +325,12 @@ class OpenRouterResponsesTest {
                 .toolChoiceType("shell")
                 .toolChoiceAllowedTools("auto", "get_weather")
                 .build();
-        assertThat(new JSONObject(allowedOverType.getBody()).getJSONObject("tool_choice").getString("type"))
-                .isEqualTo("allowed_tools");
+        JSONObject allowedOverTypeBody = new JSONObject(allowedOverType.getBody()).getJSONObject("tool_choice");
+        assertThat(allowedOverTypeBody.toMap()).containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                "type", "allowed_tools",
+                "mode", "auto",
+                "tools", List.of(java.util.Map.of("type", "function", "name", "get_weather"))));
+        assertThat(allowedOverType.toolChoiceAllowedToolsMode()).isEqualTo("auto");
 
         OpenRouterResponsesRequest typeOverString = client().responses()
                 .model("openai/gpt-4o")
@@ -383,6 +387,9 @@ class OpenRouterResponsesTest {
                 .hasMessageContaining("mode");
         assertThatThrownBy(() -> client().responses().model("m").input("hi")
                 .toolChoiceAllowedTools("auto"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("hi")
+                .toolChoiceAllowedTools("auto", (java.util.Collection<?>) null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> client().responses().model("m").input("hi")
                 .toolChoiceAllowedTools("auto", (Object) null))
