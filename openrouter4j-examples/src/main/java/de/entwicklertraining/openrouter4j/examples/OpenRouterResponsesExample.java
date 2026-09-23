@@ -42,11 +42,6 @@ public class OpenRouterResponsesExample {
                 .topLogprobs(3)
                 .promptCacheOptions("explicit")
                 .addTool(OpenRouterWebSearchServerTool.builder().build().toJson())
-                // tool_choice object forms: named function {"type":"function","name":...},
-                // allowed_tools {"type":"allowed_tools","mode":...,"tools":[...]},
-                // tool-type shorthand {"type":"apply_patch"} / {"type":"shell"} / web_search_preview.
-                // Precedence: named function > allowed_tools > tool-type > plain string keyword.
-                .toolChoiceFunction("web_search")
                 .execute();
 
         System.out.println("Response id:   " + response.id());
@@ -129,5 +124,44 @@ public class OpenRouterResponsesExample {
                 .input("Be terse.")
                 .build();
         System.out.println("\nReusable preset body: " + reusable.getBody());
+
+        // tool_choice object forms - one request per form so precedence cannot
+        // mask them. The named function form is flat {"type":"function","name":...}
+        // (not the chat nested function.name shape) and the name must match a
+        // function tool in `tools`.
+        OpenRouterResponsesRequest namedChoice = client.responses()
+                .model("openai/gpt-4o")
+                .input("What is the weather in Berlin?")
+                .addFunctionTool("get_weather", "Get the weather",
+                        new JSONObject("{\"type\":\"object\",\"properties\":{}}"))
+                .toolChoiceFunction("get_weather")
+                .build();
+        System.out.println("\nNamed function tool_choice: " + namedChoice.getBody());
+
+        // allowed_tools constrains the model to a predefined set; a tool ref is
+        // a String (shorthand for {"type":"function","name":...}) or a verbatim
+        // JSONObject. This is the one object form the docs accept alongside
+        // deferred tool loading.
+        OpenRouterResponsesRequest allowedToolsChoice = client.responses()
+                .model("openai/gpt-4o")
+                .input("What is the weather in Berlin?")
+                .addFunctionTool("get_weather", "Get the weather",
+                        new JSONObject("{\"type\":\"object\",\"properties\":{}}"))
+                .addFunctionTool("get_time", "Get the current time",
+                        new JSONObject("{\"type\":\"object\",\"properties\":{}}"))
+                .toolChoiceAllowedTools("auto", "get_weather",
+                        new JSONObject("{\"type\":\"function\",\"name\":\"get_time\"}"))
+                .build();
+        System.out.println("Allowed-tools tool_choice:  " + allowedToolsChoice.getBody());
+
+        // Tool-type shorthand {"type":"<type>"} - web_search_preview, apply_patch,
+        // shell, or the OpenRouter-prefixed TOOL_TYPE of a typed server tool.
+        OpenRouterResponsesRequest typeChoice = client.responses()
+                .model("openai/gpt-4o")
+                .input("Search the web for recent JDK 25 notes.")
+                .addTool(OpenRouterWebSearchServerTool.builder().build().toJson())
+                .toolChoiceType("web_search_preview")
+                .build();
+        System.out.println("Tool-type tool_choice:      " + typeChoice.getBody());
     }
 }

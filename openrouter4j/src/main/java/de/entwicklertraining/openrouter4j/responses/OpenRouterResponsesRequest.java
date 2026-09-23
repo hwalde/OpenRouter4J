@@ -297,10 +297,14 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
     }
 
     /**
-     * JSON field: {@code tool_choice} (string form) - the plain keyword, or
-     * {@code null} when unset or when an object form is configured.
+     * JSON field: {@code tool_choice} (string form) - the configured plain
+     * keyword, or {@code null} when {@link Builder#toolChoice(String)} was
+     * never called. Note this reports the raw setting: when an object form is
+     * also configured, {@link #getBody()} emits the object form (see the
+     * precedence on {@link Builder#toolChoiceFunction(String)}) but this
+     * accessor still returns the keyword.
      *
-     * @return the tool-choice keyword, or {@code null}
+     * @return the configured tool-choice keyword, or {@code null}
      */
     public String toolChoice() {
         return toolChoice;
@@ -1050,11 +1054,17 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * keywords ({@code "auto"}, {@code "none"}, {@code "required"}).
          *
          * <p>JSON field: {@code tool_choice} (string form). Default: unset
-         * (the key is not sent). The object forms
-         * ({@link #toolChoiceFunction(String)},
+         * (the key is not sent). Unlike the chat builder, the key is emitted
+         * whenever a form is set, even when {@code tools} is empty. The object
+         * forms ({@link #toolChoiceFunction(String)},
          * {@link #toolChoiceAllowedTools(String, Object...)},
          * {@link #toolChoiceType(String)}) win when several forms are set -
          * see the precedence documented there.
+         *
+         * <p>Trap: when deferred tools ({@code deferLoading(true)} +
+         * {@code openrouter:tool_search}) are in play, {@code tool_choice}
+         * must be omitted or left at {@code "auto"} - any other form makes the
+         * request fail (see {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
          *
          * @param toolChoice the tool choice keyword
          * @return this builder
@@ -1070,11 +1080,18 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * the chat-completions nested {@code function.name} shape).
          *
          * <p>JSON field: {@code tool_choice} (named function form). Default:
-         * unset (the key is not sent). Precedence when several forms are set:
-         * this named function form wins, then
-         * {@link #toolChoiceAllowedTools(String, Object...)}, then
+         * unset (the key is not sent). Unlike the chat builder, the key is
+         * emitted whenever a form is set, even when {@code tools} is empty -
+         * but the named tool must still be among them at the API.
+         * Precedence when several forms are set: this named function form
+         * wins, then {@link #toolChoiceAllowedTools(String, Object...)}, then
          * {@link #toolChoiceType(String)}, then the plain string keywords
          * ({@link #toolChoice(String)}).
+         *
+         * <p>Trap: when deferred tools ({@code deferLoading(true)} +
+         * {@code openrouter:tool_search}) are in play, {@code tool_choice}
+         * must be omitted or left at {@code "auto"} - any other form makes the
+         * request fail (see {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
          *
          * @param name name of the tool definition to force (must match a tool in {@code tools})
          * @return this builder
@@ -1095,10 +1112,19 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * <p>Each tool ref is either a {@link String} (emitted as
          * {@code {"type":"function","name":...}}) or a verbatim
          * {@link JSONObject} used as-is. JSON field: {@code tool_choice}
-         * (allowed_tools form). Default: unset (the key is not sent).
-         * Precedence when several forms are set: {@link #toolChoiceFunction(String)}
-         * wins, then this allowed_tools form, then {@link #toolChoiceType(String)},
-         * then the plain string keywords ({@link #toolChoice(String)}).
+         * (allowed_tools form). Default: unset (the key is not sent). Unlike
+         * the chat builder, the key is emitted whenever a form is set, even
+         * when {@code tools} is empty. Precedence when several forms are set:
+         * {@link #toolChoiceFunction(String)} wins, then this allowed_tools
+         * form, then {@link #toolChoiceType(String)}, then the plain string
+         * keywords ({@link #toolChoice(String)}). A later call replaces the
+         * whole allowed_tools form (mode and refs), it does not append.
+         *
+         * <p>Trap: this is the one object form the docs accept alongside
+         * deferred tools ({@code deferLoading(true)} +
+         * {@code openrouter:tool_search}); the other forms must stay at
+         * {@code "auto"} or unset there (see
+         * {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
          *
          * @param mode {@code "auto"} or {@code "required"}
          * @param toolRefs at least one tool ref ({@link String} function name or verbatim {@link JSONObject})
@@ -1148,17 +1174,27 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          * Forces a tool-type shorthand object - {@code {"type":"<type>"}} -
          * covering the documented variants {@code web_search_preview},
          * {@code web_search_preview_2025_03_11}, {@code apply_patch} and
-         * {@code shell}. The type string is accepted verbatim so future
-         * variants work without a library update.
+         * {@code shell}, and the OpenRouter-prefixed spellings of the typed
+         * server tools (pass {@link de.entwicklertraining.openrouter4j.OpenRouterApplyPatchServerTool#TOOL_TYPE}
+         * / {@link de.entwicklertraining.openrouter4j.OpenRouterShellServerTool#TOOL_TYPE}
+         * to force those tool entries). The type string is accepted verbatim
+         * so future variants work without a library update.
          *
          * <p>JSON field: {@code tool_choice} (tool-type form). Default: unset
-         * (the key is not sent). Precedence when several forms are set:
+         * (the key is not sent). Unlike the chat builder, the key is emitted
+         * whenever a form is set, even when {@code tools} is empty.
+         * Precedence when several forms are set:
          * {@link #toolChoiceFunction(String)} wins, then
          * {@link #toolChoiceAllowedTools(String, Object...)}, then this
          * tool-type form, then the plain string keywords
          * ({@link #toolChoice(String)}).
          *
-         * @param type the tool type to force (e.g. {@code "apply_patch"})
+         * <p>Trap: when deferred tools ({@code deferLoading(true)} +
+         * {@code openrouter:tool_search}) are in play, {@code tool_choice}
+         * must be omitted or left at {@code "auto"} - any other form makes the
+         * request fail (see {@link de.entwicklertraining.openrouter4j.OpenRouterToolSearchServerTool}).
+         *
+         * @param type the tool type to force (e.g. {@code "apply_patch"} or {@code "openrouter:apply_patch"})
          * @return this builder
          * @throws IllegalArgumentException when {@code type} is null or empty
          */

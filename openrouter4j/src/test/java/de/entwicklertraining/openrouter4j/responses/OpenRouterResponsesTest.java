@@ -272,9 +272,8 @@ class OpenRouterResponsesTest {
                 .toolChoiceFunction("get_weather")
                 .build();
         JSONObject namedBody = new JSONObject(named.getBody()).getJSONObject("tool_choice");
-        assertThat(namedBody.getString("type")).isEqualTo("function");
-        assertThat(namedBody.getString("name")).isEqualTo("get_weather");
-        assertThat(namedBody.has("function")).isFalse();
+        assertThat(namedBody.toMap()).containsExactlyInAnyOrderEntriesOf(
+                java.util.Map.of("type", "function", "name", "get_weather"));
         assertThat(named.toolChoiceFunctionName()).isEqualTo("get_weather");
         assertThat(named.toolChoice()).isNull();
 
@@ -282,15 +281,16 @@ class OpenRouterResponsesTest {
                 .model("openai/gpt-4o")
                 .input("hi")
                 .toolChoiceAllowedTools("required", "get_weather",
-                        new JSONObject("{\"type\":\"function\",\"name\":\"raw\"}"))
+                        new JSONObject("{\"type\":\"web_search\"}"))
                 .build();
         JSONObject allowedBody = new JSONObject(allowed.getBody()).getJSONObject("tool_choice");
         assertThat(allowedBody.getString("type")).isEqualTo("allowed_tools");
         assertThat(allowedBody.getString("mode")).isEqualTo("required");
-        assertThat(allowedBody.getJSONArray("tools").length()).isEqualTo(2);
-        assertThat(allowedBody.getJSONArray("tools").getJSONObject(0).getString("name")).isEqualTo("get_weather");
-        assertThat(allowedBody.getJSONArray("tools").getJSONObject(0).getString("type")).isEqualTo("function");
-        assertThat(allowedBody.getJSONArray("tools").getJSONObject(1).getString("name")).isEqualTo("raw");
+        assertThat(allowedBody.keySet()).containsExactlyInAnyOrder("type", "mode", "tools");
+        assertThat(allowedBody.getJSONArray("tools").getJSONObject(0).toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("type", "function", "name", "get_weather"));
+        assertThat(allowedBody.getJSONArray("tools").getJSONObject(1).toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("type", "web_search"));
         assertThat(allowed.toolChoiceAllowedToolsMode()).isEqualTo("required");
         assertThat(allowed.toolChoiceAllowedTools()).hasSize(2);
 
@@ -317,6 +317,8 @@ class OpenRouterResponsesTest {
         JSONObject toolChoice = new JSONObject(request.getBody()).getJSONObject("tool_choice");
         assertThat(toolChoice.getString("type")).isEqualTo("function");
         assertThat(toolChoice.getString("name")).isEqualTo("get_weather");
+        // toolChoice() reports the raw setting; the object form wins only in the body.
+        assertThat(request.toolChoice()).isEqualTo("auto");
 
         OpenRouterResponsesRequest allowedOverType = client().responses()
                 .model("openai/gpt-4o")
@@ -338,12 +340,43 @@ class OpenRouterResponsesTest {
     }
 
     @Test
+    void toolChoiceReadBackAccessorsAreNullWhenUnset() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .toolChoice("auto")
+                .build();
+        assertThat(request.toolChoice()).isEqualTo("auto");
+        assertThat(request.toolChoiceFunctionName()).isNull();
+        assertThat(request.toolChoiceAllowedToolsMode()).isNull();
+        assertThat(request.toolChoiceAllowedTools()).isEmpty();
+        assertThat(request.toolChoiceType()).isNull();
+    }
+
+    @Test
+    void toolChoiceAllowedToolsReplacesRatherThanAppends() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .toolChoiceAllowedTools("auto", "a")
+                .toolChoiceAllowedTools("required", "b")
+                .build();
+        JSONObject toolChoice = new JSONObject(request.getBody()).getJSONObject("tool_choice");
+        assertThat(toolChoice.toMap()).containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                "type", "allowed_tools",
+                "mode", "required",
+                "tools", List.of(java.util.Map.of("type", "function", "name", "b"))));
+    }
+
+    @Test
     void toolChoiceObjectFormsRejectInvalidArguments() {
         assertThatThrownBy(() -> client().responses().model("m").input("hi").toolChoiceFunction(""))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> client().responses().model("m").input("hi").toolChoiceFunction(null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> client().responses().model("m").input("hi").toolChoiceType(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("hi").toolChoiceType(null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> client().responses().model("m").input("hi")
                 .toolChoiceAllowedTools("sometimes", "get_weather"))
