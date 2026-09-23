@@ -172,6 +172,10 @@ class OpenRouterInternsTest {
                 .idempotencyKey("").build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("idempotency");
+        assertThatThrownBy(() -> client().interns().create("ok-name")
+                .idempotencyKey("key\r\nInjected: 1").build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("CR or LF");
     }
 
     @Test
@@ -345,6 +349,18 @@ class OpenRouterInternsTest {
         assertThat(new JSONObject(elicitation.getBody()).getJSONArray("messages")
                 .getJSONObject(0).getString("content"))
                 .isEqualTo("{\"action\":\"accept\",\"content\":{\"answer\":\"red\"}}");
+    }
+
+    @Test
+    void chatRequestRejectsAnEchoedToolCallWithoutIdOrArguments() {
+        assertThatThrownBy(() -> client().interns().chat("i1")
+                .addEchoedAssistantMessage(null, null, "{}").stream(noop()).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("toolCallId");
+        assertThatThrownBy(() -> client().interns().chat("i1")
+                .addEchoedAssistantMessage(null, "call-1", null).stream(noop()).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("toolCallArguments");
     }
 
     @Test

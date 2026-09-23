@@ -173,6 +173,8 @@ class OpenRouterVaultTest {
         assertThat(request.getHttpMethod()).isEqualTo("PUT");
         JSONObject body = new JSONObject(request.getBody());
         assertThat(body.keySet()).containsExactlyInAnyOrder("value", "hosts");
+        assertThat(body.getString("value")).isEqualTo("intern-secret-value-77");
+        assertThat(body.getJSONArray("hosts").toList()).containsExactly("api.github.com");
         assertThat(request.toString()).doesNotContain("intern-secret-value-77");
     }
 

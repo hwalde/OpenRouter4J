@@ -214,6 +214,12 @@ public final class OpenRouterInternChatRequest
          */
         public Builder addEchoedAssistantMessage(String content, String toolCallId,
                 String toolCallArguments) {
+            if (toolCallId == null || toolCallId.isEmpty()) {
+                throw new IllegalArgumentException("toolCallId must not be null or empty");
+            }
+            if (toolCallArguments == null || toolCallArguments.isEmpty()) {
+                throw new IllegalArgumentException("toolCallArguments must not be null or empty");
+            }
             JSONObject message = new JSONObject().put("role", "assistant");
             if (content != null && !content.isEmpty()) {
                 message.put("content", content);

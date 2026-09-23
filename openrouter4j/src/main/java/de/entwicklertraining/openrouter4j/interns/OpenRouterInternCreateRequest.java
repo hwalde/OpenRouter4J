@@ -218,6 +218,10 @@ public final class OpenRouterInternCreateRequest
                 throw new IllegalArgumentException(
                         "idempotency key must be 1 to 255 characters");
             }
+            if (idempotencyKey.indexOf('\r') >= 0 || idempotencyKey.indexOf('\n') >= 0) {
+                throw new IllegalArgumentException(
+                        "idempotency key must not contain CR or LF");
+            }
             this.idempotencyKey = idempotencyKey;
             return this;
         }
