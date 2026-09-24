@@ -431,4 +431,48 @@ class OpenRouterEmbeddingsTest {
                 .getBody());
         assertThat(body.getJSONObject("provider").has("quantizations")).isFalse();
     }
+
+    @Test
+    void providerPreferredMinThroughputNumberWinsOverCutoffs() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .preferredMinThroughput(OpenRouterPercentileCutoffs.builder().p50(10.0).build())
+                .preferredMinThroughput(30.0)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").getDouble("preferred_min_throughput")).isEqualTo(30.0);
+    }
+
+    @Test
+    void providerPreferredLatencyNumberWinsOverCutoffs() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(1.0).build())
+                .preferredMaxLatency(2.5)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").getDouble("preferred_max_latency")).isEqualTo(2.5);
+    }
+
+    @Test
+    void providerAccessorsRoundTrip() {
+        var request = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .dataCollection("deny")
+                .zdr(true)
+                .sort("price")
+                .enforceDistillableText(true)
+                .build();
+        assertThat(request.dataCollection()).isEqualTo("deny");
+        assertThat(request.zdr()).isTrue();
+        assertThat(request.sort()).isEqualTo("price");
+        assertThat(request.enforceDistillableText()).isTrue();
+        assertThat(request.quantizations()).isEmpty();
+        assertThat(request.sortBy()).isNull();
+        assertThat(request.maxPricePrompt()).isNull();
+        assertThat(request.preferredMaxLatency()).isNull();
+    }
 }

@@ -669,8 +669,11 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
          * {@code {"by": ..., "partition": ...}}. Wins over the plain string
          * form when both are set. JSON field: {@code provider.sort} (object
          * form). Default: unset (the key is not sent). Trap: a {@code null}
-         * criterion makes the whole object form a silent no-op - no
-         * {@code sort} key is emitted at all.
+         * criterion makes the object form a silent no-op - if the plain
+         * {@code sort(...)} is also set, that plain value is what gets sent
+         * (the object form only wins with a non-null criterion); a
+         * {@code null}/{@code blank} partition is rejected with
+         * {@code IllegalArgumentException}.
          *
          * @param criterion the sort criterion (e.g. {@code "price"})
          * @param partition {@code "model"} or {@code "none"}
