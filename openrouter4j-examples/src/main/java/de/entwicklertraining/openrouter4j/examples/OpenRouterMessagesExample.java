@@ -6,6 +6,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterCompactEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterSafeguard;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
+import de.entwicklertraining.openrouter4j.OpenRouterToolReference;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterAnthropicTool;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesRequest;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesResponse;
@@ -144,5 +145,29 @@ public class OpenRouterMessagesExample {
                 .build();
 
         client.executeAsync(streamingRequest).get();
+
+        // 3. Mid-conversation tool lifecycle: load a deferred tool or remove
+        //    one without invalidating the prompt cache. Only valid in
+        //    role: "system" messages (the builder enforces that). Trap:
+        //    tool_addition requires the tool to be declared with
+        //    defer_loading: true; not supported on Claude Sonnet 5 or models
+        //    older than Claude Opus 4.8.
+        client.messages()
+                .model("anthropic/claude-opus-4-8")
+                .maxTokens(512)
+                .addTool(new OpenRouterAnthropicTool.Builder()
+                        .name("get_weather")
+                        .description("Get the current weather of a city")
+                        .inputSchema(new JSONObject()
+                                .put("type", "object")
+                                .put("properties", new JSONObject().put(
+                                        "city", new JSONObject().put("type", "string")))
+                                .put("required", new JSONArray().put("city")))
+                        .deferLoading(true)
+                        .build())
+                .addToolAdditionMessage(OpenRouterToolReference.tool("get_weather"))
+                .addToolRemovalMessage(OpenRouterToolReference.tool("get_weather"))
+                .addMessage("user", "What is the weather in Paris?")
+                .execute();
     }
 }

@@ -10,7 +10,7 @@ import org.json.JSONObject;
  * best-known one is the {@code web} plugin (web search), whose results reach the
  * model as tool calls ({@code server_tool_calls}).
  * <p>
- * Implementations: typed classes for all ten schema plugin ids -
+ * Implementations: typed classes for all eleven schema plugin ids -
  * {@link OpenRouterWebSearchPlugin} ({@code web}),
  * {@link OpenRouterAutoRouterPlugin} ({@code auto-router}),
  * {@link OpenRouterAutoBetaRouterPlugin} ({@code auto-beta-router}),
@@ -19,8 +19,9 @@ import org.json.JSONObject;
  * {@link OpenRouterFileParserPlugin} ({@code file-parser}),
  * {@link OpenRouterResponseHealingPlugin} ({@code response-healing}),
  * {@link OpenRouterContextCompressionPlugin} ({@code context-compression}),
- * {@link OpenRouterParetoRouterPlugin} ({@code pareto-router}) and
- * {@link OpenRouterFusionPlugin} ({@code fusion}) - plus
+ * {@link OpenRouterParetoRouterPlugin} ({@code pareto-router}),
+ * {@link OpenRouterFusionPlugin} ({@code fusion}) and
+ * {@link OpenRouterSwitchyardRouterPlugin} ({@code switchyard-router}) - plus
  * {@link OpenRouterGenericPlugin} as escape hatch for every other plugin id
  * (or for ids OpenRouter adds after this library was released).
  *

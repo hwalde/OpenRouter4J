@@ -4,6 +4,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterAutoRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterFileParserPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterModerationPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterSwitchyardRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterWebFetchPlugin;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionResponse;
 
@@ -57,6 +58,15 @@ public class OpenRouterChatCompletionWithTypedPluginsExample {
         run(client.chat().completion()
                 .addPlugin(new OpenRouterModerationPlugin())
                 .addMessage("user", "Tell me a clean joke about databases."));
+
+        // 5) switchyard-router: route between model tiers with the composite
+        //    algorithm (keeps the tier from the last human turn, re-evaluates
+        //    tool turns with stage signals).
+        run(client.chat().completion()
+                .addPlugin(OpenRouterSwitchyardRouterPlugin.builder()
+                        .algorithm("composite")
+                        .build())
+                .addMessage("user", "Write a haiku about compile errors."));
     }
 
     private static void run(de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest.Builder builder) {

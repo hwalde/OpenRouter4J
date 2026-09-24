@@ -17,6 +17,9 @@ import de.entwicklertraining.openrouter4j.OpenRouterResponseHealingPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterSearchModelsServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterShellServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterSubagentServerTool;
+import de.entwicklertraining.openrouter4j.OpenRouterSwitchyardRouterPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterWebSearchPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterWebFetchPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterFileParserPlugin;
 import org.json.JSONObject;
@@ -449,5 +452,74 @@ class OpenRouterTypedPluginsAndServerToolsTest {
                 .isEqualTo("reviewer");
         assertThat(body.getJSONArray("tools").getJSONObject(1).getJSONObject("parameters").getInt("max_results"))
                 .isEqualTo(10);
+    }
+
+    @Test
+    void switchyardRouterPluginEmitsIdOnlyWhenNoAlgorithm() {
+        JSONObject json = OpenRouterSwitchyardRouterPlugin.builder().build().toJson();
+        assertThat(json.getString("id")).isEqualTo("switchyard-router");
+        assertThat(json.keySet()).containsExactly("id");
+    }
+
+    @Test
+    void switchyardRouterPluginEmitsAlgorithmWhenSet() {
+        JSONObject json = OpenRouterSwitchyardRouterPlugin.builder()
+                .algorithm("composite")
+                .build().toJson();
+        assertThat(json.getString("id")).isEqualTo("switchyard-router");
+        assertThat(json.getString("algorithm")).isEqualTo("composite");
+    }
+
+    @Test
+    void switchyardRouterPluginRejectsIdViaOptionHatch() {
+        assertThatThrownBy(() -> OpenRouterSwitchyardRouterPlugin.builder().option("id", "x"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void switchyardRouterPluginOptionHatchPassesThrough() {
+        JSONObject json = OpenRouterSwitchyardRouterPlugin.builder()
+                .option("future_key", "v")
+                .build().toJson();
+        assertThat(json.getString("future_key")).isEqualTo("v");
+    }
+
+    @Test
+    void webSearchPluginXSearchIsEmittedWhenSet() {
+        OpenRouterWebSearchServerTool.XSearchOptions xSearch = OpenRouterWebSearchServerTool.XSearchOptions.builder()
+                .allowedXHandles(List.of("openai", "xai"))
+                .fromDate("2025-01-01")
+                .enableImageUnderstanding(true)
+                .build();
+        JSONObject json = OpenRouterWebSearchPlugin.builder()
+                .engine("native")
+                .xSearch(xSearch)
+                .build().toJson();
+        JSONObject xSearchJson = json.getJSONObject("x_search");
+        assertThat(xSearchJson.getJSONArray("allowed_x_handles").toList()).containsExactly("openai", "xai");
+        assertThat(xSearchJson.getString("from_date")).isEqualTo("2025-01-01");
+        assertThat(xSearchJson.getBoolean("enable_image_understanding")).isTrue();
+        assertThat(xSearchJson.has("excluded_x_handles")).isFalse();
+        assertThat(xSearchJson.has("to_date")).isFalse();
+        assertThat(xSearchJson.has("enable_video_understanding")).isFalse();
+    }
+
+    @Test
+    void webSearchPluginXSearchFalseFlagsAreEmitted() {
+        OpenRouterWebSearchServerTool.XSearchOptions xSearch = OpenRouterWebSearchServerTool.XSearchOptions.builder()
+                .enableImageUnderstanding(false)
+                .enableVideoUnderstanding(false)
+                .build();
+        JSONObject json = OpenRouterWebSearchPlugin.builder().xSearch(xSearch).build().toJson();
+        JSONObject xSearchJson = json.getJSONObject("x_search");
+        assertThat(xSearchJson.getBoolean("enable_image_understanding")).isFalse();
+        assertThat(xSearchJson.getBoolean("enable_video_understanding")).isFalse();
+    }
+
+    @Test
+    void webSearchPluginXSearchIsAbsentWhenUnset() {
+        JSONObject json = OpenRouterWebSearchPlugin.builder().engine("native").build().toJson();
+        assertThat(json.has("x_search")).isFalse();
+        assertThat(OpenRouterWebSearchPlugin.builder().build().xSearch()).isNull();
     }
 }

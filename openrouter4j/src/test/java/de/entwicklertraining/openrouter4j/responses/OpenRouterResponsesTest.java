@@ -1,5 +1,6 @@
 package de.entwicklertraining.openrouter4j.responses;
 
+import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
@@ -697,5 +698,92 @@ class OpenRouterResponsesTest {
                 .input("hi")
                 .build();
         return request.createResponse(json);
+    }
+
+    @Test
+    void providerNewFieldsAreEmittedWhenSet() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .dataCollection("deny")
+                .quantizations("int4", "fp8")
+                .sortBy("price", "none")
+                .maxPrice("0.5", "1.0", "2.0", "0.1")
+                .preferredMaxLatency(2.5)
+                .preferredMinThroughput(OpenRouterPercentileCutoffs.builder().p50(100.0).build())
+                .enforceDistillableText(true)
+                .zdr(true)
+                .build()
+                .getBody());
+        JSONObject provider = body.getJSONObject("provider");
+        assertThat(provider.getString("data_collection")).isEqualTo("deny");
+        assertThat(provider.getJSONArray("quantizations").toList()).containsExactly("int4", "fp8");
+        JSONObject sort = provider.getJSONObject("sort");
+        assertThat(sort.getString("by")).isEqualTo("price");
+        assertThat(sort.getString("partition")).isEqualTo("none");
+        JSONObject maxPrice = provider.getJSONObject("max_price");
+        assertThat(maxPrice.getString("prompt")).isEqualTo("0.5");
+        assertThat(maxPrice.getString("completion")).isEqualTo("1.0");
+        assertThat(maxPrice.getString("image")).isEqualTo("2.0");
+        assertThat(maxPrice.getString("audio")).isEqualTo("0.1");
+        assertThat(provider.getDouble("preferred_max_latency")).isEqualTo(2.5);
+        assertThat(provider.getJSONObject("preferred_min_throughput").getDouble("p50")).isEqualTo(100.0);
+        assertThat(provider.getBoolean("enforce_distillable_text")).isTrue();
+        assertThat(provider.getBoolean("zdr")).isTrue();
+    }
+
+    @Test
+    void providerNewFieldsAreAbsentWhenUnset() {
+        JSONObject bare = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .build()
+                .getBody());
+        assertThat(bare.has("provider")).isFalse();
+
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .requireParameters(true)
+                .build()
+                .getBody());
+        JSONObject provider = body.getJSONObject("provider");
+        assertThat(provider.has("data_collection")).isFalse();
+        assertThat(provider.has("quantizations")).isFalse();
+        assertThat(provider.has("sort")).isFalse();
+        assertThat(provider.has("max_price")).isFalse();
+        assertThat(provider.has("preferred_max_latency")).isFalse();
+        assertThat(provider.has("preferred_min_throughput")).isFalse();
+        assertThat(provider.has("enforce_distillable_text")).isFalse();
+        assertThat(provider.has("zdr")).isFalse();
+    }
+
+    @Test
+    void providerObjectEmittedWhenOnlyNewFieldSet() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .zdr(true)
+                .build()
+                .getBody());
+        assertThat(body.has("provider")).isTrue();
+        assertThat(body.getJSONObject("provider").getBoolean("zdr")).isTrue();
+    }
+
+    @Test
+    void providerSortPlainFormAndMaxPriceTwoArgAreEmitted() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .sort("latency")
+                .maxPrice("0.5", "1.0")
+                .preferredMinThroughput(50.0)
+                .build()
+                .getBody());
+        JSONObject provider = body.getJSONObject("provider");
+        assertThat(provider.getString("sort")).isEqualTo("latency");
+        JSONObject maxPrice = provider.getJSONObject("max_price");
+        assertThat(maxPrice.keySet()).containsOnly("prompt", "completion");
+        assertThat(provider.getDouble("preferred_min_throughput")).isEqualTo(50.0);
     }
 }

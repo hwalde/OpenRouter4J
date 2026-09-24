@@ -35,6 +35,7 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
     private final List<String> includeDomains;
     private final List<String> excludeDomains;
     private final UserLocation userLocation;
+    private final OpenRouterWebSearchServerTool.XSearchOptions xSearch;
 
     private OpenRouterWebSearchPlugin(Builder builder) {
         this.enabled = builder.enabled;
@@ -46,6 +47,7 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
         this.includeDomains = builder.includeDomains == null ? null : List.copyOf(builder.includeDomains);
         this.excludeDomains = builder.excludeDomains == null ? null : List.copyOf(builder.excludeDomains);
         this.userLocation = builder.userLocation;
+        this.xSearch = builder.xSearch;
     }
 
     /**
@@ -133,6 +135,16 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
         return userLocation;
     }
 
+    /**
+     * Returns the configured {@code plugins[].x_search} value (X/Twitter
+     * search), or {@code null} when unset (the key is not sent).
+     *
+     * @see OpenRouterWebSearchServerTool.XSearchOptions
+     */
+    public OpenRouterWebSearchServerTool.XSearchOptions xSearch() {
+        return xSearch;
+    }
+
     @Override
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
@@ -163,6 +175,9 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
         }
         if (userLocation != null) {
             json.put("user_location", userLocation.toJson());
+        }
+        if (xSearch != null) {
+            json.put("x_search", xSearch.toJson());
         }
         return json;
     }
@@ -321,6 +336,7 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
         private List<String> includeDomains;
         private List<String> excludeDomains;
         private UserLocation userLocation;
+        private OpenRouterWebSearchServerTool.XSearchOptions xSearch;
 
         private Builder() {
         }
@@ -410,6 +426,25 @@ public final class OpenRouterWebSearchPlugin implements OpenRouterPlugin {
          */
         public Builder userLocation(UserLocation userLocation) {
             this.userLocation = userLocation;
+            return this;
+        }
+
+        /**
+         * Sets {@code plugins[].x_search}: X (Twitter) search alongside native
+         * web search. Reuses the same {@link OpenRouterWebSearchServerTool.XSearchOptions}
+         * type as the {@code openrouter:web_search} server tool - same wire shape
+         * on both surfaces. Emitted only when set.
+         * <p>
+         * Trap: X search is only used with native provider search on SpaceXAI
+         * (Grok) models and is billed separately. {@code allowed_x_handles} and
+         * {@code excluded_x_handles} are mutually exclusive.
+         *
+         * @param xSearch the X search options
+         * @return this builder
+         * @see <a href="https://openrouter.ai/docs/guides/features/plugins/web-search">Web search plugin</a>
+         */
+        public Builder xSearch(OpenRouterWebSearchServerTool.XSearchOptions xSearch) {
+            this.xSearch = xSearch;
             return this;
         }
 

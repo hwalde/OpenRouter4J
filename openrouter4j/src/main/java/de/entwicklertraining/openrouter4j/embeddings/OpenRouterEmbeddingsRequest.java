@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.embeddings;
 
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import org.json.JSONArray;
@@ -45,6 +46,21 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
     private final List<String> providerIgnore;
     private final Boolean requireParameters;
     private final Boolean allowFallbacks;
+    private final String dataCollection;
+    private final List<String> quantizations;
+    private final String sort;
+    private final String sortBy;
+    private final String sortPartition;
+    private final String maxPricePrompt;
+    private final String maxPriceCompletion;
+    private final String maxPriceImage;
+    private final String maxPriceAudio;
+    private final Double preferredMaxLatency;
+    private final OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs;
+    private final Double preferredMinThroughput;
+    private final OpenRouterPercentileCutoffs preferredMinThroughputCutoffs;
+    private final Boolean enforceDistillableText;
+    private final Boolean zdr;
 
     private OpenRouterEmbeddingsRequest(Builder builder) {
         super(builder);
@@ -63,6 +79,21 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         this.providerIgnore = builder.providerIgnore == null ? null : List.copyOf(builder.providerIgnore);
         this.requireParameters = builder.requireParameters;
         this.allowFallbacks = builder.allowFallbacks;
+        this.dataCollection = builder.dataCollection;
+        this.quantizations = builder.quantizations.isEmpty() ? null : List.copyOf(builder.quantizations);
+        this.sort = builder.sort;
+        this.sortBy = builder.sortBy;
+        this.sortPartition = builder.sortPartition;
+        this.maxPricePrompt = builder.maxPricePrompt;
+        this.maxPriceCompletion = builder.maxPriceCompletion;
+        this.maxPriceImage = builder.maxPriceImage;
+        this.maxPriceAudio = builder.maxPriceAudio;
+        this.preferredMaxLatency = builder.preferredMaxLatency;
+        this.preferredMaxLatencyCutoffs = builder.preferredMaxLatencyCutoffs;
+        this.preferredMinThroughput = builder.preferredMinThroughput;
+        this.preferredMinThroughputCutoffs = builder.preferredMinThroughputCutoffs;
+        this.enforceDistillableText = builder.enforceDistillableText;
+        this.zdr = builder.zdr;
     }
 
     /**
@@ -107,6 +138,81 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
      */
     public OpenRouterTraceConfig trace() {
         return trace;
+    }
+
+    /** @return {@code provider.data_collection}, or {@code null} when unset */
+    public String dataCollection() {
+        return dataCollection;
+    }
+
+    /** @return {@code provider.quantizations}, empty when unset (never {@code null}) */
+    public List<String> quantizations() {
+        return quantizations == null ? List.of() : quantizations;
+    }
+
+    /** @return {@code provider.sort} (plain string form), or {@code null} when unset */
+    public String sort() {
+        return sort;
+    }
+
+    /** @return {@code provider.sort.by} (object form), or {@code null} when unset */
+    public String sortBy() {
+        return sortBy;
+    }
+
+    /** @return {@code provider.sort.partition} (object form), or {@code null} when unset */
+    public String sortPartition() {
+        return sortPartition;
+    }
+
+    /** @return {@code provider.max_price.prompt}, or {@code null} when unset */
+    public String maxPricePrompt() {
+        return maxPricePrompt;
+    }
+
+    /** @return {@code provider.max_price.completion}, or {@code null} when unset */
+    public String maxPriceCompletion() {
+        return maxPriceCompletion;
+    }
+
+    /** @return {@code provider.max_price.image}, or {@code null} when unset */
+    public String maxPriceImage() {
+        return maxPriceImage;
+    }
+
+    /** @return {@code provider.max_price.audio}, or {@code null} when unset */
+    public String maxPriceAudio() {
+        return maxPriceAudio;
+    }
+
+    /** @return {@code provider.preferred_max_latency} (number form), or {@code null} when unset */
+    public Double preferredMaxLatency() {
+        return preferredMaxLatency;
+    }
+
+    /** @return {@code provider.preferred_max_latency} (object form), or {@code null} when unset */
+    public OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs() {
+        return preferredMaxLatencyCutoffs;
+    }
+
+    /** @return {@code provider.preferred_min_throughput} (number form), or {@code null} when unset */
+    public Double preferredMinThroughput() {
+        return preferredMinThroughput;
+    }
+
+    /** @return {@code provider.preferred_min_throughput} (object form), or {@code null} when unset */
+    public OpenRouterPercentileCutoffs preferredMinThroughputCutoffs() {
+        return preferredMinThroughputCutoffs;
+    }
+
+    /** @return {@code provider.enforce_distillable_text}, or {@code null} when unset */
+    public Boolean enforceDistillableText() {
+        return enforceDistillableText;
+    }
+
+    /** @return {@code provider.zdr}, or {@code null} when unset */
+    public Boolean zdr() {
+        return zdr;
     }
 
     @Override
@@ -165,7 +271,15 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         boolean hasOnly = providerOnly != null && !providerOnly.isEmpty();
         boolean hasIgnore = providerIgnore != null && !providerIgnore.isEmpty();
         if (hasOrder || hasOnly || hasIgnore
-                || requireParameters != null || allowFallbacks != null) {
+                || requireParameters != null || allowFallbacks != null
+                || dataCollection != null
+                || (quantizations != null && !quantizations.isEmpty())
+                || sort != null || sortBy != null
+                || maxPricePrompt != null || maxPriceCompletion != null
+                || maxPriceImage != null || maxPriceAudio != null
+                || preferredMaxLatency != null || preferredMaxLatencyCutoffs != null
+                || preferredMinThroughput != null || preferredMinThroughputCutoffs != null
+                || enforceDistillableText != null || zdr != null) {
             JSONObject providerObj = new JSONObject();
             if (hasOrder) {
                 JSONArray orderArr = new JSONArray();
@@ -180,6 +294,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
             if (allowFallbacks != null) {
                 providerObj.put("allow_fallbacks", allowFallbacks);
             }
+            if (dataCollection != null) {
+                providerObj.put("data_collection", dataCollection);
+            }
             if (hasIgnore) {
                 JSONArray ignoreArr = new JSONArray();
                 for (String p : providerIgnore) {
@@ -193,6 +310,54 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
                     onlyArr.put(p);
                 }
                 providerObj.put("only", onlyArr);
+            }
+            if (maxPricePrompt != null || maxPriceCompletion != null
+                    || maxPriceImage != null || maxPriceAudio != null) {
+                JSONObject maxPriceObj = new JSONObject();
+                if (maxPricePrompt != null) {
+                    maxPriceObj.put("prompt", maxPricePrompt);
+                }
+                if (maxPriceCompletion != null) {
+                    maxPriceObj.put("completion", maxPriceCompletion);
+                }
+                if (maxPriceImage != null) {
+                    maxPriceObj.put("image", maxPriceImage);
+                }
+                if (maxPriceAudio != null) {
+                    maxPriceObj.put("audio", maxPriceAudio);
+                }
+                providerObj.put("max_price", maxPriceObj);
+            }
+            if (quantizations != null && !quantizations.isEmpty()) {
+                JSONArray quantArr = new JSONArray();
+                for (String q : quantizations) {
+                    quantArr.put(q);
+                }
+                providerObj.put("quantizations", quantArr);
+            }
+            if (sortBy != null) {
+                JSONObject sortObj = new JSONObject();
+                sortObj.put("by", sortBy);
+                sortObj.put("partition", sortPartition);
+                providerObj.put("sort", sortObj);
+            } else if (sort != null) {
+                providerObj.put("sort", sort);
+            }
+            if (enforceDistillableText != null) {
+                providerObj.put("enforce_distillable_text", enforceDistillableText);
+            }
+            if (zdr != null) {
+                providerObj.put("zdr", zdr);
+            }
+            if (preferredMaxLatency != null) {
+                providerObj.put("preferred_max_latency", preferredMaxLatency);
+            } else if (preferredMaxLatencyCutoffs != null) {
+                providerObj.put("preferred_max_latency", preferredMaxLatencyCutoffs.toJson());
+            }
+            if (preferredMinThroughput != null) {
+                providerObj.put("preferred_min_throughput", preferredMinThroughput);
+            } else if (preferredMinThroughputCutoffs != null) {
+                providerObj.put("preferred_min_throughput", preferredMinThroughputCutoffs.toJson());
             }
             root.put("provider", providerObj);
         }
@@ -224,6 +389,21 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         private List<String> providerIgnore;
         private Boolean requireParameters;
         private Boolean allowFallbacks;
+        private String dataCollection;
+        private final List<String> quantizations = new ArrayList<>();
+        private String sort;
+        private String sortBy;
+        private String sortPartition;
+        private String maxPricePrompt;
+        private String maxPriceCompletion;
+        private String maxPriceImage;
+        private String maxPriceAudio;
+        private Double preferredMaxLatency;
+        private OpenRouterPercentileCutoffs preferredMaxLatencyCutoffs;
+        private Double preferredMinThroughput;
+        private OpenRouterPercentileCutoffs preferredMinThroughputCutoffs;
+        private Boolean enforceDistillableText;
+        private Boolean zdr;
 
         /**
          * Creates a builder bound to the given client.
@@ -421,6 +601,184 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
          */
         public Builder allowFallbacks(Boolean allowFallbacks) {
             this.allowFallbacks = allowFallbacks;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code provider.data_collection} - whether the
+         * request may be routed to providers that train on prompts/completions.
+         * Documented values: {@code "allow"} and {@code "deny"}; {@code "deny"}
+         * restricts routing to providers that do not train on the data.
+         *
+         * @param policy {@code "allow"} or {@code "deny"}
+         * @return this builder
+         */
+        public Builder dataCollection(String policy) {
+            this.dataCollection = policy;
+            return this;
+        }
+
+        /**
+         * Replaces {@code provider.quantizations} - the quantization levels the
+         * request may be served with (e.g. {@code int4}, {@code fp8}, {@code fp16}).
+         * Passing an empty list removes previously registered levels and emits nothing.
+         *
+         * @param levels the accepted quantization levels
+         * @return this builder
+         */
+        public Builder quantizations(String... levels) {
+            return quantizations(java.util.Arrays.asList(levels));
+        }
+
+        /**
+         * List-based variant of {@link #quantizations(String...)}.
+         *
+         * @param levels the accepted quantization levels
+         * @return this builder
+         */
+        public Builder quantizations(List<String> levels) {
+            this.quantizations.clear();
+            if (levels != null) {
+                this.quantizations.addAll(levels);
+            }
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.sort} (plain string form) - the criterion
+         * providers are sorted by when routing. Documented values:
+         * {@code "price"}, {@code "throughput"}, {@code "latency"}.
+         *
+         * @param criterion the sort criterion
+         * @return this builder
+         */
+        public Builder sort(String criterion) {
+            this.sort = criterion;
+            return this;
+        }
+
+        /**
+         * Sets the object form of {@code provider.sort}:
+         * {@code {"by": ..., "partition": ...}}. The {@code partition} key
+         * controls how endpoints are grouped before sorting: {@code "model"}
+         * (API default) or {@code "none"}. Wins over the plain string form
+         * when both are set.
+         *
+         * @param criterion the sort criterion (e.g. {@code "price"})
+         * @param partition {@code "model"} or {@code "none"}
+         * @return this builder
+         */
+        public Builder sortBy(String criterion, String partition) {
+            if (partition == null || partition.isBlank()) {
+                throw new IllegalArgumentException(
+                        "partition is required on the provider.sort object form (\"model\" or \"none\")");
+            }
+            this.sortBy = criterion;
+            this.sortPartition = partition;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.max_price} caps for prompt and completion tokens.
+         * Prices are strings of the token price in USD per million tokens
+         * (e.g. {@code "0.5"}). The two-argument form leaves image/audio unset.
+         *
+         * @param prompt maximum prompt price, or {@code null}
+         * @param completion maximum completion price, or {@code null}
+         * @return this builder
+         */
+        public Builder maxPrice(String prompt, String completion) {
+            return maxPrice(prompt, completion, null, null);
+        }
+
+        /**
+         * Sets {@code provider.max_price} caps for all four price categories.
+         *
+         * @param prompt maximum prompt price, or {@code null}
+         * @param completion maximum completion price, or {@code null}
+         * @param image maximum image price, or {@code null}
+         * @param audio maximum audio price, or {@code null}
+         * @return this builder
+         */
+        public Builder maxPrice(String prompt, String completion, String image, String audio) {
+            this.maxPricePrompt = prompt;
+            this.maxPriceCompletion = completion;
+            this.maxPriceImage = image;
+            this.maxPriceAudio = audio;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.preferred_max_latency} (plain number form) -
+         * the maximum acceptable median (p50) end-to-end latency in seconds.
+         * Endpoints beyond the threshold are deprioritized, not excluded.
+         * Wins over the percentile cutoffs form when both are set.
+         *
+         * @param seconds maximum median latency in seconds
+         * @return this builder
+         */
+        public Builder preferredMaxLatency(Double seconds) {
+            this.preferredMaxLatency = seconds;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.preferred_max_latency} (percentile cutoffs form).
+         *
+         * @param cutoffs the percentile-specific latency cutoffs
+         * @return this builder
+         */
+        public Builder preferredMaxLatency(OpenRouterPercentileCutoffs cutoffs) {
+            this.preferredMaxLatencyCutoffs = cutoffs;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.preferred_min_throughput} (plain number form) -
+         * the minimum acceptable median (p50) throughput in tokens per second.
+         * Wins over the percentile cutoffs form when both are set.
+         *
+         * @param tokensPerSecond minimum median throughput in tokens/s
+         * @return this builder
+         */
+        public Builder preferredMinThroughput(Double tokensPerSecond) {
+            this.preferredMinThroughput = tokensPerSecond;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.preferred_min_throughput} (percentile cutoffs form).
+         *
+         * @param cutoffs the percentile-specific throughput cutoffs
+         * @return this builder
+         */
+        public Builder preferredMinThroughput(OpenRouterPercentileCutoffs cutoffs) {
+            this.preferredMinThroughputCutoffs = cutoffs;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.enforce_distillable_text} - when {@code true},
+         * only endpoints that support distillable text output are eligible.
+         *
+         * @param enforce true to restrict routing to distillable-text endpoints
+         * @return this builder
+         */
+        public Builder enforceDistillableText(Boolean enforce) {
+            this.enforceDistillableText = enforce;
+            return this;
+        }
+
+        /**
+         * Sets {@code provider.zdr} - when {@code true}, routing is restricted
+         * to Zero Data Retention endpoints. Stronger than
+         * {@code dataCollection("deny")}.
+         *
+         * @param zdr {@code Boolean.TRUE} to restrict routing to ZDR endpoints
+         * @return this builder
+         */
+        public Builder zdr(Boolean zdr) {
+            this.zdr = zdr;
             return this;
         }
 

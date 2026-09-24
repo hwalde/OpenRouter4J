@@ -3,11 +3,15 @@ package de.entwicklertraining.openrouter4j.messages;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClearThinkingEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterClearToolUsesEdit;
+import de.entwicklertraining.openrouter4j.OpenRouterCacheMarker;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterToolLifecycleBlock;
+import de.entwicklertraining.openrouter4j.OpenRouterToolReference;
 import de.entwicklertraining.openrouter4j.OpenRouterCompactEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterContextManagementEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterModerationPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterSafeguard;
 import de.entwicklertraining.openrouter4j.OpenRouterStopCondition;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
@@ -1020,5 +1024,242 @@ class OpenRouterMessagesTest {
         OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
 
         assertThat(response.safeguardResults()).isEmpty();
+    }
+
+    @Test
+    void toolAdditionMessageEmitsSystemMessageWithBlock() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addToolAdditionMessage(OpenRouterToolReference.tool("my_tool"))
+                .build()
+                .getBody());
+        JSONArray messages = body.getJSONArray("messages");
+        assertThat(messages.length()).isEqualTo(2);
+        JSONObject msg = messages.getJSONObject(1);
+        assertThat(msg.getString("role")).isEqualTo("system");
+        JSONObject block = msg.getJSONArray("content").getJSONObject(0);
+        assertThat(block.getString("type")).isEqualTo("tool_addition");
+        assertThat(block.getJSONObject("tool").getString("type")).isEqualTo("tool_reference");
+        assertThat(block.getJSONObject("tool").getString("name")).isEqualTo("my_tool");
+        assertThat(block.has("cache_control")).isFalse();
+    }
+
+    @Test
+    void toolAdditionMessageWithCacheControl() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addToolAdditionMessage(OpenRouterToolReference.mcpTool("t", "srv"), OpenRouterCacheMarker.cacheControl("1h"))
+                .build()
+                .getBody());
+        JSONObject block = body.getJSONArray("messages").getJSONObject(1)
+                .getJSONArray("content").getJSONObject(0);
+        assertThat(block.getJSONObject("tool").getString("type")).isEqualTo("mcp_tool_reference");
+        assertThat(block.getJSONObject("tool").getString("server_name")).isEqualTo("srv");
+        assertThat(block.getJSONObject("cache_control").getString("type")).isEqualTo("ephemeral");
+        assertThat(block.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+    }
+
+    @Test
+    void toolRemovalMessageEmitsSystemMessageWithBlock() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addToolRemovalMessage(OpenRouterToolReference.mcpToolset("srv"))
+                .build()
+                .getBody());
+        JSONObject block = body.getJSONArray("messages").getJSONObject(1)
+                .getJSONArray("content").getJSONObject(0);
+        assertThat(block.getString("type")).isEqualTo("tool_removal");
+        assertThat(block.getJSONObject("tool").getString("type")).isEqualTo("mcp_toolset_reference");
+        assertThat(block.getJSONObject("tool").getString("server_name")).isEqualTo("srv");
+    }
+
+    @Test
+    void toolReferenceThreeWireForms() {
+        JSONObject tool = OpenRouterToolReference.tool("t").toJson();
+        assertThat(tool.keySet()).containsOnly("type", "name");
+        JSONObject mcp = OpenRouterToolReference.mcpTool("t", "s").toJson();
+        assertThat(mcp.keySet()).containsOnly("type", "name", "server_name");
+        JSONObject toolset = OpenRouterToolReference.mcpToolset("s").toJson();
+        assertThat(toolset.keySet()).containsOnly("type", "server_name");
+    }
+
+    @Test
+    void toolLifecycleBlockRejectsBreakpointMarker() {
+        assertThatThrownBy(() -> OpenRouterToolLifecycleBlock.toolAddition(
+                OpenRouterToolReference.tool("t"), OpenRouterCacheMarker.promptCacheBreakpoint()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void providerNewFieldsAreEmittedWhenSet() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .dataCollection("deny")
+                .quantizations("int4", "fp8")
+                .sortBy("price", "none")
+                .maxPrice("0.5", "1.0", "2.0", "0.1")
+                .preferredMaxLatency(2.5)
+                .preferredMinThroughput(OpenRouterPercentileCutoffs.builder().p50(100.0).build())
+                .enforceDistillableText(true)
+                .zdr(true)
+                .build()
+                .getBody());
+        JSONObject provider = body.getJSONObject("provider");
+        assertThat(provider.getString("data_collection")).isEqualTo("deny");
+        assertThat(provider.getJSONArray("quantizations").toList()).containsExactly("int4", "fp8");
+        JSONObject sort = provider.getJSONObject("sort");
+        assertThat(sort.getString("by")).isEqualTo("price");
+        assertThat(sort.getString("partition")).isEqualTo("none");
+        JSONObject maxPrice = provider.getJSONObject("max_price");
+        assertThat(maxPrice.getString("prompt")).isEqualTo("0.5");
+        assertThat(maxPrice.getString("completion")).isEqualTo("1.0");
+        assertThat(maxPrice.getString("image")).isEqualTo("2.0");
+        assertThat(maxPrice.getString("audio")).isEqualTo("0.1");
+        assertThat(provider.getDouble("preferred_max_latency")).isEqualTo(2.5);
+        assertThat(provider.getJSONObject("preferred_min_throughput").getDouble("p50")).isEqualTo(100.0);
+        assertThat(provider.getBoolean("enforce_distillable_text")).isTrue();
+        assertThat(provider.getBoolean("zdr")).isTrue();
+    }
+
+    @Test
+    void providerNewFieldsAreAbsentWhenUnset() {
+        JSONObject bare = new JSONObject(minimalBuilder()
+                .build()
+                .getBody());
+        assertThat(bare.has("provider")).isFalse();
+
+        JSONObject body = new JSONObject(minimalBuilder()
+                .requireParameters(true)
+                .build()
+                .getBody());
+        JSONObject provider = body.getJSONObject("provider");
+        assertThat(provider.has("data_collection")).isFalse();
+        assertThat(provider.has("quantizations")).isFalse();
+        assertThat(provider.has("sort")).isFalse();
+        assertThat(provider.has("max_price")).isFalse();
+        assertThat(provider.has("preferred_max_latency")).isFalse();
+        assertThat(provider.has("preferred_min_throughput")).isFalse();
+        assertThat(provider.has("enforce_distillable_text")).isFalse();
+        assertThat(provider.has("zdr")).isFalse();
+    }
+
+    @Test
+    void providerObjectEmittedWhenOnlyNewFieldSet() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .zdr(true)
+                .build()
+                .getBody());
+        assertThat(body.has("provider")).isTrue();
+        assertThat(body.getJSONObject("provider").getBoolean("zdr")).isTrue();
+    }
+
+    @Test
+    void providerSortPlainFormAndMaxPriceTwoArgAreEmitted() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .sort("latency")
+                .maxPrice("0.5", "1.0")
+                .preferredMinThroughput(50.0)
+                .build()
+                .getBody());
+        JSONObject provider = body.getJSONObject("provider");
+        assertThat(provider.getString("sort")).isEqualTo("latency");
+        JSONObject maxPrice = provider.getJSONObject("max_price");
+        assertThat(maxPrice.keySet()).containsOnly("prompt", "completion");
+        assertThat(provider.getDouble("preferred_min_throughput")).isEqualTo(50.0);
+    }
+
+    @Test
+    void toolReferenceRawPassthroughAndTypeRequired() {
+        JSONObject raw = OpenRouterToolReference.raw(
+                new JSONObject().put("type", "tool_reference").put("name", "t")).toJson();
+        assertThat(raw.toMap()).containsExactlyInAnyOrderEntriesOf(
+                java.util.Map.of("type", "tool_reference", "name", "t"));
+        assertThatThrownBy(() -> OpenRouterToolReference.raw(new JSONObject().put("name", "t")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void toolRemovalMessageWithCacheControl() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addToolRemovalMessage(OpenRouterToolReference.tool("t"), OpenRouterCacheMarker.cacheControl("1h"))
+                .build()
+                .getBody());
+        JSONObject msg = body.getJSONArray("messages").getJSONObject(1);
+        assertThat(msg.getString("role")).isEqualTo("system");
+        JSONObject block = msg.getJSONArray("content").getJSONObject(0);
+        assertThat(block.getString("type")).isEqualTo("tool_removal");
+        assertThat(block.getJSONObject("cache_control").getString("ttl")).isEqualTo("1h");
+    }
+
+    @Test
+    void toolLifecycleBlockSingleArgFactories() {
+        JSONObject addition = OpenRouterToolLifecycleBlock.toolAddition(
+                OpenRouterToolReference.tool("t")).toJson();
+        assertThat(addition.keySet()).containsOnly("type", "tool");
+        assertThat(addition.getString("type")).isEqualTo("tool_addition");
+        JSONObject removal = OpenRouterToolLifecycleBlock.toolRemoval(
+                OpenRouterToolReference.tool("t")).toJson();
+        assertThat(removal.keySet()).containsOnly("type", "tool");
+        assertThat(removal.getString("type")).isEqualTo("tool_removal");
+    }
+
+    @Test
+    void toolRemovalMessageAssertsSystemRole() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .addToolRemovalMessage(OpenRouterToolReference.tool("t"))
+                .build()
+                .getBody());
+        JSONObject msg = body.getJSONArray("messages").getJSONObject(1);
+        assertThat(msg.getString("role")).isEqualTo("system");
+    }
+
+    @Test
+    void providerSortByObjectFormWinsOverPlainForm() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .sort("price")
+                .sortBy("latency", "none")
+                .build()
+                .getBody());
+        JSONObject sort = body.getJSONObject("provider").getJSONObject("sort");
+        assertThat(sort.getString("by")).isEqualTo("latency");
+    }
+
+    @Test
+    void providerPreferredLatencyNumberWinsOverCutoffs() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(1.0).build())
+                .preferredMaxLatency(2.5)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").getDouble("preferred_max_latency")).isEqualTo(2.5);
+    }
+
+    @Test
+    void providerPreferredLatencyCutoffsFormIsEmitted() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(1.0).p90(3.5).build())
+                .build()
+                .getBody());
+        JSONObject cutoffs = body.getJSONObject("provider").getJSONObject("preferred_max_latency");
+        assertThat(cutoffs.getDouble("p50")).isEqualTo(1.0);
+        assertThat(cutoffs.getDouble("p90")).isEqualTo(3.5);
+        assertThat(cutoffs.has("p75")).isFalse();
+        assertThat(cutoffs.has("p99")).isFalse();
+    }
+
+    @Test
+    void providerSortByRejectsBlankPartition() {
+        assertThatThrownBy(() -> minimalBuilder().sortBy("price", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("partition");
+        assertThatThrownBy(() -> minimalBuilder().sortBy("price", "  "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void providerQuantizationsEmptyListClears() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .quantizations("int4", "fp8")
+                .quantizations(List.of())
+                .requireParameters(true)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").has("quantizations")).isFalse();
     }
 }

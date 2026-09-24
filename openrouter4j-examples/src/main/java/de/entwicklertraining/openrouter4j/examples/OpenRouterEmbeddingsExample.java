@@ -48,5 +48,23 @@ public class OpenRouterEmbeddingsExample {
                     + " dimensions=" + (vector == null ? 0 : vector.size())
                     + " first=" + (vector == null || vector.isEmpty() ? null : vector.get(0)));
         }
+
+        // Full provider preferences (the same 13-field ProviderPreferences
+        // object the chat completions request types): data collection, ZDR,
+        // quantizations, price caps, latency/throughput preferences and sort.
+        OpenRouterEmbeddingsResponse routed = client.embeddings()
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .dataCollection("deny")
+                .zdr(true)
+                .quantizations("int4", "fp8")
+                .maxPrice("0.5", "1.0")
+                .preferredMaxLatency(2.0)
+                .preferredMinThroughput(100.0)
+                .sortBy("price", "none")
+                .enforceDistillableText(true)
+                .execute();
+        System.out.println("Routed embedding dimensions: "
+                + routed.embeddings().get(0).vectorOrDecoded().size());
     }
 }
