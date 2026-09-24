@@ -1695,7 +1695,10 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         /**
          * Sets {@code provider.data_collection} - whether the request may be
          * routed to providers that train on prompts/completions. Documented
-         * values: {@code "allow"} and {@code "deny"}.
+         * values: {@code "allow"} and {@code "deny"}; {@code "deny"} restricts
+         * routing to providers that do not train on the data. JSON field:
+         * {@code provider.data_collection}. Default: unset (the key is not
+         * sent; the API applies no data-collection preference).
          *
          * @param policy {@code "allow"} or {@code "deny"}
          * @return this builder
@@ -1708,7 +1711,9 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         /**
          * Replaces {@code provider.quantizations} - the quantization levels the
          * request may be served with (e.g. {@code int4}, {@code fp8}, {@code fp16}).
-         * Default: unset (the key is not sent).
+         * JSON field: {@code provider.quantizations}. Default: unset (the key
+         * is not sent). Passing an empty list removes previously registered
+         * levels and emits nothing.
          *
          * @param levels the accepted quantization levels
          * @return this builder
@@ -1717,15 +1722,24 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
             return quantizations(java.util.Arrays.asList(levels));
         }
 
-        /** List-based variant of {@link #quantizations(String...)}. */
+        /**
+         * List-based variant of {@link #quantizations(String...)}. Passing an
+         * empty list removes previously registered levels and emits nothing.
+         * Default: unset.
+         *
+         * @param levels the accepted quantization levels
+         * @return this builder
+         */
         public Builder quantizations(List<String> levels) {
             this.quantizations = levels == null ? null : new java.util.ArrayList<>(levels);
             return this;
         }
 
         /**
-         * Sets {@code provider.sort} (plain string form). Documented values:
-         * {@code "price"}, {@code "throughput"}, {@code "latency"}.
+         * Sets {@code provider.sort} (plain string form) - the criterion
+         * providers are sorted by when routing. Documented values:
+         * {@code "price"}, {@code "throughput"}, {@code "latency"}. JSON field:
+         * {@code provider.sort}. Default: unset (the key is not sent).
          *
          * @param criterion the sort criterion
          * @return this builder
@@ -1738,9 +1752,10 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         /**
          * Sets the object form of {@code provider.sort}:
          * {@code {"by": ..., "partition": ...}}. Wins over the plain string
-         * form when both are set. Default: unset (the key is not sent).
-         * Trap: a {@code null} criterion makes the whole object form a silent
-         * no-op - no {@code sort} key is emitted at all.
+         * form when both are set. JSON field: {@code provider.sort} (object
+         * form). Default: unset (the key is not sent). Trap: a {@code null}
+         * criterion makes the whole object form a silent no-op - no
+         * {@code sort} key is emitted at all.
          *
          * @param criterion the sort criterion (e.g. {@code "price"})
          * @param partition {@code "model"} or {@code "none"}
@@ -1758,10 +1773,12 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
 
         /**
          * Sets {@code provider.max_price} caps for prompt and completion tokens.
-         * Prices are strings of the token price in USD per million tokens.
+         * Prices are strings of the token price in USD per million tokens
+         * (e.g. {@code "0.5"}). JSON field: {@code provider.max_price}.
+         * Default: unset (the key is not sent).
          *
-         * @param prompt maximum prompt price, or {@code null}
-         * @param completion maximum completion price, or {@code null}
+         * @param prompt maximum prompt price, or {@code null} to leave it unset
+         * @param completion maximum completion price, or {@code null} to leave it unset
          * @return this builder
          */
         public Builder maxPrice(String prompt, String completion) {
@@ -1769,8 +1786,10 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         }
 
         /**
-         * Four-argument variant of {@link #maxPrice(String, String)} that also
-         * sets the {@code image} and {@code audio} price caps.
+         * Sets {@code provider.max_price} caps for all four price categories.
+         * Prices are strings of the token price in USD per million tokens
+         * (e.g. {@code "0.5"}); a {@code null} argument omits that key. JSON
+         * field: {@code provider.max_price}. Default: unset.
          *
          * @param prompt maximum prompt price, or {@code null}
          * @param completion maximum completion price, or {@code null}
@@ -1790,8 +1809,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * Sets {@code provider.preferred_max_latency} (plain number form) -
          * the maximum acceptable median (p50) end-to-end latency in seconds.
          * Endpoints beyond the threshold are deprioritized, not excluded.
-         * Wins over the percentile cutoffs form when both are set.
-         * Default: unset (the key is not sent).
+         * Wins over the percentile cutoffs form when both are set. JSON field:
+         * {@code provider.preferred_max_latency}. Default: unset.
          *
          * @param seconds maximum median latency in seconds
          * @return this builder
@@ -1817,8 +1836,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          * Sets {@code provider.preferred_min_throughput} (plain number form) -
          * the minimum acceptable median (p50) throughput in tokens per second.
          * Endpoints beyond the threshold are deprioritized, not excluded.
-         * Wins over the percentile cutoffs form when both are set.
-         * Default: unset (the key is not sent).
+         * Wins over the percentile cutoffs form when both are set. JSON field:
+         * {@code provider.preferred_min_throughput}. Default: unset.
          *
          * @param tokensPerSecond minimum median throughput in tokens/s
          * @return this builder
@@ -1843,7 +1862,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         /**
          * Sets {@code provider.enforce_distillable_text} - when {@code true},
          * only endpoints that support distillable text output are eligible.
-         * Default: unset (the key is not sent).
+         * JSON field: {@code provider.enforce_distillable_text}. Default: unset.
          *
          * @param enforce true to restrict routing to distillable-text endpoints
          * @return this builder
@@ -1856,7 +1875,8 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         /**
          * Sets {@code provider.zdr} - when {@code true}, routing is restricted
          * to Zero Data Retention endpoints. Stronger than
-         * {@code dataCollection("deny")}. Default: unset (the key is not sent).
+         * {@code dataCollection("deny")}. JSON field: {@code provider.zdr}.
+         * Default: unset (the key is not sent).
          *
          * @param zdr {@code Boolean.TRUE} to restrict routing to ZDR endpoints
          * @return this builder

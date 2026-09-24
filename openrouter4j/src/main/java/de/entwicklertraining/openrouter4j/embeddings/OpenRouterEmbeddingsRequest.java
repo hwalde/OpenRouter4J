@@ -605,10 +605,12 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         }
 
         /**
-         * Sets the JSON field {@code provider.data_collection} - whether the
-         * request may be routed to providers that train on prompts/completions.
-         * Documented values: {@code "allow"} and {@code "deny"}; {@code "deny"}
-         * restricts routing to providers that do not train on the data.
+         * Sets {@code provider.data_collection} - whether the request may be
+         * routed to providers that train on prompts/completions. Documented
+         * values: {@code "allow"} and {@code "deny"}; {@code "deny"} restricts
+         * routing to providers that do not train on the data. JSON field:
+         * {@code provider.data_collection}. Default: unset (the key is not
+         * sent; the API applies no data-collection preference).
          *
          * @param policy {@code "allow"} or {@code "deny"}
          * @return this builder
@@ -621,7 +623,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         /**
          * Replaces {@code provider.quantizations} - the quantization levels the
          * request may be served with (e.g. {@code int4}, {@code fp8}, {@code fp16}).
-         * Passing an empty list removes previously registered levels and emits nothing.
+         * JSON field: {@code provider.quantizations}. Default: unset (the key
+         * is not sent). Passing an empty list removes previously registered
+         * levels and emits nothing.
          *
          * @param levels the accepted quantization levels
          * @return this builder
@@ -631,7 +635,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         }
 
         /**
-         * List-based variant of {@link #quantizations(String...)}.
+         * List-based variant of {@link #quantizations(String...)}. Passing an
+         * empty list removes previously registered levels and emits nothing.
+         * Default: unset.
          *
          * @param levels the accepted quantization levels
          * @return this builder
@@ -647,7 +653,8 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         /**
          * Sets {@code provider.sort} (plain string form) - the criterion
          * providers are sorted by when routing. Documented values:
-         * {@code "price"}, {@code "throughput"}, {@code "latency"}.
+         * {@code "price"}, {@code "throughput"}, {@code "latency"}. JSON field:
+         * {@code provider.sort}. Default: unset (the key is not sent).
          *
          * @param criterion the sort criterion
          * @return this builder
@@ -659,10 +666,11 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
 
         /**
          * Sets the object form of {@code provider.sort}:
-         * {@code {"by": ..., "partition": ...}}. The {@code partition} key
-         * controls how endpoints are grouped before sorting: {@code "model"}
-         * (API default) or {@code "none"}. Wins over the plain string form
-         * when both are set.
+         * {@code {"by": ..., "partition": ...}}. Wins over the plain string
+         * form when both are set. JSON field: {@code provider.sort} (object
+         * form). Default: unset (the key is not sent). Trap: a {@code null}
+         * criterion makes the whole object form a silent no-op - no
+         * {@code sort} key is emitted at all.
          *
          * @param criterion the sort criterion (e.g. {@code "price"})
          * @param partition {@code "model"} or {@code "none"}
@@ -681,10 +689,11 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         /**
          * Sets {@code provider.max_price} caps for prompt and completion tokens.
          * Prices are strings of the token price in USD per million tokens
-         * (e.g. {@code "0.5"}). The two-argument form leaves image/audio unset.
+         * (e.g. {@code "0.5"}). JSON field: {@code provider.max_price}.
+         * Default: unset (the key is not sent).
          *
-         * @param prompt maximum prompt price, or {@code null}
-         * @param completion maximum completion price, or {@code null}
+         * @param prompt maximum prompt price, or {@code null} to leave it unset
+         * @param completion maximum completion price, or {@code null} to leave it unset
          * @return this builder
          */
         public Builder maxPrice(String prompt, String completion) {
@@ -693,6 +702,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
 
         /**
          * Sets {@code provider.max_price} caps for all four price categories.
+         * Prices are strings of the token price in USD per million tokens
+         * (e.g. {@code "0.5"}); a {@code null} argument omits that key. JSON
+         * field: {@code provider.max_price}. Default: unset.
          *
          * @param prompt maximum prompt price, or {@code null}
          * @param completion maximum completion price, or {@code null}
@@ -712,7 +724,8 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
          * Sets {@code provider.preferred_max_latency} (plain number form) -
          * the maximum acceptable median (p50) end-to-end latency in seconds.
          * Endpoints beyond the threshold are deprioritized, not excluded.
-         * Wins over the percentile cutoffs form when both are set.
+         * Wins over the percentile cutoffs form when both are set. JSON field:
+         * {@code provider.preferred_max_latency}. Default: unset.
          *
          * @param seconds maximum median latency in seconds
          * @return this builder
@@ -723,7 +736,8 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         }
 
         /**
-         * Sets {@code provider.preferred_max_latency} (percentile cutoffs form).
+         * Percentile cutoffs form of {@link #preferredMaxLatency(Double)}.
+         * The plain number form wins when both are set. Default: unset.
          *
          * @param cutoffs the percentile-specific latency cutoffs
          * @return this builder
@@ -736,7 +750,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         /**
          * Sets {@code provider.preferred_min_throughput} (plain number form) -
          * the minimum acceptable median (p50) throughput in tokens per second.
-         * Wins over the percentile cutoffs form when both are set.
+         * Endpoints beyond the threshold are deprioritized, not excluded.
+         * Wins over the percentile cutoffs form when both are set. JSON field:
+         * {@code provider.preferred_min_throughput}. Default: unset.
          *
          * @param tokensPerSecond minimum median throughput in tokens/s
          * @return this builder
@@ -747,7 +763,8 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         }
 
         /**
-         * Sets {@code provider.preferred_min_throughput} (percentile cutoffs form).
+         * Percentile cutoffs form of {@link #preferredMinThroughput(Double)}.
+         * The plain number form wins when both are set. Default: unset.
          *
          * @param cutoffs the percentile-specific throughput cutoffs
          * @return this builder
@@ -760,6 +777,7 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         /**
          * Sets {@code provider.enforce_distillable_text} - when {@code true},
          * only endpoints that support distillable text output are eligible.
+         * JSON field: {@code provider.enforce_distillable_text}. Default: unset.
          *
          * @param enforce true to restrict routing to distillable-text endpoints
          * @return this builder
@@ -772,7 +790,8 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         /**
          * Sets {@code provider.zdr} - when {@code true}, routing is restricted
          * to Zero Data Retention endpoints. Stronger than
-         * {@code dataCollection("deny")}.
+         * {@code dataCollection("deny")}. JSON field: {@code provider.zdr}.
+         * Default: unset (the key is not sent).
          *
          * @param zdr {@code Boolean.TRUE} to restrict routing to ZDR endpoints
          * @return this builder

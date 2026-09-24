@@ -414,6 +414,9 @@ class OpenRouterEmbeddingsTest {
                 .model("m").input("i").sortBy("price", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("partition");
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("i").sortBy("price", "  "))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

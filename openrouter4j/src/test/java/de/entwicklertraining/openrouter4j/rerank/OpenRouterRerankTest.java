@@ -5,6 +5,8 @@ import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -439,5 +441,107 @@ class OpenRouterRerankTest {
         JSONObject maxPrice = provider.getJSONObject("max_price");
         assertThat(maxPrice.keySet()).containsOnly("prompt", "completion");
         assertThat(provider.getDouble("preferred_min_throughput")).isEqualTo(50.0);
+    }
+
+    @Test
+    void providerSortByObjectFormWinsOverPlainForm() {
+        JSONObject body = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .sort("price")
+                .sortBy("latency", "none")
+                .build()
+                .getBody());
+        JSONObject sort = body.getJSONObject("provider").getJSONObject("sort");
+        assertThat(sort.getString("by")).isEqualTo("latency");
+    }
+
+    @Test
+    void providerPreferredLatencyCutoffsFormIsEmitted() {
+        JSONObject body = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(1.0).p90(3.5).build())
+                .build()
+                .getBody());
+        JSONObject cutoffs = body.getJSONObject("provider").getJSONObject("preferred_max_latency");
+        assertThat(cutoffs.getDouble("p50")).isEqualTo(1.0);
+        assertThat(cutoffs.getDouble("p90")).isEqualTo(3.5);
+        assertThat(cutoffs.has("p75")).isFalse();
+        assertThat(cutoffs.has("p99")).isFalse();
+    }
+
+    @Test
+    void providerPreferredLatencyNumberWinsOverCutoffs() {
+        JSONObject body = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(1.0).build())
+                .preferredMaxLatency(2.5)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").getDouble("preferred_max_latency")).isEqualTo(2.5);
+    }
+
+    @Test
+    void providerPreferredMinThroughputNumberWinsOverCutoffs() {
+        JSONObject body = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .preferredMinThroughput(OpenRouterPercentileCutoffs.builder().p50(10.0).build())
+                .preferredMinThroughput(30.0)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").getDouble("preferred_min_throughput")).isEqualTo(30.0);
+    }
+
+    @Test
+    void providerSortByRejectsBlankPartition() {
+        assertThatThrownBy(() -> new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc").sortBy("price", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("partition");
+        assertThatThrownBy(() -> new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc").sortBy("price", "  "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void providerQuantizationsEmptyListClears() {
+        JSONObject body = new JSONObject(new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .quantizations("int4", "fp8")
+                .quantizations(List.of())
+                .requireParameters(true)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").has("quantizations")).isFalse();
+    }
+
+    @Test
+    void providerAccessorsRoundTrip() {
+        var request = new OpenRouterRerankRequest.Builder(client())
+                .model("cohere/rerank-v3.5")
+                .query("q")
+                .addDocument("doc")
+                .dataCollection("deny")
+                .zdr(true)
+                .sort("price")
+                .enforceDistillableText(true)
+                .build();
+        assertThat(request.dataCollection()).isEqualTo("deny");
+        assertThat(request.zdr()).isTrue();
+        assertThat(request.sort()).isEqualTo("price");
+        assertThat(request.enforceDistillableText()).isTrue();
     }
 }
