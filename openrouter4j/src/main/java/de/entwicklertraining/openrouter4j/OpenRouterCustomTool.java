@@ -18,10 +18,11 @@ import java.util.Objects;
  * {@link #toJson()}.
  * <p>
  * <strong>Responses-only.</strong> The published schema declares {@code CustomTool}
- * on the Responses {@code tools} array only - the chat-completions {@code tools}
- * union does not accept it. This class deliberately does not implement
- * {@link OpenRouterServerTool}, so it cannot be sent through the chat builder's
- * {@code serverTools(...)} by accident.
+ * on the Responses {@code tools} array (and on the mid-input
+ * {@code additional_tools} item / inside {@code NamespaceTool}) - the
+ * chat-completions {@code tools} union does not accept it. This class
+ * deliberately does not implement {@link OpenRouterServerTool}, so it cannot be
+ * sent through the chat builder's {@code serverTools(...)} by accident.
  * <p>
  * Traps: {@code async: true} lets the model keep working after calling this
  * tool instead of waiting for its output. The tool is still executed by the

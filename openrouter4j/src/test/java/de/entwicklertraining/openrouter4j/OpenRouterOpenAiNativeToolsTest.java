@@ -145,6 +145,16 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void webSearchShorthandOptionHatchNullEmitsJsonNull() {
+        JSONObject tool = OpenRouterWebSearchShorthandTool.builder()
+                .option("future_key", null)
+                .build()
+                .toJson();
+        assertThat(tool.has("future_key")).isTrue();
+        assertThat(tool.isNull("future_key")).isTrue();
+    }
+
+    @Test
     void webSearchShorthandCustomTypeIsAcceptedVerbatim() {
         JSONObject tool = OpenRouterWebSearchShorthandTool.builder("web_search_2025_08_26").build().toJson();
         assertThat(tool.getString("type")).isEqualTo("web_search_2025_08_26");
@@ -159,6 +169,15 @@ class OpenRouterOpenAiNativeToolsTest {
         assertThat(tool.keySet()).containsExactlyInAnyOrder("type", "name");
         assertThat(tool.getString("type")).isEqualTo("custom");
         assertThat(tool.getString("name")).isEqualTo("my_tool");
+        assertThat(tool.has("format")).isFalse();
+        assertThat(tool.has("async")).isFalse();
+    }
+
+    @Test
+    void customToolTwoArgTextFactoryEmitsDescription() {
+        JSONObject tool = OpenRouterCustomTool.text("my_tool", "Does a thing").toJson();
+        assertThat(tool.getString("name")).isEqualTo("my_tool");
+        assertThat(tool.getString("description")).isEqualTo("Does a thing");
         assertThat(tool.has("format")).isFalse();
         assertThat(tool.has("async")).isFalse();
     }
@@ -229,6 +248,16 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void customToolOptionHatchNullEmitsJsonNull() {
+        JSONObject tool = OpenRouterCustomTool.builder("my_tool")
+                .option("future_key", null)
+                .build()
+                .toJson();
+        assertThat(tool.has("future_key")).isTrue();
+        assertThat(tool.isNull("future_key")).isTrue();
+    }
+
+    @Test
     void customToolLandsInTheResponsesToolsArray() {
         OpenRouterResponsesRequest request = responsesBuilder()
                 .addTool(OpenRouterCustomTool.text("my_tool").toJson())
@@ -283,6 +312,46 @@ class OpenRouterOpenAiNativeToolsTest {
                 .build()
                 .toJson();
         assertThat(tool.getJSONArray("allowed_tools").toList()).containsExactly("tool_a", "tool_b");
+
+        JSONObject viaList = OpenRouterMcpServerTool.builder("my-server")
+                .allowedTools(List.of("tool_a", "tool_b"))
+                .build()
+                .toJson();
+        assertThat(viaList.getJSONArray("allowed_tools").toList()).containsExactly("tool_a", "tool_b");
+    }
+
+    @Test
+    void mcpToolEmptyAllowedToolsAndHeadersClearAPreviouslySetValue() {
+        JSONObject clearedList = OpenRouterMcpServerTool.builder("my-server")
+                .allowedTools("tool_a")
+                .allowedTools(List.of())
+                .build()
+                .toJson();
+        assertThat(clearedList.has("allowed_tools")).isFalse();
+
+        JSONObject clearedVarargs = OpenRouterMcpServerTool.builder("my-server")
+                .allowedTools("tool_a")
+                .allowedTools()
+                .build()
+                .toJson();
+        assertThat(clearedVarargs.has("allowed_tools")).isFalse();
+
+        JSONObject clearedHeaders = OpenRouterMcpServerTool.builder("my-server")
+                .headers(Map.of("X-Custom", "v"))
+                .headers(Map.of())
+                .build()
+                .toJson();
+        assertThat(clearedHeaders.has("headers")).isFalse();
+    }
+
+    @Test
+    void mcpToolOptionHatchNullEmitsJsonNull() {
+        JSONObject tool = OpenRouterMcpServerTool.builder("my-server")
+                .option("future_key", null)
+                .build()
+                .toJson();
+        assertThat(tool.has("future_key")).isTrue();
+        assertThat(tool.isNull("future_key")).isTrue();
     }
 
     @Test
@@ -535,6 +604,17 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void codeInterpreterOptionHatchNullEmitsJsonNull() {
+        JSONObject tool = OpenRouterCodeInterpreterServerTool.builder()
+                .container("auto")
+                .option("future_key", null)
+                .build()
+                .toJson();
+        assertThat(tool.has("future_key")).isTrue();
+        assertThat(tool.isNull("future_key")).isTrue();
+    }
+
+    @Test
     void codeInterpreterLandsInTheResponsesToolsArray() {
         OpenRouterResponsesRequest request = responsesBuilder()
                 .addTool(OpenRouterCodeInterpreterServerTool.builder().containerAuto().build().toJson())
@@ -577,7 +657,13 @@ class OpenRouterOpenAiNativeToolsTest {
     @Test
     void computerUseRejectsOptionHatchOnTypedKeysAndPassesExtras() {
         assertThatThrownBy(() -> OpenRouterComputerUseServerTool.builder()
+                .option("type", "x"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterComputerUseServerTool.builder()
                 .option("display_width", 1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterComputerUseServerTool.builder()
+                .option("display_height", 1))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> OpenRouterComputerUseServerTool.builder()
                 .option("environment", "linux"))
@@ -652,6 +738,48 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void fileSearchFilterFormsReplaceEachOtherAndNullUnsets() {
+        JSONObject compound = new JSONObject().put("type", "or").put("filters", new JSONArray());
+        JSONObject compoundWins = OpenRouterFileSearchServerTool.builder("vs")
+                .filter("k", "eq", "v")
+                .filters(compound)
+                .build()
+                .toJson();
+        assertThat(compoundWins.getJSONObject("filters").toMap()).isEqualTo(compound.toMap());
+
+        JSONObject comparisonWins = OpenRouterFileSearchServerTool.builder("vs")
+                .filters(compound)
+                .filter("k", "eq", "v")
+                .build()
+                .toJson();
+        assertThat(comparisonWins.getJSONObject("filters").toMap()).containsExactlyInAnyOrderEntriesOf(
+                Map.of("key", "k", "type", "eq", "value", "v"));
+
+        JSONObject unset = OpenRouterFileSearchServerTool.builder("vs")
+                .filters(compound)
+                .filters(null)
+                .build()
+                .toJson();
+        assertThat(unset.has("filters")).isFalse();
+    }
+
+    @Test
+    void fileSearchRankingOptionsPartialStatesAreEmitted() {
+        JSONObject rankerOnly = OpenRouterFileSearchServerTool.builder("vs")
+                .ranker("auto")
+                .build()
+                .toJson();
+        assertThat(rankerOnly.getJSONObject("ranking_options").keySet()).containsExactlyInAnyOrder("ranker");
+
+        JSONObject scoreOnly = OpenRouterFileSearchServerTool.builder("vs")
+                .scoreThreshold(0.5)
+                .build()
+                .toJson();
+        assertThat(scoreOnly.getJSONObject("ranking_options").keySet())
+                .containsExactlyInAnyOrder("score_threshold");
+    }
+
+    @Test
     void fileSearchRejectsEmptyOrBlankVectorStoreIdsAndOptionHatchOnTypedKeys() {
         assertThatThrownBy(() -> OpenRouterFileSearchServerTool.builder(List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -680,6 +808,16 @@ class OpenRouterOpenAiNativeToolsTest {
         JSONObject tool = new JSONObject(request.getBody()).getJSONArray("tools").getJSONObject(0);
         assertThat(tool.getString("type")).isEqualTo("file_search");
         assertThat(tool.getString("future_key")).isEqualTo("v");
+    }
+
+    @Test
+    void fileSearchOptionHatchNullEmitsJsonNull() {
+        JSONObject tool = OpenRouterFileSearchServerTool.builder("vs")
+                .option("future_key", null)
+                .build()
+                .toJson();
+        assertThat(tool.has("future_key")).isTrue();
+        assertThat(tool.isNull("future_key")).isTrue();
     }
 
     @Test

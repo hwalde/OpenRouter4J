@@ -20,8 +20,9 @@ import java.util.Objects;
  * type, not an {@code openrouter:*} namespace tool with a {@code parameters}
  * wrapper).
  * <p>
- * {@code vector_store_ids} is required and non-empty; a request without it is
- * rejected loudly at {@code build()}.
+ * {@code vector_store_ids} is required and non-empty; a builder created without
+ * it is rejected loudly (the check lives in the {@code builder(...)} factory,
+ * so there is nothing to {@code build()} first).
  * <p>
  * <strong>Schema surface:</strong> the published schema declares
  * {@code FileSearchServerTool} on the Responses request's {@code tools} array
@@ -191,8 +192,8 @@ public final class OpenRouterFileSearchServerTool implements OpenRouterServerToo
          * {@code {"key": ..., "type": ..., "value": ...}}.
          * The operator is accepted verbatim; documented values are
          * {@code eq}, {@code ne}, {@code gt}, {@code gte}, {@code lt},
-         * {@code lte}. The value may be a string, number, boolean or an array
-         * of those. Replaces any previously set filters form.
+         * {@code lte}. The value may be a string, number or boolean, or an
+         * array of strings or numbers. Replaces any previously set filters form.
          *
          * @param key the metadata key to compare
          * @param operator the comparison operator (required, not blank)

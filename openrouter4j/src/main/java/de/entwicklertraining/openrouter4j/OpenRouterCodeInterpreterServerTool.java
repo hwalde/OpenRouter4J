@@ -27,7 +27,10 @@ import java.util.Objects;
  * {@code build()}. Trap: {@code containerAuto()} / {@code containerAuto(List)}
  * omit {@code memory_limit} (the API default applies), while
  * {@code containerAuto(List, String)} always emits it - {@code null} there is
- * the schema's explicit JSON {@code null} ("no explicit limit").
+ * an explicit JSON {@code null}, this library's contract for "no explicit
+ * limit". The {@code memory_limit} enum is validated in full even though the
+ * schema marks it open - use {@link Builder#container(JSONObject)} for a value
+ * outside {@code 1g}/{@code 4g}/{@code 16g}/{@code 64g}.
  * <p>
  * <strong>Schema surface:</strong> the published schema declares
  * {@code CodeInterpreterServerTool} on the Responses request's {@code tools}
@@ -152,12 +155,13 @@ public final class OpenRouterCodeInterpreterServerTool implements OpenRouterServ
          * Sets {@code container} to the {@code {"type":"auto"}} object form.
          * Replaces any previously set container form.
          * <p>
-         * {@code memoryLimit} is validated against the documented enum
-         * {@code 1g}, {@code 4g}, {@code 16g}, {@code 64g}. Unlike the other
-         * {@code containerAuto} overloads this form always emits
-         * {@code memory_limit}: {@code null} emits an explicit JSON
-         * {@code null} (the schema's documented "no explicit limit" value).
-         * Use {@link #containerAuto(List)} to omit the field entirely.
+         * {@code memoryLimit} is validated against {@code 1g}, {@code 4g},
+         * {@code 16g}, {@code 64g}. Unlike the other {@code containerAuto}
+         * overloads this form always emits {@code memory_limit}: {@code null}
+         * emits an explicit JSON {@code null} (this library's contract for "no
+         * explicit limit"). Use {@link #containerAuto(List)} to omit the field
+         * entirely so the API default applies, or {@link #container(JSONObject)}
+         * for a {@code memory_limit} value outside the validated enum.
          *
          * @param fileIds workspace file ids to attach (may be {@code null} or empty)
          * @param memoryLimit {@code "1g"}, {@code "4g"}, {@code "16g"},
