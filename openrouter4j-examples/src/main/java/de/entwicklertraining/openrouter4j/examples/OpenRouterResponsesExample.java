@@ -2,7 +2,12 @@ package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterCodeInterpreterServerTool;
+import de.entwicklertraining.openrouter4j.OpenRouterComputerUseServerTool;
+import de.entwicklertraining.openrouter4j.OpenRouterCustomTool;
+import de.entwicklertraining.openrouter4j.OpenRouterFileSearchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
+import de.entwicklertraining.openrouter4j.OpenRouterMcpServerTool;
 import org.json.JSONObject;
 import de.entwicklertraining.openrouter4j.OpenRouterApplyPatchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
@@ -168,5 +173,38 @@ public class OpenRouterResponsesExample {
                 .toolChoiceType("apply_patch")
                 .build();
         System.out.println("Tool-type tool_choice:      " + typeChoice.getBody());
+
+        // OpenAI-native tool types on the Responses tools array (the published
+        // schema declares them here, not on chat): custom (client-executed,
+        // freeform output - the result comes back as function_call_output with
+        // the original call_id, and async(true) lets the model keep working),
+        // MCP (third-party tool server, allowed_tools narrows the exposed
+        // tools), code_interpreter (sandbox; files land in client.containers()),
+        // computer_use_preview and file_search. All of them are added via
+        // addTool(...toJson()); OpenRouterCustomTool deliberately does not
+        // implement OpenRouterServerTool so it cannot reach chat by accident.
+        OpenRouterResponsesRequest nativeTools = client.responses()
+                .model("openai/gpt-4o")
+                .input("Search my files for the Q3 numbers, then run a quick check.")
+                .addTool(OpenRouterCustomTool.grammar("emit_record",
+                        "record: \"{\" name \"}\"", "lark").toJson())
+                .addTool(OpenRouterMcpServerTool.builder("my-server")
+                        .serverUrl("https://example.com/mcp")
+                        .allowedTools("search", "fetch")
+                        .requireApproval("never")
+                        .build()
+                        .toJson())
+                .addTool(OpenRouterCodeInterpreterServerTool.builder()
+                        .containerAuto()
+                        .build()
+                        .toJson())
+                .addTool(OpenRouterComputerUseServerTool.builder(1024, 768, "linux").build().toJson())
+                .addTool(OpenRouterFileSearchServerTool.builder("vs_abc123")
+                        .maxNumResults(5)
+                        .filter("author", "eq", "Alice")
+                        .build()
+                        .toJson())
+                .build();
+        System.out.println("OpenAI-native tools body:  " + nativeTools.getBody());
     }
 }

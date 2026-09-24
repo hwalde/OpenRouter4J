@@ -9,6 +9,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterToolDefinition;
 import de.entwicklertraining.openrouter4j.OpenRouterToolResult;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
+import de.entwicklertraining.openrouter4j.OpenRouterWebSearchShorthandTool;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionResponse;
 import org.json.JSONObject;
 
@@ -64,6 +65,13 @@ public class OpenRouterChatCompletionWithServerToolsExample {
                         .build())
                 // Another built-in server tool (default configuration emits only the type):
                 .addServerTool(OpenRouterDatetimeServerTool.unconfigured())
+                // OpenAI Responses-syntax web search shorthand - the API converts
+                // it to openrouter:web_search automatically. Prefer
+                // OpenRouterWebSearchServerTool for new code (canonical form).
+                // Emitted verbatim; the library never converts it.
+                .addServerTool(OpenRouterWebSearchShorthandTool.builder()
+                        .searchContextSize("low")
+                        .build())
                 // Escape hatch for server-tool types without a typed implementation:
                 // OpenRouterServerTool.of("openrouter:bash")
                 //         .withOption("parameters", new JSONObject().put("engine", "openrouter"))

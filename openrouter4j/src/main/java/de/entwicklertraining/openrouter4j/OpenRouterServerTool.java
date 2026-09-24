@@ -25,9 +25,21 @@ import org.json.JSONObject;
  * {@link OpenRouterFusionServerTool} ({@code openrouter:fusion}),
  * {@link OpenRouterImageGenerationServerTool} ({@code openrouter:image_generation}),
  * {@link OpenRouterSearchModelsServerTool} ({@code openrouter:experimental__search_models}),
- * {@link OpenRouterSubagentServerTool} ({@code openrouter:subagent}) and
- * {@link OpenRouterGenericServerTool} as the verbatim escape hatch for every
- * other server-tool type (or for types OpenRouter adds later).
+ * {@link OpenRouterSubagentServerTool} ({@code openrouter:subagent}),
+ * {@link OpenRouterWebSearchShorthandTool} ({@code web_search_preview} and its
+ * variants - the OpenAI Responses-syntax shorthand the API converts to
+ * {@code openrouter:web_search}; the typed {@code openrouter:*} form is the
+ * canonical one), {@link OpenRouterCodeInterpreterServerTool}
+ * ({@code code_interpreter}), {@link OpenRouterComputerUseServerTool}
+ * ({@code computer_use_preview}), {@link OpenRouterFileSearchServerTool}
+ * ({@code file_search}) and {@link OpenRouterMcpServerTool} ({@code mcp}) -
+ * the last four are OpenAI-native tool types with flat top-level fields (no
+ * {@code parameters} wrapper) that the published schema declares on the
+ * Responses {@code tools} array - and {@link OpenRouterGenericServerTool} as
+ * the verbatim escape hatch for every other server-tool type (or for types
+ * OpenRouter adds later). {@link OpenRouterCustomTool} (the Responses-only
+ * {@code custom} tool) deliberately does <em>not</em> implement this interface,
+ * because the chat-completions {@code tools} union does not accept it.
  * <p>
  * Trap: plugins ({@link OpenRouterPlugin}, the {@code plugins} array) and server
  * tools (the {@code tools} array) are two different mechanisms that both exist
@@ -60,5 +72,18 @@ public interface OpenRouterServerTool {
      */
     static OpenRouterGenericServerTool of(String type) {
         return new OpenRouterGenericServerTool(type);
+    }
+
+    /**
+     * Creates a builder for the OpenAI Responses-syntax <em>web search
+     * shorthand</em> tool ({@code web_search_preview} and its variants), which
+     * the API converts automatically to {@code openrouter:web_search}.
+     * Prefer {@link OpenRouterWebSearchServerTool} for new code - it is the
+     * canonical, strictly more expressive form.
+     *
+     * @return a new {@link OpenRouterWebSearchShorthandTool.Builder}
+     */
+    static OpenRouterWebSearchShorthandTool.Builder webSearchShorthand() {
+        return OpenRouterWebSearchShorthandTool.builder();
     }
 }
