@@ -1290,4 +1290,35 @@ class OpenRouterMessagesTest {
         assertThat(request.maxPricePrompt()).isNull();
         assertThat(request.preferredMaxLatency()).isNull();
     }
+
+    @Test
+    void providerSortByObjectWinsRegardlessOfCallOrder() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .sortBy("latency", "none")
+                .sort("price")
+                .build()
+                .getBody());
+        JSONObject sort = body.getJSONObject("provider").getJSONObject("sort");
+        assertThat(sort.getString("by")).isEqualTo("latency");
+    }
+
+    @Test
+    void providerPreferredLatencyNumberWinsRegardlessOfCallOrder() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .preferredMaxLatency(2.5)
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(1.0).build())
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").getDouble("preferred_max_latency")).isEqualTo(2.5);
+    }
+
+    @Test
+    void providerSortByNullCriterionEmitsNoSortKey() {
+        JSONObject body = new JSONObject(minimalBuilder()
+                .sortBy(null, "none")
+                .requireParameters(true)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").has("sort")).isFalse();
+    }
 }

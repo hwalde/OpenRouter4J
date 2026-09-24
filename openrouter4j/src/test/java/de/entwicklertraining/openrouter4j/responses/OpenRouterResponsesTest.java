@@ -880,4 +880,41 @@ class OpenRouterResponsesTest {
         assertThat(request.sort()).isEqualTo("price");
         assertThat(request.enforceDistillableText()).isTrue();
     }
+
+    @Test
+    void providerSortByObjectWinsRegardlessOfCallOrder() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .sortBy("latency", "none")
+                .sort("price")
+                .build()
+                .getBody());
+        JSONObject sort = body.getJSONObject("provider").getJSONObject("sort");
+        assertThat(sort.getString("by")).isEqualTo("latency");
+    }
+
+    @Test
+    void providerPreferredLatencyNumberWinsRegardlessOfCallOrder() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .preferredMaxLatency(2.5)
+                .preferredMaxLatency(OpenRouterPercentileCutoffs.builder().p50(1.0).build())
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").getDouble("preferred_max_latency")).isEqualTo(2.5);
+    }
+
+    @Test
+    void providerSortByNullCriterionEmitsNoSortKey() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("hi")
+                .sortBy(null, "none")
+                .requireParameters(true)
+                .build()
+                .getBody());
+        assertThat(body.getJSONObject("provider").has("sort")).isFalse();
+    }
 }
