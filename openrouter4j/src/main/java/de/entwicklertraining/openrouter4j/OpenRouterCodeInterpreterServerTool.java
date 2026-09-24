@@ -36,7 +36,6 @@ import java.util.Objects;
  * {@code client.containers()} (list, download, promote into durable workspace
  * storage).
  *
- * @see OpenRouterContainersExample
  * @see <a href="https://openrouter.ai/docs/guides/features/containers">Containers</a>
  */
 public final class OpenRouterCodeInterpreterServerTool implements OpenRouterServerTool {
