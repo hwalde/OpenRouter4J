@@ -466,6 +466,16 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void mcpToolRequireApprovalNullUnsetsAPreviouslySetValue() {
+        JSONObject tool = OpenRouterMcpServerTool.builder("my-server")
+                .requireApproval("always")
+                .requireApproval((JSONObject) null)
+                .build()
+                .toJson();
+        assertThat(tool.has("require_approval")).isFalse();
+    }
+
+    @Test
     void mcpToolRejectsBlankServerLabelAndOptionHatchOnTypedKeys() {
         assertThatThrownBy(() -> OpenRouterMcpServerTool.builder("  "))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -615,6 +625,23 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void codeInterpreterContainerFormsReplaceEachOther() {
+        JSONObject autoWins = OpenRouterCodeInterpreterServerTool.builder()
+                .container("con_x")
+                .containerAuto()
+                .build()
+                .toJson();
+        assertThat(autoWins.getJSONObject("container").getString("type")).isEqualTo("auto");
+
+        JSONObject stringWins = OpenRouterCodeInterpreterServerTool.builder()
+                .containerAuto()
+                .container("con_x")
+                .build()
+                .toJson();
+        assertThat(stringWins.getString("container")).isEqualTo("con_x");
+    }
+
+    @Test
     void codeInterpreterLandsInTheResponsesToolsArray() {
         OpenRouterResponsesRequest request = responsesBuilder()
                 .addTool(OpenRouterCodeInterpreterServerTool.builder().containerAuto().build().toJson())
@@ -673,6 +700,16 @@ class OpenRouterOpenAiNativeToolsTest {
                 .build()
                 .toJson();
         assertThat(tool.getBoolean("future_key")).isTrue();
+    }
+
+    @Test
+    void computerUseOptionHatchNullEmitsJsonNull() {
+        JSONObject tool = OpenRouterComputerUseServerTool.builder(1, 1, "linux")
+                .option("future_key", null)
+                .build()
+                .toJson();
+        assertThat(tool.has("future_key")).isTrue();
+        assertThat(tool.isNull("future_key")).isTrue();
     }
 
     @Test
