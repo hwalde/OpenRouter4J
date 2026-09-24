@@ -95,6 +95,28 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void webSearchShorthandEmitsBothDomainListsVerbatimWhenBothSet() {
+        JSONObject tool = OpenRouterWebSearchShorthandTool.builder()
+                .allowedDomains(List.of("example.com"))
+                .excludedDomains(List.of("spam.example"))
+                .build()
+                .toJson();
+        assertThat(tool.getJSONArray("allowed_domains").toList()).containsExactly("example.com");
+        assertThat(tool.getJSONArray("excluded_domains").toList()).containsExactly("spam.example");
+    }
+
+    @Test
+    void webSearchShorthandEmptyDomainListsOmitTheFields() {
+        JSONObject tool = OpenRouterWebSearchShorthandTool.builder()
+                .allowedDomains(List.of())
+                .excludedDomains(List.of())
+                .build()
+                .toJson();
+        assertThat(tool.has("allowed_domains")).isFalse();
+        assertThat(tool.has("excluded_domains")).isFalse();
+    }
+
+    @Test
     void webSearchShorthandIsEmittedVerbatimNotConvertedByTheLibrary() {
         OpenRouterChatCompletionRequest request = chatBuilder()
                 .addServerTool(OpenRouterServerTool.webSearchShorthand()
@@ -264,6 +286,27 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void mcpToolEmptyAllowedToolsAndHeadersOmitTheFields() {
+        JSONObject emptyList = OpenRouterMcpServerTool.builder("my-server")
+                .allowedTools(List.of())
+                .build()
+                .toJson();
+        assertThat(emptyList.has("allowed_tools")).isFalse();
+
+        JSONObject emptyVarargs = OpenRouterMcpServerTool.builder("my-server")
+                .allowedTools()
+                .build()
+                .toJson();
+        assertThat(emptyVarargs.has("allowed_tools")).isFalse();
+
+        JSONObject emptyHeaders = OpenRouterMcpServerTool.builder("my-server")
+                .headers(Map.of())
+                .build()
+                .toJson();
+        assertThat(emptyHeaders.has("headers")).isFalse();
+    }
+
+    @Test
     void mcpToolAllowedToolsObjectFormIsEmitted() {
         JSONObject tool = OpenRouterMcpServerTool.builder("my-server")
                 .allowedToolsObject(true, List.of("tool_a"))
@@ -328,11 +371,12 @@ class OpenRouterOpenAiNativeToolsTest {
         assertThat(approval.getJSONObject("always").getJSONArray("tool_names").toList())
                 .containsExactly("tool_a");
 
+        JSONObject verbatimInput = new JSONObject().put("never", new JSONObject());
         JSONObject verbatim = OpenRouterMcpServerTool.builder("my-server")
-                .requireApproval(new JSONObject().put("never", new JSONObject()))
+                .requireApproval(verbatimInput)
                 .build()
                 .toJson();
-        assertThat(verbatim.getJSONObject("require_approval").has("never")).isTrue();
+        assertThat(verbatim.getJSONObject("require_approval").toMap()).isEqualTo(verbatimInput.toMap());
     }
 
     @Test

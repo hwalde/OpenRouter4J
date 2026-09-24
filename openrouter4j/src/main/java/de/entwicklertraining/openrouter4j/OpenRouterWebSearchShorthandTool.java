@@ -25,7 +25,9 @@ import java.util.Objects;
  * requests verbatim.
  * <p>
  * Traps: {@code allowed_domains} and {@code excluded_domains} are mutually
- * exclusive - set at most one. {@code max_characters} takes precedence over
+ * exclusive per the schema - the library emits both verbatim when both are set
+ * (same convention as {@link OpenRouterWebSearchServerTool}) and leaves the
+ * rejection to the API. {@code max_characters} takes precedence over
  * {@code search_context_size} when both are set. The published schema also
  * accepts a nested {@code parameters} object ({@code WebSearchConfig}) carrying
  * the same search options - send either the flat form or {@code parameters}, not
@@ -345,7 +347,10 @@ public final class OpenRouterWebSearchShorthandTool implements OpenRouterServerT
 
         /**
          * Sets {@code allowed_domains}: limit search results to these domains.
-         * Cannot be combined with {@link #excludedDomains(List)}.
+         * Cannot be combined with {@link #excludedDomains(List)} - the library
+         * emits both verbatim when both are set (same convention as
+         * {@link OpenRouterWebSearchServerTool}) and leaves the rejection to
+         * the API. An empty list omits the field.
          *
          * @param domains the allowed domains
          * @return this builder
@@ -357,7 +362,10 @@ public final class OpenRouterWebSearchShorthandTool implements OpenRouterServerT
 
         /**
          * Sets {@code excluded_domains}: exclude search results from these
-         * domains. Cannot be combined with {@link #allowedDomains(List)}.
+         * domains. Cannot be combined with {@link #allowedDomains(List)} - the
+         * library emits both verbatim when both are set (same convention as
+         * {@link OpenRouterWebSearchServerTool}) and leaves the rejection to
+         * the API. An empty list omits the field.
          *
          * @param domains the excluded domains
          * @return this builder

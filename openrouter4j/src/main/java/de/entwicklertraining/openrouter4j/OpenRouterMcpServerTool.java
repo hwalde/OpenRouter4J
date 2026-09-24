@@ -328,7 +328,8 @@ public final class OpenRouterMcpServerTool implements OpenRouterServerTool {
 
         /**
          * Sets {@code headers}: extra HTTP headers presented to the MCP server.
-         * Emitted only when at least one entry is set.
+         * Emitted only when at least one entry is set - an empty map omits the
+         * field.
          *
          * @param headers the request headers for the MCP server
          * @return this builder
