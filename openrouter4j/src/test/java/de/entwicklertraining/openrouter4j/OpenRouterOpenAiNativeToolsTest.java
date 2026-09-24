@@ -84,6 +84,17 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void webSearchShorthandExcludedDomainsAreEmitted() {
+        JSONObject tool = OpenRouterWebSearchShorthandTool.builder()
+                .excludedDomains(List.of("spam.example"))
+                .build()
+                .toJson();
+        assertThat(tool.getJSONArray("excluded_domains").toList()).containsExactly("spam.example");
+        assertThat(tool.has("allowed_domains")).isFalse();
+        assertThat(tool.has("parameters")).isFalse();
+    }
+
+    @Test
     void webSearchShorthandIsEmittedVerbatimNotConvertedByTheLibrary() {
         OpenRouterChatCompletionRequest request = chatBuilder()
                 .addServerTool(OpenRouterServerTool.webSearchShorthand()
@@ -264,6 +275,27 @@ class OpenRouterOpenAiNativeToolsTest {
     }
 
     @Test
+    void mcpToolAllowedToolsObjectPartialNullFormsOmitTheMissingPart() {
+        JSONObject readOnlyOnly = OpenRouterMcpServerTool.builder("my-server")
+                .allowedToolsObject(true, null)
+                .build()
+                .toJson();
+        assertThat(readOnlyOnly.getJSONObject("allowed_tools").keySet()).containsExactlyInAnyOrder("read_only");
+
+        JSONObject namesOnly = OpenRouterMcpServerTool.builder("my-server")
+                .allowedToolsObject(null, List.of("t"))
+                .build()
+                .toJson();
+        assertThat(namesOnly.getJSONObject("allowed_tools").keySet()).containsExactlyInAnyOrder("tool_names");
+
+        JSONObject bothEmpty = OpenRouterMcpServerTool.builder("my-server")
+                .allowedToolsObject(null, List.of())
+                .build()
+                .toJson();
+        assertThat(bothEmpty.has("allowed_tools")).isFalse();
+    }
+
+    @Test
     void mcpToolAllowedToolsFormsReplaceEachOther() {
         JSONObject tool = OpenRouterMcpServerTool.builder("my-server")
                 .allowedTools("tool_a")
@@ -301,6 +333,23 @@ class OpenRouterOpenAiNativeToolsTest {
                 .build()
                 .toJson();
         assertThat(verbatim.getJSONObject("require_approval").has("never")).isTrue();
+    }
+
+    @Test
+    void mcpToolRequireApprovalNeverVariantAndEmptyToolNamesAreEmitted() {
+        JSONObject neverForm = OpenRouterMcpServerTool.builder("my-server")
+                .requireApproval(false, List.of("tool_a"))
+                .build()
+                .toJson();
+        assertThat(neverForm.getJSONObject("require_approval").getJSONObject("never")
+                .getJSONArray("tool_names").toList()).containsExactly("tool_a");
+
+        JSONObject allTools = OpenRouterMcpServerTool.builder("my-server")
+                .requireApproval(true, List.of())
+                .build()
+                .toJson();
+        JSONObject always = allTools.getJSONObject("require_approval").getJSONObject("always");
+        assertThat(always.has("tool_names")).isFalse();
     }
 
     @Test
@@ -368,6 +417,34 @@ class OpenRouterOpenAiNativeToolsTest {
         JSONObject container = tool.getJSONObject("container");
         assertThat(container.keySet()).containsExactlyInAnyOrder("type");
         assertThat(container.getString("type")).isEqualTo("auto");
+        assertThat(container.has("memory_limit")).isFalse();
+    }
+
+    @Test
+    void codeInterpreterMemoryLimitEnumIsPinnedAndNullEmitsJsonNull() {
+        for (String limit : List.of("1g", "4g", "16g", "64g")) {
+            JSONObject tool = OpenRouterCodeInterpreterServerTool.builder()
+                    .containerAuto(null, limit)
+                    .build()
+                    .toJson();
+            assertThat(tool.getJSONObject("container").getString("memory_limit")).isEqualTo(limit);
+        }
+
+        JSONObject explicitNull = OpenRouterCodeInterpreterServerTool.builder()
+                .containerAuto(null, null)
+                .build()
+                .toJson();
+        JSONObject container = explicitNull.getJSONObject("container");
+        assertThat(container.has("memory_limit")).isTrue();
+        assertThat(container.isNull("memory_limit")).isTrue();
+
+        JSONObject omitted = OpenRouterCodeInterpreterServerTool.builder()
+                .containerAuto(List.of("or_file_1"))
+                .build()
+                .toJson();
+        assertThat(omitted.getJSONObject("container").has("memory_limit")).isFalse();
+        assertThat(omitted.getJSONObject("container").getJSONArray("file_ids").toList())
+                .containsExactly("or_file_1");
     }
 
     @Test
@@ -389,6 +466,9 @@ class OpenRouterOpenAiNativeToolsTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> OpenRouterCodeInterpreterServerTool.builder()
                 .containerAuto(null, "8g"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterCodeInterpreterServerTool.builder()
+                .containerAuto(null, "63g"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> OpenRouterCodeInterpreterServerTool.builder()
                 .container("auto")
@@ -522,7 +602,9 @@ class OpenRouterOpenAiNativeToolsTest {
                 .filters(compound)
                 .build()
                 .toJson();
-        assertThat(compoundTool.getJSONObject("filters").getString("type")).isEqualTo("and");
+        assertThat(compoundTool.getJSONObject("filters").toMap()).isEqualTo(compound.toMap());
+        assertThat(compoundTool.getJSONObject("filters").getJSONArray("filters").getJSONObject(0)
+                .getString("key")).isEqualTo("k");
     }
 
     @Test

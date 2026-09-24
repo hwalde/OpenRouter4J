@@ -24,7 +24,10 @@ import java.util.Objects;
  * {@link Builder#container(String)} for the string form and
  * {@link Builder#containerAuto(List, String)} (and its overloads) for the
  * object form. A request without a container is rejected loudly at
- * {@code build()}.
+ * {@code build()}. Trap: {@code containerAuto()} / {@code containerAuto(List)}
+ * omit {@code memory_limit} (the API default applies), while
+ * {@code containerAuto(List, String)} always emits it - {@code null} there is
+ * the schema's explicit JSON {@code null} ("no explicit limit").
  * <p>
  * <strong>Schema surface:</strong> the published schema declares
  * {@code CodeInterpreterServerTool} on the Responses request's {@code tools}
@@ -123,25 +126,26 @@ public final class OpenRouterCodeInterpreterServerTool implements OpenRouterServ
 
         /**
          * Sets {@code container} to the {@code {"type":"auto"}} object form
-         * with no file ids and the default memory limit. Replaces any
-         * previously set container form.
+         * with no file ids and no {@code memory_limit} field (the API default
+         * applies). Replaces any previously set container form.
          *
          * @return this builder
          */
         public Builder containerAuto() {
-            return containerAuto(null, null);
+            return containerAuto(null, false, null);
         }
 
         /**
          * Sets {@code container} to the {@code {"type":"auto"}} object form
-         * with the given workspace file ids attached before the first run.
-         * Replaces any previously set container form.
+         * with the given workspace file ids attached before the first run and
+         * no {@code memory_limit} field (the API default applies). Replaces any
+         * previously set container form.
          *
          * @param fileIds workspace file ids to attach (may be {@code null} or empty)
          * @return this builder
          */
         public Builder containerAuto(List<String> fileIds) {
-            return containerAuto(fileIds, null);
+            return containerAuto(fileIds, false, null);
         }
 
         /**
@@ -149,15 +153,23 @@ public final class OpenRouterCodeInterpreterServerTool implements OpenRouterServ
          * Replaces any previously set container form.
          * <p>
          * {@code memoryLimit} is validated against the documented enum
-         * {@code 1g}, {@code 4g}, {@code 16g}, {@code 64g}; {@code null} emits
-         * JSON {@code null} (the documented "no explicit limit" value).
+         * {@code 1g}, {@code 4g}, {@code 16g}, {@code 64g}. Unlike the other
+         * {@code containerAuto} overloads this form always emits
+         * {@code memory_limit}: {@code null} emits an explicit JSON
+         * {@code null} (the schema's documented "no explicit limit" value).
+         * Use {@link #containerAuto(List)} to omit the field entirely.
          *
          * @param fileIds workspace file ids to attach (may be {@code null} or empty)
          * @param memoryLimit {@code "1g"}, {@code "4g"}, {@code "16g"},
-         *                    {@code "64g"} or {@code null}
+         *                    {@code "64g"} (emitted verbatim) or {@code null}
+         *                    (emits JSON {@code null})
          * @return this builder
          */
         public Builder containerAuto(List<String> fileIds, String memoryLimit) {
+            return containerAuto(fileIds, true, memoryLimit);
+        }
+
+        private Builder containerAuto(List<String> fileIds, boolean emitMemoryLimit, String memoryLimit) {
             if (memoryLimit != null
                     && !memoryLimit.equals("1g")
                     && !memoryLimit.equals("4g")
@@ -173,8 +185,8 @@ public final class OpenRouterCodeInterpreterServerTool implements OpenRouterServ
                 fileIds.forEach(arr::put);
                 auto.put("file_ids", arr);
             }
-            if (memoryLimit != null) {
-                auto.put("memory_limit", memoryLimit);
+            if (emitMemoryLimit) {
+                auto.put("memory_limit", memoryLimit == null ? JSONObject.NULL : memoryLimit);
             }
             this.container = auto;
             return this;

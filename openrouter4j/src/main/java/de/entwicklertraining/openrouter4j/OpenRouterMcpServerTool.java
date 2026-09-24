@@ -278,7 +278,8 @@ public final class OpenRouterMcpServerTool implements OpenRouterServerTool {
          * {@code ["tool_a", "tool_b"]}: only these tools of the server are
          * exposed to the model. A later call replaces the whole list. Calling
          * this clears any previously set object form
-         * ({@link #allowedToolsObject(Boolean, List)}).
+         * ({@link #allowedToolsObject(Boolean, List)}); an empty list clears
+         * {@code allowed_tools} entirely (the field is omitted).
          *
          * @param toolNames the allowed tool names
          * @return this builder
@@ -292,7 +293,9 @@ public final class OpenRouterMcpServerTool implements OpenRouterServerTool {
 
         /**
          * Sets {@code allowed_tools} in its array-of-names form. A later call
-         * replaces the whole list.
+         * replaces the whole list. Calling this clears any previously set
+         * object form ({@link #allowedToolsObject(Boolean, List)}); an empty
+         * list clears {@code allowed_tools} entirely (the field is omitted).
          *
          * @param toolNames the allowed tool names
          * @return this builder
@@ -308,7 +311,9 @@ public final class OpenRouterMcpServerTool implements OpenRouterServerTool {
          * Sets {@code allowed_tools} in its object form
          * {@code {"read_only": ..., "tool_names": [...]}}. Either part may be
          * {@code null} and is then omitted. Calling this clears any previously
-         * set array-of-names form ({@link #allowedTools(List)}).
+         * set array-of-names form ({@link #allowedTools(List)}); both parts
+         * null or empty clears {@code allowed_tools} entirely (the field is
+         * omitted).
          *
          * @param readOnly the {@code read_only} flag (may be {@code null})
          * @param toolNames the {@code tool_names} list (may be {@code null} or empty)
@@ -334,9 +339,10 @@ public final class OpenRouterMcpServerTool implements OpenRouterServerTool {
         }
 
         /**
-         * Sets {@code require_approval} to the bare string form
-         * ({@code "always"} or {@code "never"}). Accepted verbatim (the schema
-         * allows unknown values). Emitted only when set.
+         * Sets {@code require_approval} to the bare string form. Documented
+         * values: {@code "always"} or {@code "never"} (the schema declares no
+         * other values for this branch; other strings are still sent verbatim
+         * as client-side leniency). Emitted only when set.
          *
          * @param approval the approval policy string
          * @return this builder
@@ -350,6 +356,10 @@ public final class OpenRouterMcpServerTool implements OpenRouterServerTool {
          * Sets {@code require_approval} to the object form
          * {@code {"always": {"tool_names": [...]}}} or
          * {@code {"never": {"tool_names": [...]}}}.
+         * <p>
+         * Trap: a bare {@code requireApproval(null)} is a compile-time
+         * ambiguity against the {@link #requireApproval(String)} overload -
+         * write {@code requireApproval((JSONObject) null)} to unset the field.
          *
          * @param approval the approval policy object (may be {@code null} to unset)
          * @return this builder
@@ -360,8 +370,10 @@ public final class OpenRouterMcpServerTool implements OpenRouterServerTool {
         }
 
         /**
-         * Sets {@code require_approval} to the object form with a
-         * {@code always} or {@code never} tool-name list.
+         * Sets {@code require_approval} to the object form with an
+         * {@code always} ({@code true}) or {@code never} ({@code false})
+         * tool-name list. A {@code null} or empty {@code toolNames} list means
+         * "all tools" and omits {@code tool_names} inside the variant.
          *
          * @param always {@code true} for the {@code always} variant,
          *               {@code false} for the {@code never} variant
