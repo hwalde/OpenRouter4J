@@ -70,6 +70,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final String user; // stable per-end-user identifier for abuse isolation
     private final String sessionId; // groups related requests; sticky-routing key for prompt-cache hits
     private final Boolean metadataInResponse; // opt-in: X-OpenRouter-Metadata header
+    private final Map<String, String> customHeaders; // verbatim header() escape hatch
     private final String dataCollection; // provider.data_collection ("allow" / "deny")
     private final List<String> ignoreProviders; // provider.ignore
     private final List<String> onlyProviders; // provider.only
@@ -257,6 +258,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.user = user;
         this.sessionId = sessionId;
         this.metadataInResponse = metadataInResponse;
+        this.customHeaders = builder.customHeaders.isEmpty()
+                ? Map.of() : Map.copyOf(builder.customHeaders);
         this.dataCollection = dataCollection;
         this.ignoreProviders = ignoreProviders == null ? null : List.copyOf(ignoreProviders);
         this.onlyProviders = onlyProviders == null ? null : List.copyOf(onlyProviders);
@@ -933,6 +936,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         b.user = user;
         b.sessionId = sessionId;
         b.metadataInResponse = metadataInResponse;
+        b.customHeaders.putAll(customHeaders);
         b.dataCollection = dataCollection;
         if (ignoreProviders != null) {
             b.ignoreProviders.addAll(ignoreProviders);
@@ -1473,6 +1477,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private String user;
         private String sessionId;
         private Boolean metadataInResponse;
+        private final Map<String, String> customHeaders = new LinkedHashMap<>();
         private String dataCollection;
         private final List<String> ignoreProviders = new ArrayList<>();
         private final List<String> onlyProviders = new ArrayList<>();
@@ -2536,6 +2541,145 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
          */
         public Builder metadataInResponse(boolean enabled) {
             this.metadataInResponse = enabled;
+            return this;
+        }
+
+        /**
+         * Sends an arbitrary HTTP header with this request - the escape hatch for
+         * headers the library does not type (mirrors the {@code queryParam} /
+         * {@code option} hatches). Headers set here are applied after the derived
+         * typed headers (app attribution, {@code x-session-id},
+         * {@code X-OpenRouter-Metadata}), so a custom header of the same name wins
+         * over those. The {@link #responseCache(Boolean)} family shares this header
+         * map instead of deriving headers separately, so for the
+         * {@code X-OpenRouter-Cache*} names the <em>last</em> builder call wins.
+         * <p>
+         * Header names and values must not contain CR or LF (header injection) -
+         * rejected with {@link IllegalArgumentException}, like a blank name. A
+         * {@code null} value removes a previously set header of that name again.
+         * A value sent here gets none of the typed methods' validation - e.g. a
+         * raw {@code X-OpenRouter-Cache-TTL} is parsed leniently by the API
+         * ({@code 60abc} becomes 60, {@code 1.5} becomes 1, unparseable values
+         * fall through to the preset or default TTL).
+         * <p>
+         * The headers ride along every follow-up request of the tool-call loop
+         * like the app-attribution headers do.
+         *
+         * @param name the header name (non-blank, no CR/LF)
+         * @param value the header value (no CR/LF), or {@code null} to remove the
+         *        header again
+         * @return This builder instance
+         */
+        public Builder header(String name, String value) {
+            if (name == null || name.isBlank()) {
+                throw new IllegalArgumentException("Header name must not be blank");
+            }
+            if (name.indexOf('\r') >= 0 || name.indexOf('\n') >= 0) {
+                throw new IllegalArgumentException("Header name must not contain CR or LF");
+            }
+            if (value == null) {
+                customHeaders.remove(name);
+                return this;
+            }
+            if (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
+                throw new IllegalArgumentException("Header value must not contain CR or LF");
+            }
+            customHeaders.put(name, value);
+            return this;
+        }
+
+        /**
+         * Enables or disables OpenRouter-level <b>response caching</b> for this
+         * request: identical requests (same API key, model, endpoint type,
+         * streaming mode and request body) are then answered from cache with
+         * zeroed usage counters and no billing.
+         * <p>
+         * Header: {@code X-OpenRouter-Cache}. {@code true} enables caching,
+         * {@code false} disables it for this request even when a preset enables
+         * it, {@code null} (default) sends no header and leaves the decision to
+         * the preset (or caching stays off).
+         * <p>
+         * Traps: the cache key covers the API key, model, endpoint type,
+         * streaming mode and a SHA-256 of the request body - the JSON <em>property
+         * order</em> is significant (whitespace is not) and omitting an optional
+         * field is not the same as sending its default. Cached responses are
+         * returned verbatim regardless of stochastic parameters like
+         * {@code temperature} - send {@link #responseCacheClear(Boolean)} or a
+         * short {@link #responseCacheTtl(Integer)} when you need fresh answers.
+         * On a cache HIT the response's {@code id} / {@code created} (and the
+         * {@code X-Generation-Id} header) reflect the new cache-hit generation
+         * record, not the original. A preset that sets {@code cache_enabled:
+         * false} wins over this header - the header cannot override a preset
+         * opt-out. Caching is unavailable when account-level zero-data-retention
+         * is enforced (per-request {@code zdr(true)} does not affect cache
+         * eligibility). Attribution headers are not part of the cache key.
+         * <p>
+         * Supported endpoints: chat completions (this builder), Responses,
+         * Anthropic Messages and Embeddings.
+         *
+         * @param enabled {@code true} to enable caching, {@code false} to force
+         *        caching off for this request, {@code null} to send no header
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/response-caching">Response caching</a>
+         */
+        public Builder responseCache(Boolean enabled) {
+            if (enabled == null) {
+                customHeaders.remove(HEADER_RESPONSE_CACHE);
+            } else {
+                customHeaders.put(HEADER_RESPONSE_CACHE, enabled.toString());
+            }
+            return this;
+        }
+
+        /**
+         * Forces a cache refresh for this request: the existing cache entry for
+         * this request's cache key is deleted, the request goes to the provider
+         * and the fresh response is cached again (under this request's TTL).
+         * Only this one entry is cleared - not the whole cache. Has no effect
+         * unless caching is enabled for the request (via
+         * {@link #responseCache(Boolean)} or a preset).
+         * <p>
+         * Header: {@code X-OpenRouter-Cache-Clear}. {@code true} clears,
+         * {@code false} and {@code null} (default) send no header (the API only
+         * documents the {@code true} value).
+         *
+         * @param clear {@code true} to force a cache refresh
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/response-caching">Response caching</a>
+         */
+        public Builder responseCacheClear(Boolean clear) {
+            if (Boolean.TRUE.equals(clear)) {
+                customHeaders.put(HEADER_RESPONSE_CACHE_CLEAR, "true");
+            } else {
+                customHeaders.remove(HEADER_RESPONSE_CACHE_CLEAR);
+            }
+            return this;
+        }
+
+        /**
+         * Sets the cache lifetime for this request in seconds (1-86400, API
+         * default 300). Overrides a preset's {@code cache_ttl_seconds}.
+         * <p>
+         * Header: {@code X-OpenRouter-Cache-TTL}. The documented range is
+         * validated loudly here - the API would instead clamp to
+         * {@code [1, 86400]} and parse leniently (see
+         * {@link #header(String, String)}); {@code null} sends no header and
+         * removes a previously set value again.
+         *
+         * @param seconds the TTL in seconds (1-86400)
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/response-caching">Response caching</a>
+         */
+        public Builder responseCacheTtl(Integer seconds) {
+            if (seconds == null) {
+                customHeaders.remove(HEADER_RESPONSE_CACHE_TTL);
+                return this;
+            }
+            if (seconds < 1 || seconds > 86400) {
+                throw new IllegalArgumentException(
+                        "Cache TTL must be between 1 and 86400 seconds, was " + seconds);
+            }
+            customHeaders.put(HEADER_RESPONSE_CACHE_TTL, seconds.toString());
             return this;
         }
 
@@ -3773,8 +3917,9 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         /**
          * Applies the derived HTTP headers to a freshly built request:
          * app attribution (per-request values win over the client-level default),
-         * {@code x-session-id} when a session identifier is configured, and the
-         * opt-in {@code X-OpenRouter-Metadata} header.
+         * {@code x-session-id} when a session identifier is configured, the
+         * opt-in {@code X-OpenRouter-Metadata} header, and finally the verbatim
+         * {@link #header(String, String)} headers (which win on name conflicts).
          */
         private void applyHeaders(OpenRouterChatCompletionRequest request) {
             OpenRouterAppAttribution clientAttribution =
@@ -3804,6 +3949,10 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
 
             if (Boolean.TRUE.equals(metadataInResponse)) {
                 request.setHeader(HEADER_METADATA, "enabled");
+            }
+
+            for (Map.Entry<String, String> header : customHeaders.entrySet()) {
+                request.setHeader(header.getKey(), header.getValue());
             }
         }
 

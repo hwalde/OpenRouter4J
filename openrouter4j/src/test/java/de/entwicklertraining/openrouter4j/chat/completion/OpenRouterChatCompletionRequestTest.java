@@ -729,6 +729,176 @@ class OpenRouterChatCompletionRequestTest {
     assertThat(request.metadataInResponse()).isTrue();
     }
 
+    // --- Response caching headers ---
+
+    @Test
+    void responseCacheHeaderIsEmittedPerFlag() {
+    assertThat(baseBuilder().responseCache(true).build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache", "true");
+    assertThat(baseBuilder().responseCache(false).build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache", "false");
+    assertThat(baseBuilder().build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache");
+    assertThat(baseBuilder().responseCache(null).build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache");
+    }
+
+    @Test
+    void responseCacheClearHeaderEmitsOnlyTrue() {
+    assertThat(baseBuilder().responseCacheClear(true).build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-Clear", "true");
+    assertThat(baseBuilder().responseCacheClear(false).build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache-Clear");
+    assertThat(baseBuilder().responseCacheClear(null).build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache-Clear");
+    }
+
+    @Test
+    void responseCacheTtlHeaderIsEmittedAndRangeValidated() {
+    assertThat(baseBuilder().responseCacheTtl(600).build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-TTL", "600");
+    assertThat(baseBuilder().responseCacheTtl(1).build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-TTL", "1");
+    assertThat(baseBuilder().responseCacheTtl(86400).build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-TTL", "86400");
+    assertThat(baseBuilder().responseCacheTtl(null).build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache-TTL");
+    assertThat(baseBuilder().build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache-TTL");
+    assertThatThrownBy(() -> baseBuilder().responseCacheTtl(0))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().responseCacheTtl(-5))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().responseCacheTtl(86401))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void lastWriterWinsBetweenHatchAndCacheMethods() {
+    assertThat(baseBuilder()
+            .responseCache(true)
+            .header("X-OpenRouter-Cache", "custom")
+            .build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache", "custom");
+    assertThat(baseBuilder()
+            .header("X-OpenRouter-Cache", "x")
+            .responseCache(null)
+            .build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache");
+    assertThat(baseBuilder()
+            .responseCacheTtl(600)
+            .header("X-OpenRouter-Cache-TTL", "120")
+            .build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-TTL", "120");
+    assertThat(baseBuilder()
+            .header("X-OpenRouter-Cache", "x")
+            .responseCache(true)
+            .build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache", "true");
+    assertThat(baseBuilder()
+            .header("X-OpenRouter-Cache-TTL", "120")
+            .responseCacheTtl(600)
+            .build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-TTL", "600");
+    assertThat(baseBuilder()
+            .responseCacheClear(true)
+            .header("X-OpenRouter-Cache-Clear", "x")
+            .build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-Clear", "x");
+    assertThat(baseBuilder()
+            .header("X-OpenRouter-Cache-Clear", "x")
+            .responseCacheClear(true)
+            .build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-Clear", "true");
+    }
+
+    @Test
+    void headerEscapeHatchSendsAndRemovesCustomHeaders() {
+    assertThat(baseBuilder().header("X-Custom-Header", "v").build().getAdditionalHeaders())
+            .containsEntry("X-Custom-Header", "v");
+    assertThat(baseBuilder()
+            .header("X-Custom-Header", "v")
+            .header("X-Custom-Header", null)
+            .build().getAdditionalHeaders())
+            .doesNotContainKey("X-Custom-Header");
+    assertThatThrownBy(() -> baseBuilder().header(null, "v"))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().header("  ", "v"))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().header("X-Bad\r\nName", "v"))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().header("X-Bad\rName", "v"))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().header("X-Bad\nName", "v"))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().header("X-Name", "bad\r\nvalue"))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().header("X-Name", "bad\rvalue"))
+            .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> baseBuilder().header("X-Name", "bad\nvalue"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void setThenUnsetRemovesCacheHeadersAgain() {
+    assertThat(baseBuilder().responseCache(true).responseCache(null).build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache");
+    assertThat(baseBuilder().responseCache(true).responseCache(false).build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache", "false");
+    assertThat(baseBuilder().responseCacheClear(true).responseCacheClear(false).build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache-Clear");
+    assertThat(baseBuilder().responseCacheClear(true).responseCacheClear(null).build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache-Clear");
+    assertThat(baseBuilder().responseCacheTtl(600).responseCacheTtl(null).build().getAdditionalHeaders())
+            .doesNotContainKey("X-OpenRouter-Cache-TTL");
+    assertThat(baseBuilder().responseCacheTtl(600).responseCacheTtl(30).build().getAdditionalHeaders())
+            .containsEntry("X-OpenRouter-Cache-TTL", "30");
+    }
+
+    @Test
+    void customHeadersWinOverDerivedHeaders() {
+    OpenRouterChatCompletionRequest request = baseBuilder()
+            .metadataInResponse(true)
+            .header("X-OpenRouter-Metadata", "disabled")
+            .build();
+    assertThat(request.getAdditionalHeaders().get("X-OpenRouter-Metadata")).isEqualTo("disabled");
+    }
+
+    @Test
+    void cacheAndCustomHeadersSurviveTheToolLoop() throws Exception {
+    OpenRouterChatCompletionRequest initial = baseBuilder()
+            .responseCache(true)
+            .responseCacheClear(true)
+            .responseCacheTtl(120)
+            .header("X-Custom-Header", "carried")
+            .build();
+
+    var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+    OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+            initial,
+            List.of(new JSONObject().put("role", "assistant").put("content", "ok")));
+
+    Map<String, String> headers = next.getAdditionalHeaders();
+    assertThat(headers).containsEntry("X-OpenRouter-Cache", "true");
+    assertThat(headers).containsEntry("X-OpenRouter-Cache-Clear", "true");
+    assertThat(headers).containsEntry("X-OpenRouter-Cache-TTL", "120");
+    assertThat(headers).containsEntry("X-Custom-Header", "carried");
+
+    OpenRouterChatCompletionRequest nextStream = handler.buildStreamingRequest(
+            initial,
+            List.of(new JSONObject().put("role", "assistant").put("content", "ok")),
+            new StreamingToolCallAccumulator(new StreamingResponseHandler<String>() {
+                @Override public void onData(String chunk) { }
+                @Override public void onComplete() { }
+                @Override public void onError(Throwable error) { }
+            }));
+    Map<String, String> streamHeaders = nextStream.getAdditionalHeaders();
+    assertThat(streamHeaders).containsEntry("X-OpenRouter-Cache", "true");
+    assertThat(streamHeaders).containsEntry("X-OpenRouter-Cache-Clear", "true");
+    assertThat(streamHeaders).containsEntry("X-OpenRouter-Cache-TTL", "120");
+    assertThat(streamHeaders).containsEntry("X-Custom-Header", "carried");
+    }
+
     // ------------------------------------------------------------------
     // Provider preferences (extended provider object)
 

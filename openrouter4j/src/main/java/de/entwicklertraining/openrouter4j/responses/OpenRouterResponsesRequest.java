@@ -17,7 +17,9 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A request to the OpenAI Responses API on OpenRouter:
@@ -189,6 +191,7 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         this.preferredMinThroughputCutoffs = builder.preferredMinThroughputCutoffs;
         this.enforceDistillableText = builder.enforceDistillableText;
         this.zdr = builder.zdr;
+        builder.customHeaders.forEach(this::setHeader);
         this.stream = builder.streamRequested();
         this.promptId = builder.promptId;
         this.promptVariables = builder.promptVariables == null ? null : new JSONObject(builder.promptVariables.toString());
@@ -794,6 +797,7 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         private String promptCacheOptionsTtl;
         private String truncation;
         private String cacheControlTtl;
+        private final Map<String, String> customHeaders = new LinkedHashMap<>();
         private List<OpenRouterPlugin> plugins;
         private OpenRouterTraceConfig trace;
         private List<OpenRouterStopCondition> stopServerToolsWhen;
@@ -1978,6 +1982,129 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          */
         public Builder zdr(Boolean zdr) {
             this.zdr = zdr;
+            return this;
+        }
+
+        /**
+         * Sends an arbitrary HTTP header with this request - the escape hatch for
+         * headers the library does not type. A {@code null} value removes a
+         * previously set header of that name again. Names and values must not
+         * contain CR or LF (header injection) - rejected with
+         * {@link IllegalArgumentException}, like a blank name. The
+         * {@link #responseCache(Boolean)} family shares this header map, so for
+         * the {@code X-OpenRouter-Cache*} names the <em>last</em> builder call
+         * wins. A value sent here gets none of the typed methods' validation -
+         * e.g. a raw {@code X-OpenRouter-Cache-TTL} is parsed leniently by the
+         * API ({@code 60abc} becomes 60, {@code 1.5} becomes 1, unparseable
+         * values fall through to the preset or default TTL).
+         *
+         * @param name the header name (non-blank, no CR/LF)
+         * @param value the header value (no CR/LF), or {@code null} to remove the
+         *        header again
+         * @return this builder
+         */
+        public Builder header(String name, String value) {
+            if (name == null || name.isBlank()) {
+                throw new IllegalArgumentException("Header name must not be blank");
+            }
+            if (name.indexOf('\r') >= 0 || name.indexOf('\n') >= 0) {
+                throw new IllegalArgumentException("Header name must not contain CR or LF");
+            }
+            if (value == null) {
+                customHeaders.remove(name);
+                return this;
+            }
+            if (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
+                throw new IllegalArgumentException("Header value must not contain CR or LF");
+            }
+            customHeaders.put(name, value);
+            return this;
+        }
+
+        /**
+         * Enables or disables OpenRouter-level <b>response caching</b> for this
+         * request: identical requests (same API key, model, endpoint type,
+         * streaming mode and request body) are answered from cache with zeroed
+         * usage counters and no billing.
+         * <p>
+         * Header: {@code X-OpenRouter-Cache}. {@code true} enables caching,
+         * {@code false} forces it off for this request even when a preset enables
+         * it, {@code null} (default) sends no header.
+         * <p>
+         * Traps: the cache key covers API key, model, endpoint type, streaming
+         * mode and a SHA-256 of the request body - the JSON <em>property order</em>
+         * is significant (whitespace is not) and omitting an optional field is not
+         * the same as sending its default. Cached responses are returned verbatim
+         * regardless of stochastic parameters - use {@link #responseCacheClear(Boolean)}
+         * or a short {@link #responseCacheTtl(Integer)} when you need fresh answers.
+         * On a cache HIT the response's {@code id} / {@code created} (and the
+         * {@code X-Generation-Id} header) reflect the new cache-hit generation
+         * record. A preset that sets {@code cache_enabled: false} wins over this
+         * header. Caching is unavailable when account-level zero-data-retention is
+         * enforced (per-request {@code zdr(true)} does not affect cache
+         * eligibility). Attribution headers are not part of the cache key.
+         * Supported on chat completions, Responses, Anthropic Messages and
+         * Embeddings.
+         *
+         * @param enabled {@code true} to enable caching, {@code false} to force it
+         *        off, {@code null} to send no header
+         * @return this builder
+         * @see <a href="https://openrouter.ai/docs/guides/features/response-caching">Response caching</a>
+         */
+        public Builder responseCache(Boolean enabled) {
+            if (enabled == null) {
+                customHeaders.remove(HEADER_RESPONSE_CACHE);
+            } else {
+                customHeaders.put(HEADER_RESPONSE_CACHE, enabled.toString());
+            }
+            return this;
+        }
+
+        /**
+         * Forces a cache refresh for this request: the cache entry for this
+         * request's cache key is deleted and a fresh response is fetched and
+         * cached again. Has no effect unless caching is enabled for the request.
+         * <p>
+         * Header: {@code X-OpenRouter-Cache-Clear}. {@code true} clears;
+         * {@code false} and {@code null} (default) send no header.
+         *
+         * @param clear {@code true} to force a cache refresh
+         * @return this builder
+         * @see <a href="https://openrouter.ai/docs/guides/features/response-caching">Response caching</a>
+         */
+        public Builder responseCacheClear(Boolean clear) {
+            if (Boolean.TRUE.equals(clear)) {
+                customHeaders.put(HEADER_RESPONSE_CACHE_CLEAR, "true");
+            } else {
+                customHeaders.remove(HEADER_RESPONSE_CACHE_CLEAR);
+            }
+            return this;
+        }
+
+        /**
+         * Sets the cache lifetime for this request in seconds (1-86400, API
+         * default 300). Overrides a preset's {@code cache_ttl_seconds}. The
+         * documented range is validated loudly here - the API would instead
+         * clamp to {@code [1, 86400]} and parse leniently (see
+         * {@link #header(String, String)}); {@code null} sends no header and
+         * removes a previously set value again.
+         * <p>
+         * Header: {@code X-OpenRouter-Cache-TTL}.
+         *
+         * @param seconds the TTL in seconds (1-86400)
+         * @return this builder
+         * @see <a href="https://openrouter.ai/docs/guides/features/response-caching">Response caching</a>
+         */
+        public Builder responseCacheTtl(Integer seconds) {
+            if (seconds == null) {
+                customHeaders.remove(HEADER_RESPONSE_CACHE_TTL);
+                return this;
+            }
+            if (seconds < 1 || seconds > 86400) {
+                throw new IllegalArgumentException(
+                        "Cache TTL must be between 1 and 86400 seconds, was " + seconds);
+            }
+            customHeaders.put(HEADER_RESPONSE_CACHE_TTL, seconds.toString());
             return this;
         }
 

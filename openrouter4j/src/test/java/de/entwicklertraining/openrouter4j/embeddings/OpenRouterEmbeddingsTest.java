@@ -32,6 +32,124 @@ class OpenRouterEmbeddingsTest {
     }
 
     @Test
+    void responseCachingHeadersAndCustomHeaderAreEmitted() {
+        OpenRouterEmbeddingsRequest request = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .responseCache(true)
+                .build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache", "true");
+
+        request = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .responseCache(false)
+                .build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache", "false");
+
+        request = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("hello").responseCacheClear(true).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-Clear", "true");
+
+        request = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("hello").responseCacheTtl(7).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "7");
+
+        request = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("hello").responseCacheTtl(1).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "1");
+
+        request = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("hello").responseCacheTtl(86400).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "86400");
+
+        request = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("hello").header("X-Custom-Header", "v").build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-Custom-Header", "v");
+
+        OpenRouterEmbeddingsRequest bare = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .input("hello")
+                .build();
+        assertThat(bare.getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache")
+                .doesNotContainKey("X-OpenRouter-Cache-Clear")
+                .doesNotContainKey("X-OpenRouter-Cache-TTL")
+                .doesNotContainKey("X-Custom-Header");
+
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").responseCache(true).responseCache(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").responseCacheClear(true).responseCacheClear(false).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache-Clear");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").responseCacheTtl(600).responseCacheTtl(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache-TTL");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-C", "v").header("X-C", null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-C");
+
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").responseCache(true)
+                .header("X-OpenRouter-Cache", "custom").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache", "custom");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-OpenRouter-Cache", "x")
+                .responseCache(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").responseCacheTtl(600)
+                .header("X-OpenRouter-Cache-TTL", "120").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-TTL", "120");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-OpenRouter-Cache", "x")
+                .responseCache(true).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache", "true");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-OpenRouter-Cache-TTL", "120")
+                .responseCacheTtl(600).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-TTL", "600");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").responseCacheClear(true)
+                .header("X-OpenRouter-Cache-Clear", "x").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-Clear", "x");
+        assertThat(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-OpenRouter-Cache-Clear", "x")
+                .responseCacheClear(true).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-Clear", "true");
+
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").responseCacheTtl(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").responseCacheTtl(86401))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void headerEscapeHatchValidatesNamesAndValues() {
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header(null, "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("  ", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-Bad\rName", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-Bad\nName", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-Name", "bad\rvalue"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("x").header("X-Name", "bad\nvalue"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void singleInputEmitsStringAndRequiredModel() {
         JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("openai/text-embedding-3-small")

@@ -51,6 +51,92 @@ class OpenRouterMessagesTest {
     }
 
     @Test
+    void responseCachingHeadersAndCustomHeaderAreEmitted() {
+        OpenRouterMessagesRequest request = minimalBuilder()
+                .responseCache(true)
+                .build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache", "true");
+
+        request = minimalBuilder()
+                .responseCache(false)
+                .build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache", "false");
+
+        request = minimalBuilder().responseCacheClear(true).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-Clear", "true");
+
+        request = minimalBuilder().responseCacheTtl(7).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "7");
+
+        request = minimalBuilder().responseCacheTtl(1).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "1");
+
+        request = minimalBuilder().responseCacheTtl(86400).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "86400");
+
+        request = minimalBuilder().header("X-Custom-Header", "v").build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-Custom-Header", "v");
+
+        assertThat(minimalBuilder().build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache")
+                .doesNotContainKey("X-OpenRouter-Cache-Clear")
+                .doesNotContainKey("X-OpenRouter-Cache-TTL")
+                .doesNotContainKey("X-Custom-Header");
+
+        assertThat(minimalBuilder().responseCache(true).responseCache(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache");
+        assertThat(minimalBuilder().responseCacheClear(true).responseCacheClear(false).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache-Clear");
+        assertThat(minimalBuilder().responseCacheTtl(600).responseCacheTtl(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache-TTL");
+        assertThat(minimalBuilder().header("X-C", "v").header("X-C", null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-C");
+
+        assertThat(minimalBuilder().responseCache(true)
+                .header("X-OpenRouter-Cache", "custom").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache", "custom");
+        assertThat(minimalBuilder().header("X-OpenRouter-Cache", "x")
+                .responseCache(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache");
+        assertThat(minimalBuilder().responseCacheTtl(600)
+                .header("X-OpenRouter-Cache-TTL", "120").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-TTL", "120");
+        assertThat(minimalBuilder().header("X-OpenRouter-Cache", "x")
+                .responseCache(true).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache", "true");
+        assertThat(minimalBuilder().header("X-OpenRouter-Cache-TTL", "120")
+                .responseCacheTtl(600).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-TTL", "600");
+        assertThat(minimalBuilder().responseCacheClear(true)
+                .header("X-OpenRouter-Cache-Clear", "x").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-Clear", "x");
+        assertThat(minimalBuilder().header("X-OpenRouter-Cache-Clear", "x")
+                .responseCacheClear(true).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-Clear", "true");
+
+        assertThatThrownBy(() -> minimalBuilder().responseCacheTtl(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().responseCacheTtl(86401))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void headerEscapeHatchValidatesNamesAndValues() {
+        assertThatThrownBy(() -> minimalBuilder().header(null, "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().header("  ", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().header("X-Bad\rName", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().header("X-Bad\nName", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().header("X-Name", "bad\rvalue"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> minimalBuilder().header("X-Name", "bad\nvalue"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void requiredFieldsAreEmittedAndOptionalFieldsAreAbsentWhenUnset() {
         JSONObject body = new JSONObject(minimalBuilder().build().getBody());
 

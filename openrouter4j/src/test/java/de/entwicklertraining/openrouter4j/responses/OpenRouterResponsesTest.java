@@ -37,6 +37,109 @@ class OpenRouterResponsesTest {
     }
 
     @Test
+    void responseCachingHeadersAndCustomHeaderAreEmitted() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .input("Tell me a joke")
+                .responseCache(true)
+                .build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache", "true");
+
+        request = client().responses()
+                .model("openai/gpt-4o")
+                .input("Tell me a joke")
+                .responseCache(false)
+                .build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache", "false");
+
+        request = client().responses().model("openai/gpt-4o").input("x")
+                .responseCacheClear(true).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-Clear", "true");
+
+        request = client().responses().model("openai/gpt-4o").input("x")
+                .responseCacheTtl(7).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "7");
+
+        request = client().responses().model("openai/gpt-4o").input("x")
+                .responseCacheTtl(1).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "1");
+
+        request = client().responses().model("openai/gpt-4o").input("x")
+                .responseCacheTtl(86400).build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-OpenRouter-Cache-TTL", "86400");
+
+        request = client().responses().model("openai/gpt-4o").input("x")
+                .header("X-Custom-Header", "v").build();
+        assertThat(request.getAdditionalHeaders()).containsEntry("X-Custom-Header", "v");
+
+        OpenRouterResponsesRequest bare = client().responses()
+                .model("openai/gpt-4o")
+                .input("Tell me a joke")
+                .build();
+        assertThat(bare.getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache")
+                .doesNotContainKey("X-OpenRouter-Cache-Clear")
+                .doesNotContainKey("X-OpenRouter-Cache-TTL")
+                .doesNotContainKey("X-Custom-Header");
+
+        assertThat(client().responses().model("m").input("x")
+                .responseCache(true).responseCache(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache");
+        assertThat(client().responses().model("m").input("x")
+                .responseCacheClear(true).responseCacheClear(false).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache-Clear");
+        assertThat(client().responses().model("m").input("x")
+                .responseCacheTtl(600).responseCacheTtl(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache-TTL");
+        assertThat(client().responses().model("m").input("x")
+                .header("X-C", "v").header("X-C", null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-C");
+
+        assertThat(client().responses().model("m").input("x").responseCache(true)
+                .header("X-OpenRouter-Cache", "custom").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache", "custom");
+        assertThat(client().responses().model("m").input("x").header("X-OpenRouter-Cache", "x")
+                .responseCache(null).build().getAdditionalHeaders())
+                .doesNotContainKey("X-OpenRouter-Cache");
+        assertThat(client().responses().model("m").input("x").responseCacheTtl(600)
+                .header("X-OpenRouter-Cache-TTL", "120").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-TTL", "120");
+        assertThat(client().responses().model("m").input("x").header("X-OpenRouter-Cache", "x")
+                .responseCache(true).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache", "true");
+        assertThat(client().responses().model("m").input("x").header("X-OpenRouter-Cache-TTL", "120")
+                .responseCacheTtl(600).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-TTL", "600");
+        assertThat(client().responses().model("m").input("x").responseCacheClear(true)
+                .header("X-OpenRouter-Cache-Clear", "x").build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-Clear", "x");
+        assertThat(client().responses().model("m").input("x").header("X-OpenRouter-Cache-Clear", "x")
+                .responseCacheClear(true).build().getAdditionalHeaders())
+                .containsEntry("X-OpenRouter-Cache-Clear", "true");
+
+        assertThatThrownBy(() -> client().responses().model("m").input("x").responseCacheTtl(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("x").responseCacheTtl(86401))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void headerEscapeHatchValidatesNamesAndValues() {
+        assertThatThrownBy(() -> client().responses().model("m").input("x").header(null, "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("x").header("  ", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("x").header("X-Bad\rName", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("x").header("X-Bad\nName", "v"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("x").header("X-Name", "bad\rvalue"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().responses().model("m").input("x").header("X-Name", "bad\nvalue"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void itemInputFormEmitsMessageItems() {
         OpenRouterResponsesRequest request = client().responses()
                 .model("openai/gpt-4o")
