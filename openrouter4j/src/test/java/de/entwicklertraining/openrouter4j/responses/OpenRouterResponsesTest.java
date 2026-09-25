@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.responses;
 
 import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -614,6 +615,225 @@ class OpenRouterResponsesTest {
         assertThat(body.getJSONArray("input").length()).isEqualTo(1);
         assertThat(body.getJSONArray("input").getJSONObject(0).toMap())
                 .isEqualTo(raw.toMap());
+    }
+
+    // --- Typed input items (OpenRouterInputItem) ---
+
+    @Test
+    void functionCallItemsEmitDocumentedKeys() {
+        JSONObject item = OpenRouterInputItem
+                .functionCall("call-abc123", "get_weather", "{\"location\":\"SF\"}")
+                .toJson();
+        assertThat(item.keySet()).containsExactlyInAnyOrder("type", "call_id", "name", "arguments");
+        assertThat(item.getString("type")).isEqualTo("function_call");
+        assertThat(item.getString("call_id")).isEqualTo("call-abc123");
+        assertThat(item.getString("name")).isEqualTo("get_weather");
+        assertThat(item.getString("arguments")).isEqualTo("{\"location\":\"SF\"}");
+
+        JSONObject withStatus = OpenRouterInputItem
+                .functionCall("call-abc123", "get_weather", "{}", "completed")
+                .toJson();
+        assertThat(withStatus.keySet())
+                .containsExactlyInAnyOrder("type", "call_id", "name", "arguments", "status");
+        assertThat(withStatus.getString("status")).isEqualTo("completed");
+    }
+
+    @Test
+    void functionCallOutputItemsEmitDocumentedKeys() {
+        JSONObject item = OpenRouterInputItem
+                .functionCallOutput("call-abc123", "{\"temperature\":72}")
+                .toJson();
+        assertThat(item.keySet()).containsExactlyInAnyOrder("type", "call_id", "output");
+        assertThat(item.getString("type")).isEqualTo("function_call_output");
+        assertThat(item.getString("call_id")).isEqualTo("call-abc123");
+        assertThat(item.getString("output")).isEqualTo("{\"temperature\":72}");
+
+        JSONObject withStatus = OpenRouterInputItem
+                .functionCallOutput("call-abc123", "ok", "completed")
+                .toJson();
+        assertThat(withStatus.keySet()).containsExactlyInAnyOrder("type", "call_id", "output", "status");
+        assertThat(withStatus.getString("status")).isEqualTo("completed");
+    }
+
+    @Test
+    void itemReferenceEmitsDocumentedKeys() {
+        JSONObject item = OpenRouterInputItem.itemReference("msg-abc123").toJson();
+        assertThat(item.keySet()).containsExactlyInAnyOrder("type", "id");
+        assertThat(item.getString("type")).isEqualTo("item_reference");
+        assertThat(item.getString("id")).isEqualTo("msg-abc123");
+    }
+
+    @Test
+    void outputMessageItemsEmitDocumentedKeys() {
+        JSONObject item = OpenRouterInputItem.outputMessage("msg-123", "Hello!").toJson();
+        assertThat(item.keySet()).containsExactlyInAnyOrder("type", "role", "id", "content", "status");
+        assertThat(item.getString("type")).isEqualTo("message");
+        assertThat(item.getString("role")).isEqualTo("assistant");
+        assertThat(item.getString("id")).isEqualTo("msg-123");
+        assertThat(item.getString("status")).isEqualTo("completed");
+        JSONArray content = item.getJSONArray("content");
+        assertThat(content.length()).isEqualTo(1);
+        assertThat(content.getJSONObject(0).keySet()).containsExactlyInAnyOrder("type", "text");
+        assertThat(content.getJSONObject(0).getString("type")).isEqualTo("output_text");
+        assertThat(content.getJSONObject(0).getString("text")).isEqualTo("Hello!");
+
+        JSONObject withStatus = OpenRouterInputItem.outputMessage("msg-123", "Hi", "in_progress").toJson();
+        assertThat(withStatus.getString("status")).isEqualTo("in_progress");
+
+        JSONObject nullStatus = OpenRouterInputItem.outputMessage("msg-123", "Hi", null).toJson();
+        assertThat(nullStatus.getString("status")).isEqualTo("completed");
+    }
+
+    @Test
+    void toJsonReturnsADetachedCopy() {
+        OpenRouterInputItem item = OpenRouterInputItem.itemReference("msg-1");
+        item.toJson().put("injected", true);
+        assertThat(item.toJson().has("injected")).isFalse();
+        assertThat(item.toJson().keySet()).containsExactlyInAnyOrder("type", "id");
+
+        OpenRouterInputItem msg = OpenRouterInputItem.outputMessage("m", "t");
+        msg.toJson().getJSONArray("content").getJSONObject(0).put("text", "tampered");
+        assertThat(msg.toJson().getJSONArray("content").getJSONObject(0).getString("text"))
+                .isEqualTo("t");
+
+        JSONArray summaryArray = new JSONArray("[{\"type\":\"summary_text\",\"text\":\"a\"}]");
+        OpenRouterInputItem reasoningItem = OpenRouterInputItem.reasoningWithSummary("r", summaryArray, null);
+        summaryArray.getJSONObject(0).put("text", "tampered");
+        assertThat(reasoningItem.toJson().getJSONArray("summary").getJSONObject(0).getString("text"))
+                .isEqualTo("a");
+        summaryArray.put(new JSONObject().put("type", "summary_text").put("text", "x"));
+        assertThat(reasoningItem.toJson().getJSONArray("summary").toList()).hasSize(1);
+
+        JSONObject rawIn = new JSONObject("{\"type\":\"shell_call\",\"action\":{\"commands\":[\"ls\"]}}");
+        OpenRouterInputItem rawItem = OpenRouterInputItem.raw(rawIn);
+        rawIn.getJSONObject("action").put("injected", true);
+        assertThat(rawItem.toJson().getJSONObject("action").has("injected")).isFalse();
+        rawIn.put("injected", true);
+        assertThat(rawItem.toJson().has("injected")).isFalse();
+    }
+
+    @Test
+    void reasoningItemsCarrySummaryAndSignatureUnmodified() {
+        JSONObject item = OpenRouterInputItem
+                .reasoning("reasoning-abc123", "Analyzed the problem", "sig-verbatim==")
+                .toJson();
+        assertThat(item.keySet()).containsExactlyInAnyOrder("type", "id", "summary", "signature");
+        assertThat(item.getString("type")).isEqualTo("reasoning");
+        assertThat(item.getString("id")).isEqualTo("reasoning-abc123");
+        assertThat(item.getString("signature")).isEqualTo("sig-verbatim==");
+        JSONArray summary = item.getJSONArray("summary");
+        assertThat(summary.length()).isEqualTo(1);
+        assertThat(summary.getJSONObject(0).keySet()).containsExactlyInAnyOrder("type", "text");
+        assertThat(summary.getJSONObject(0).getString("type")).isEqualTo("summary_text");
+        assertThat(summary.getJSONObject(0).getString("text")).isEqualTo("Analyzed the problem");
+
+        JSONObject withoutSignature = OpenRouterInputItem.reasoning("reasoning-1", "only summary").toJson();
+        assertThat(withoutSignature.has("signature")).isFalse();
+
+        JSONArray multiSummary = new JSONArray(
+                "[{\"type\":\"summary_text\",\"text\":\"first\"},{\"type\":\"summary_text\",\"text\":\"second\"}]");
+        JSONObject passthrough = OpenRouterInputItem
+                .reasoningWithSummary("reasoning-2", multiSummary, "sig-2")
+                .toJson();
+        assertThat(passthrough.getJSONArray("summary").toList()).isEqualTo(multiSummary.toList());
+        assertThat(passthrough.getString("signature")).isEqualTo("sig-2");
+    }
+
+    @Test
+    void mixedInputArrayEmitsTypedItemsInOrder() {
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o")
+                .addMessage("user", "What is the weather in SF?")
+                .addInput(OpenRouterInputItem.functionCall("call-1", "get_weather", "{\"city\":\"SF\"}"))
+                .addInput(OpenRouterInputItem.functionCallOutput("call-1", "{\"temp\":72}"))
+                .addInput(OpenRouterInputItem.outputMessage("msg-1", "It is 72F."))
+                .addInput(OpenRouterInputItem.reasoning("reasoning-1", "looked it up", "sig-1"))
+                .addInput(OpenRouterInputItem.itemReference("msg-old"))
+                .build();
+        JSONObject body = new JSONObject(request.getBody());
+        JSONArray input = body.getJSONArray("input");
+        assertThat(input.length()).isEqualTo(6);
+        assertThat(input.getJSONObject(0).getString("type")).isEqualTo("message");
+        assertThat(input.getJSONObject(0).getString("role")).isEqualTo("user");
+        assertThat(input.getJSONObject(1).getString("type")).isEqualTo("function_call");
+        assertThat(input.getJSONObject(1).getString("call_id")).isEqualTo("call-1");
+        assertThat(input.getJSONObject(2).getString("type")).isEqualTo("function_call_output");
+        assertThat(input.getJSONObject(2).getString("call_id")).isEqualTo("call-1");
+        assertThat(input.getJSONObject(3).getString("type")).isEqualTo("message");
+        assertThat(input.getJSONObject(3).getString("id")).isEqualTo("msg-1");
+        assertThat(input.getJSONObject(4).getString("type")).isEqualTo("reasoning");
+        assertThat(input.getJSONObject(4).getString("signature")).isEqualTo("sig-1");
+        assertThat(input.getJSONObject(5).getString("type")).isEqualTo("item_reference");
+        assertThat(input.getJSONObject(5).getString("id")).isEqualTo("msg-old");
+    }
+
+    @Test
+    void addInputAloneSwitchesToTheItemArrayForm() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .addInput(OpenRouterInputItem.itemReference("id-1"))
+                .build()
+                .getBody());
+        assertThat(body.get("input")).isInstanceOf(JSONArray.class);
+        JSONArray input = body.getJSONArray("input");
+        assertThat(input.length()).isEqualTo(1);
+        assertThat(input.getJSONObject(0).toMap())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("type", "item_reference", "id", "id-1"));
+    }
+
+    @Test
+    void addInputAfterStringInputSwitchesToTheItemArrayForm() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o")
+                .input("plain string first")
+                .addInput(OpenRouterInputItem.functionCall("call-1", "t", "{}"))
+                .build()
+                .getBody());
+        assertThat(body.get("input")).isInstanceOf(JSONArray.class);
+        JSONArray input = body.getJSONArray("input");
+        assertThat(input.length()).isEqualTo(1);
+        assertThat(input.getJSONObject(0).getString("type")).isEqualTo("function_call");
+        assertThat(input.getJSONObject(0).getString("call_id")).isEqualTo("call-1");
+    }
+
+    @Test
+    void rawTypedItemPassesThroughAndRequiresType() {
+        JSONObject raw = new JSONObject(
+                "{\"type\":\"shell_call\",\"call_id\":\"c-1\",\"action\":{\"commands\":[\"ls\"]}}");
+        JSONObject item = OpenRouterInputItem.raw(raw).toJson();
+        assertThat(item.toMap()).isEqualTo(raw.toMap());
+
+        assertThatThrownBy(() -> OpenRouterInputItem.raw(new JSONObject().put("call_id", "c-1")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("type");
+        assertThatThrownBy(() -> OpenRouterInputItem.raw(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("item must not be null");
+    }
+
+    @Test
+    void inputItemFactoriesValidateLoudly() {
+        assertThatThrownBy(() -> OpenRouterInputItem.functionCall(null, "t", "{}"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterInputItem.functionCall("c", "", "{}"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterInputItem.functionCall("c", "t", null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> OpenRouterInputItem.functionCallOutput(null, "x"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterInputItem.functionCallOutput("c", null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> OpenRouterInputItem.itemReference(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterInputItem.outputMessage("m", null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> OpenRouterInputItem.reasoning("", "summary"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterInputItem.reasoningWithSummary("r", null, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> client().responses().model("m")
+                .addInput(null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

@@ -883,8 +883,10 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
 
         /**
          * Adds a verbatim item to the {@code input} array - the escape hatch
-         * for the item forms the library does not type (function-call items,
-         * reasoning items, server-tool output items, ...).
+         * for the item forms the library does not type (server-tool output
+         * items, shell/apply-patch round trips, compaction markers, MCP items,
+         * ...). The tool-call round-trip basics are typed on
+         * {@link OpenRouterInputItem} and appended via {@link #addInput(OpenRouterInputItem)}.
          *
          * @param item the raw input item
          * @return this builder
@@ -895,6 +897,27 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
             }
             ensureInputItems();
             this.inputItems.add(item);
+            return this;
+        }
+
+        /**
+         * Adds a typed item to the {@code input} array - see
+         * {@link OpenRouterInputItem} for the factories ({@code functionCall},
+         * {@code functionCallOutput}, {@code itemReference},
+         * {@code outputMessage}, {@code reasoning}, {@code raw}). Switches the
+         * input to the item-array form like {@link #addMessage(String, String)}.
+         * Deliberately not an {@code addInputItem} overload: that would make
+         * existing {@code addInputItem(null)} calls ambiguous at compile time.
+         *
+         * @param item the typed input item
+         * @return this builder
+         */
+        public Builder addInput(OpenRouterInputItem item) {
+            if (item == null) {
+                throw new IllegalArgumentException("input item must not be null");
+            }
+            ensureInputItems();
+            this.inputItems.add(item.toJson());
             return this;
         }
 

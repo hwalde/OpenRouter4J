@@ -11,6 +11,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterMcpServerTool;
 import org.json.JSONObject;
 import de.entwicklertraining.openrouter4j.OpenRouterApplyPatchServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
+import de.entwicklertraining.openrouter4j.responses.OpenRouterInputItem;
 import de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesRequest;
 import de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesResponse;
 
@@ -206,5 +207,56 @@ public class OpenRouterResponsesExample {
                         .toJson())
                 .build();
         System.out.println("OpenAI-native tools body:  " + nativeTools.getBody());
+
+        // Continuing a tool conversation: the API is stateless
+        // (previous_response_id is rejected), so the second turn REPLAYS the
+        // first turn's items in input. OpenRouterInputItem has typed factories
+        // for the round-trip basics - functionCall / functionCallOutput (the
+        // output must carry the call_id of the call), outputMessage and
+        // reasoning (pass the signature back UNMODIFIED - providers verify it)
+        // and itemReference. Anything else stays on addInputItem(JSONObject).
+        //
+        // Turn 1: ask with the tool declared; the response's output() carries
+        // the message / reasoning / function_call items to replay.
+        OpenRouterResponsesRequest turnOne = client.responses()
+                .model("openai/gpt-4o")
+                .addMessage("user", "What is the weather in San Francisco?")
+                .addFunctionTool("get_weather", "Get the weather",
+                        new JSONObject("{\"type\":\"object\",\"properties\":{}}"))
+                .build();
+        System.out.println("Tool-call turn 1:          " + turnOne.getBody());
+
+        // Turn 2: replay the prior items (ids/signature as returned) and send
+        // the tool result as functionCallOutput with the same call_id. Resend
+        // the tool definitions - the request carries the full state. The
+        // optional phase field (commentary / final_answer) should be preserved
+        // on assistant messages for gpt-5.3-codex+ follow-ups; the typed
+        // outputMessage does not carry it, so that replay uses raw().
+        OpenRouterResponsesRequest continued = client.responses()
+                .model("openai/gpt-4o")
+                .addFunctionTool("get_weather", "Get the weather",
+                        new JSONObject("{\"type\":\"object\",\"properties\":{}}"))
+                .addInput(OpenRouterInputItem.itemReference("msg-prior-question"))
+                .addInput(OpenRouterInputItem.outputMessage("msg-0",
+                        "Hello! How can I help you today?"))
+                .addInput(OpenRouterInputItem.raw(new JSONObject()
+                        .put("type", "message")
+                        .put("role", "assistant")
+                        .put("id", "msg-1")
+                        .put("status", "completed")
+                        .put("phase", "final_answer")
+                        .put("content", new org.json.JSONArray()
+                                .put(new JSONObject()
+                                        .put("type", "output_text")
+                                        .put("text", "I will check the weather for you.")))))
+                .addInput(OpenRouterInputItem.reasoning("reasoning-1",
+                        "Checked the forecast", "sig-from-turn-one=="))
+                .addInput(OpenRouterInputItem.functionCall("call-1", "get_weather",
+                        "{\"location\":\"San Francisco\"}"))
+                // ... execute the tool yourself, then send the result back:
+                .addInput(OpenRouterInputItem.functionCallOutput("call-1",
+                        "{\"temperature\":72,\"conditions\":\"sunny\"}"))
+                .build();
+        System.out.println("Tool-call continuation:    " + continued.getBody());
     }
 }
