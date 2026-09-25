@@ -186,6 +186,105 @@ public final class OpenRouterMessagesResponse extends OpenRouterResponse<OpenRou
     }
 
     /**
+     * @return the {@code compaction} content blocks - the compaction summary
+     *         the server inserted after a {@code compact_20260112}
+     *         context-management edit ({@code stop_reason} may then be
+     *         {@code compaction}), empty when absent
+     */
+    public List<OpenRouterCompactionBlock> compactionBlocks() {
+        return mapBlocks("compaction", OpenRouterCompactionBlock::new);
+    }
+
+    /**
+     * @return the {@code container_upload} content blocks - the container
+     *         file a bash/shell server tool wrote (download or promote it via
+     *         {@code client.containers()}), empty when absent
+     */
+    public List<OpenRouterContainerUploadBlock> containerUploadBlocks() {
+        return mapBlocks("container_upload", OpenRouterContainerUploadBlock::new);
+    }
+
+    /**
+     * @return the {@code web_search_tool_result} content blocks - the result
+     *         (or error) of a server-orchestrated web search, empty when
+     *         absent
+     */
+    public List<OpenRouterWebSearchToolResultBlock> webSearchToolResultBlocks() {
+        return mapBlocks("web_search_tool_result", OpenRouterWebSearchToolResultBlock::new);
+    }
+
+    /**
+     * @return the {@code web_fetch_tool_result} content blocks - the result
+     *         (or error) of a server-orchestrated web fetch, empty when
+     *         absent
+     */
+    public List<OpenRouterWebFetchToolResultBlock> webFetchToolResultBlocks() {
+        return mapBlocks("web_fetch_tool_result", OpenRouterWebFetchToolResultBlock::new);
+    }
+
+    /**
+     * @return the {@code code_execution_tool_result} content blocks - the
+     *         result (or error) of a code-execution server tool, empty when
+     *         absent
+     */
+    public List<OpenRouterCodeExecutionToolResultBlock> codeExecutionToolResultBlocks() {
+        return mapBlocks("code_execution_tool_result", OpenRouterCodeExecutionToolResultBlock::new);
+    }
+
+    /**
+     * @return the {@code bash_code_execution_tool_result} content blocks -
+     *         the result (or error) of a bash code-execution server tool,
+     *         empty when absent
+     */
+    public List<OpenRouterBashCodeExecutionToolResultBlock> bashCodeExecutionToolResultBlocks() {
+        return mapBlocks("bash_code_execution_tool_result", OpenRouterBashCodeExecutionToolResultBlock::new);
+    }
+
+    /**
+     * @return the {@code text_editor_code_execution_tool_result} content
+     *         blocks - the result (or error) of the text-editor code
+     *         execution tool, empty when absent
+     */
+    public List<OpenRouterTextEditorCodeExecutionToolResultBlock> textEditorCodeExecutionToolResultBlocks() {
+        return mapBlocks("text_editor_code_execution_tool_result", OpenRouterTextEditorCodeExecutionToolResultBlock::new);
+    }
+
+    /**
+     * @return the {@code tool_search_tool_result} content blocks - the tool
+     *         references a {@code openrouter:tool_search} lookup returned,
+     *         empty when absent
+     */
+    public List<OpenRouterToolSearchToolResultBlock> toolSearchToolResultBlocks() {
+        return mapBlocks("tool_search_tool_result", OpenRouterToolSearchToolResultBlock::new);
+    }
+
+    /**
+     * @return the {@code advisor_tool_result} content blocks - the advisor
+     *         model's advice, empty when absent
+     */
+    public List<OpenRouterAdvisorToolResultBlock> advisorToolResultBlocks() {
+        return mapBlocks("advisor_tool_result", OpenRouterAdvisorToolResultBlock::new);
+    }
+
+    /**
+     * @return the {@code openrouter_shell_tool_result} content blocks - the
+     *         output of an {@code openrouter:shell} call run in the OpenRouter
+     *         sandbox, empty when absent
+     */
+    public List<OpenRouterShellToolResultBlock> shellToolResultBlocks() {
+        return mapBlocks("openrouter_shell_tool_result", OpenRouterShellToolResultBlock::new);
+    }
+
+    /**
+     * @return the {@code openrouter_bash_tool_result} content blocks - the
+     *         output of an {@code openrouter:bash} call run in the OpenRouter
+     *         sandbox, empty when absent
+     */
+    public List<OpenRouterBashToolResultBlock> bashToolResultBlocks() {
+        return mapBlocks("openrouter_bash_tool_result", OpenRouterBashToolResultBlock::new);
+    }
+
+    /**
      * JSON path: {@code context_management.applied_edits} - the server-side
      * context edits Anthropic actually applied to the prompt this turn (each
      * entry is a free-form object with a required {@code type}; e.g. a
@@ -591,6 +690,1097 @@ public final class OpenRouterMessagesResponse extends OpenRouterResponse<OpenRou
             } catch (Exception e) {
                 return null;
             }
+        }
+    }
+
+    /**
+     * A {@code compaction} content block - the compaction summary the server
+     * inserted after a {@code compact_20260112} context-management edit (the
+     * request side is {@code OpenRouterCompactEdit}).
+     */
+    public static final class OpenRouterCompactionBlock {
+
+        private final JSONObject json;
+
+        OpenRouterCompactionBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /** @return the compaction summary text, or {@code null} when absent */
+        public String content() {
+            try {
+                return json.optString("content", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the encrypted compaction payload ({@code encrypted_content})
+         *         some providers return alongside - or, when {@code content}
+         *         is null, instead of - the plaintext {@link #content()}
+         *         summary, or {@code null} when absent
+         */
+        public String encryptedContent() {
+            try {
+                return json.optString("encrypted_content", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * A {@code container_upload} content block - the container file a
+     * bash/shell server tool wrote. The file lives in the code-execution
+     * container; download it via {@code client.containers().fileContent(...)}
+     * or promote it into durable storage via
+     * {@code client.containers().promoteFile(...)}.
+     */
+    public static final class OpenRouterContainerUploadBlock {
+
+        private final JSONObject json;
+
+        OpenRouterContainerUploadBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /** @return the container file id, or {@code null} when absent */
+        public String fileId() {
+            try {
+                return json.optString("file_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * A {@code web_search_tool_result} content block - the result (or error)
+     * of a server-orchestrated web search. The {@code content} field is a
+     * union: either an array of search results or a single error object.
+     */
+    public static final class OpenRouterWebSearchToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterWebSearchToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the raw {@code caller} object (e.g.
+         *         {@code {"type":"direct"}}), or {@code null} when absent
+         */
+        public JSONObject caller() {
+            try {
+                return json.optJSONObject("caller");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the raw {@code content} object when it is the error form,
+         *         or {@code null} when absent or when {@code content} is the
+         *         results array (use {@link #results()} for that form)
+         */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the search result entries ({@code url}, {@code title},
+         *         {@code page_age}, {@code encrypted_content} per entry),
+         *         empty when absent or on the error form
+         */
+        public List<JSONObject> results() {
+            List<JSONObject> result = new ArrayList<>();
+            try {
+                JSONArray content = json.optJSONArray("content");
+                if (content != null) {
+                    for (int i = 0; i < content.length(); i++) {
+                        JSONObject entry = content.optJSONObject(i);
+                        if (entry != null) {
+                            result.add(entry);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // swallow-and-return-empty convention
+            }
+            return result;
+        }
+
+        /**
+         * @return the error code when the search failed (e.g.
+         *         {@code unavailable}, {@code max_uses_exceeded}), or
+         *         {@code null} on the success form
+         */
+        public String errorCode() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("error_code", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * A {@code web_fetch_tool_result} content block - the result (or error)
+     * of a server-orchestrated web fetch. The {@code content} field is a
+     * union: {@code web_fetch_result} (fetched document) or
+     * {@code web_fetch_tool_result_error}.
+     */
+    public static final class OpenRouterWebFetchToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterWebFetchToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the raw {@code caller} object, or {@code null} when absent
+         */
+        public JSONObject caller() {
+            try {
+                return json.optJSONObject("caller");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the raw {@code content} union object, or {@code null} when absent */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the fetched URL ({@code content.url}), or {@code null} on
+         *         the error form or when absent
+         */
+        public String url() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("url", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the retrieval timestamp ({@code content.retrieved_at}),
+         *         or {@code null} when absent
+         */
+        public String retrievedAt() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("retrieved_at", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the fetched document ({@code content.content}, a document
+         *         block with {@code source} / {@code title}), or {@code null}
+         *         when absent
+         */
+        public JSONObject document() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optJSONObject("content") : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the error code when the fetch failed (e.g.
+         *         {@code url_not_accessible}, {@code unavailable}), or
+         *         {@code null} on the success form
+         */
+        public String errorCode() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("error_code", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * A {@code code_execution_tool_result} content block - the result (or
+     * error) of a code-execution server tool. The {@code content} field is a
+     * union: {@code code_execution_result}, {@code encrypted_code_execution_result}
+     * or {@code code_execution_tool_result_error}.
+     */
+    public static final class OpenRouterCodeExecutionToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterCodeExecutionToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the raw {@code content} union object, or {@code null} when absent */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the process exit code ({@code content.return_code}), or
+         *         {@code null} when absent
+         */
+        public Integer returnCode() {
+            try {
+                JSONObject content = content();
+                if (content == null || !content.has("return_code") || content.isNull("return_code")) {
+                    return null;
+                }
+                Object value = content.get("return_code");
+                return value instanceof Number number ? number.intValue() : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the captured standard output ({@code content.stdout}), or
+         *         {@code null} when absent (the encrypted variant carries
+         *         {@link #encryptedStdout()} instead)
+         */
+        public String stdout() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("stdout", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the captured standard error ({@code content.stderr}), or
+         *         {@code null} when absent
+         */
+        public String stderr() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("stderr", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the encrypted standard output of the
+         *         {@code encrypted_code_execution_result} variant, or
+         *         {@code null} on the plaintext form
+         */
+        public String encryptedStdout() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("encrypted_stdout", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the file ids the execution produced ({@code content.content[].file_id}),
+         *         empty when absent or on the error form
+         */
+        public List<String> outputFileIds() {
+            List<String> result = new ArrayList<>();
+            try {
+                JSONObject content = content();
+                JSONArray outputs = content == null ? null : content.optJSONArray("content");
+                if (outputs != null) {
+                    for (int i = 0; i < outputs.length(); i++) {
+                        JSONObject output = outputs.optJSONObject(i);
+                        if (output != null && output.optString("file_id", null) != null) {
+                            result.add(output.optString("file_id"));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // swallow-and-return-empty convention
+            }
+            return result;
+        }
+
+        /**
+         * @return the error code when the execution failed (e.g.
+         *         {@code invalid_tool_input}, {@code execution_time_exceeded}),
+         *         or {@code null} on the success form
+         */
+        public String errorCode() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("error_code", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * A {@code bash_code_execution_tool_result} content block - the result
+     * (or error) of a bash code-execution server tool. The {@code content}
+     * field is a union: {@code bash_code_execution_result} or
+     * {@code bash_code_execution_tool_result_error}.
+     */
+    public static final class OpenRouterBashCodeExecutionToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterBashCodeExecutionToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the raw {@code content} union object, or {@code null} when absent */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the process exit code ({@code content.return_code}), or
+         *         {@code null} when absent
+         */
+        public Integer returnCode() {
+            try {
+                JSONObject content = content();
+                if (content == null || !content.has("return_code") || content.isNull("return_code")) {
+                    return null;
+                }
+                Object value = content.get("return_code");
+                return value instanceof Number number ? number.intValue() : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the captured standard output ({@code content.stdout}), or
+         *         {@code null} when absent
+         */
+        public String stdout() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("stdout", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the captured standard error ({@code content.stderr}), or
+         *         {@code null} when absent
+         */
+        public String stderr() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("stderr", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the file ids the execution produced ({@code content.content[].file_id}),
+         *         empty when absent or on the error form
+         */
+        public List<String> outputFileIds() {
+            List<String> result = new ArrayList<>();
+            try {
+                JSONObject content = content();
+                JSONArray outputs = content == null ? null : content.optJSONArray("content");
+                if (outputs != null) {
+                    for (int i = 0; i < outputs.length(); i++) {
+                        JSONObject output = outputs.optJSONObject(i);
+                        if (output != null && output.optString("file_id", null) != null) {
+                            result.add(output.optString("file_id"));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // swallow-and-return-empty convention
+            }
+            return result;
+        }
+
+        /**
+         * @return the error code when the execution failed (documented
+         *         values: {@code invalid_tool_input}, {@code unavailable},
+         *         {@code too_many_requests}, {@code execution_time_exceeded},
+         *         {@code output_file_too_large}), or {@code null} on the
+         *         success form
+         */
+        public String errorCode() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("error_code", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * A {@code text_editor_code_execution_tool_result} content block - the
+     * result (or error) of the text-editor code execution tool. The
+     * {@code content} field is a union of the view / create / str_replace
+     * result forms and the error form.
+     */
+    public static final class OpenRouterTextEditorCodeExecutionToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterTextEditorCodeExecutionToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the raw {@code content} union object, or {@code null} when absent */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the content variant ({@code content.type}: {@code text_editor_code_execution_view_result},
+         *         {@code ..._create_result}, {@code ..._str_replace_result} or
+         *         {@code ..._tool_result_error}), or {@code null} when absent
+         */
+        public String resultType() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("type", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the viewed file content ({@code content.content}, view
+         *         result form only), or {@code null} when absent
+         */
+        public String text() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("content", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the viewed file's type ({@code content.file_type}), or
+         *         {@code null} when absent
+         */
+        public String fileType() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("file_type", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the number of lines in the returned excerpt
+         *         ({@code content.num_lines}), or {@code null} when absent
+         */
+        public Integer numLines() {
+            return contentInt("num_lines");
+        }
+
+        /**
+         * @return the first line of the returned excerpt
+         *         ({@code content.start_line}), or {@code null} when absent
+         */
+        public Integer startLine() {
+            return contentInt("start_line");
+        }
+
+        /**
+         * @return the total line count of the file
+         *         ({@code content.total_lines}), or {@code null} when absent
+         */
+        public Integer totalLines() {
+            return contentInt("total_lines");
+        }
+
+        /**
+         * @return whether the create call updated an existing file
+         *         ({@code content.is_file_update}, create result form only),
+         *         or {@code null} when absent
+         */
+        public Boolean isFileUpdate() {
+            try {
+                JSONObject content = content();
+                if (content == null || !content.has("is_file_update") || content.isNull("is_file_update")) {
+                    return null;
+                }
+                return content.getBoolean("is_file_update");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the lines the str_replace call affected
+         *         ({@code content.lines}, str_replace result form only),
+         *         empty when absent
+         */
+        public List<String> lines() {
+            List<String> result = new ArrayList<>();
+            try {
+                JSONObject content = content();
+                JSONArray lines = content == null ? null : content.optJSONArray("lines");
+                if (lines != null) {
+                    for (int i = 0; i < lines.length(); i++) {
+                        String line = lines.optString(i, null);
+                        if (line != null) {
+                            result.add(line);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // swallow-and-return-empty convention
+            }
+            return result;
+        }
+
+        /**
+         * @return the first old line of the replaced range
+         *         ({@code content.old_start}, str_replace result form only),
+         *         or {@code null} when absent
+         */
+        public Integer oldStart() {
+            return contentInt("old_start");
+        }
+
+        /**
+         * @return the number of old lines replaced
+         *         ({@code content.old_lines}, str_replace result form only),
+         *         or {@code null} when absent
+         */
+        public Integer oldLines() {
+            return contentInt("old_lines");
+        }
+
+        /**
+         * @return the first new line after the replacement
+         *         ({@code content.new_start}, str_replace result form only),
+         *         or {@code null} when absent
+         */
+        public Integer newStart() {
+            return contentInt("new_start");
+        }
+
+        /**
+         * @return the number of new lines inserted
+         *         ({@code content.new_lines}, str_replace result form only),
+         *         or {@code null} when absent
+         */
+        public Integer newLines() {
+            return contentInt("new_lines");
+        }
+
+        /**
+         * @return the error code when the edit failed (e.g.
+         *         {@code file_not_found}, {@code invalid_tool_input}), or
+         *         {@code null} on the success form
+         */
+        public String errorCode() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("error_code", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the optional error message of the error form, or
+         *         {@code null} when absent
+         */
+        public String errorMessage() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("error_message", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+
+        private Integer contentInt(String key) {
+            try {
+                JSONObject content = content();
+                if (content == null || !content.has(key) || content.isNull(key)) {
+                    return null;
+                }
+                Object value = content.get(key);
+                return value instanceof Number number ? number.intValue() : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * A {@code tool_search_tool_result} content block - the tool references a
+     * {@code openrouter:tool_search} lookup returned (or its error). The
+     * {@code content} field is a union: {@code tool_search_tool_search_result}
+     * or {@code tool_search_tool_result_error}.
+     */
+    public static final class OpenRouterToolSearchToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterToolSearchToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the raw {@code content} union object, or {@code null} when absent */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the tool names this lookup resolved
+         *         ({@code content.tool_references[].tool_name}), empty when
+         *         absent or on the error form
+         */
+        public List<String> toolReferenceNames() {
+            List<String> result = new ArrayList<>();
+            try {
+                JSONObject content = content();
+                JSONArray references = content == null ? null : content.optJSONArray("tool_references");
+                if (references != null) {
+                    for (int i = 0; i < references.length(); i++) {
+                        JSONObject reference = references.optJSONObject(i);
+                        if (reference != null && reference.optString("tool_name", null) != null) {
+                            result.add(reference.optString("tool_name"));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // swallow-and-return-empty convention
+            }
+            return result;
+        }
+
+        /**
+         * @return the error code when the lookup failed, or {@code null} on
+         *         the success form
+         */
+        public String errorCode() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("error_code", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the optional error message of the error form, or
+         *         {@code null} when absent
+         */
+        public String errorMessage() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("error_message", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * An {@code advisor_tool_result} content block - the advisor model's
+     * response. The {@code content} object is provider-shaped; the common
+     * form carries {@code text} and {@code type}.
+     */
+    public static final class OpenRouterAdvisorToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterAdvisorToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the raw {@code content} object, or {@code null} when absent */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the advice text ({@code content.text}), or {@code null}
+         *         when absent - use {@link #content()} for other shapes
+         */
+        public String text() {
+            try {
+                JSONObject content = content();
+                return content != null ? content.optString("text", null) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * An {@code openrouter_shell_tool_result} content block - the output of
+     * an {@code openrouter:shell} call executed in the OpenRouter sandbox.
+     */
+    public static final class OpenRouterShellToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterShellToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the canonical container id the command ran under (the
+         *         {@code {container_id}} of the Container Files API,
+         *         reusable as a {@code container_reference}), or
+         *         {@code null} when absent
+         */
+        public String containerId() {
+            try {
+                return json.optString("container_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the raw {@code content} object (e.g. {@code output} entries
+         *         with {@code stdout} / {@code stderr} / {@code outcome}), or
+         *         {@code null} when absent
+         */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the file citations for files the command created or
+         *         modified (most-recently-touched first, at most 10; each
+         *         entry a {@code container_file_citation} with
+         *         {@code container_id} / {@code file_id} / {@code filename} /
+         *         {@code start_index} / {@code end_index}), empty when absent
+         */
+        public List<JSONObject> files() {
+            List<JSONObject> result = new ArrayList<>();
+            try {
+                JSONArray files = json.optJSONArray("files");
+                if (files != null) {
+                    for (int i = 0; i < files.length(); i++) {
+                        JSONObject file = files.optJSONObject(i);
+                        if (file != null) {
+                            result.add(file);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // swallow-and-return-empty convention
+            }
+            return result;
+        }
+
+        /**
+         * @return the container file ids of {@link #files()}, empty when
+         *         absent
+         */
+        public List<String> fileIds() {
+            List<String> result = new ArrayList<>();
+            for (JSONObject file : files()) {
+                String fileId = file.optString("file_id", null);
+                if (fileId != null) {
+                    result.add(fileId);
+                }
+            }
+            return result;
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
+        }
+    }
+
+    /**
+     * An {@code openrouter_bash_tool_result} content block - the output of an
+     * {@code openrouter:bash} call executed in the OpenRouter sandbox
+     * ({@code engine: 'openrouter'}).
+     */
+    public static final class OpenRouterBashToolResultBlock {
+
+        private final JSONObject json;
+
+        OpenRouterBashToolResultBlock(JSONObject json) {
+            this.json = json;
+        }
+
+        /**
+         * @return the server tool call id this result belongs to, or
+         *         {@code null} when absent
+         */
+        public String toolUseId() {
+            try {
+                return json.optString("tool_use_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the canonical container id the command ran under (the
+         *         {@code {container_id}} of the Container Files API,
+         *         reusable as a {@code container_reference}), or
+         *         {@code null} when absent
+         */
+        public String containerId() {
+            try {
+                return json.optString("container_id", null);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the raw {@code content} object (e.g. {@code command},
+         *         {@code exitCode}, {@code stdout}, {@code stderr}), or
+         *         {@code null} when absent
+         */
+        public JSONObject content() {
+            try {
+                return json.optJSONObject("content");
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the file citations for files the command created or
+         *         modified (most-recently-touched first, at most 10; each
+         *         entry a {@code container_file_citation} with
+         *         {@code container_id} / {@code file_id} / {@code filename} /
+         *         {@code start_index} / {@code end_index}), empty when absent
+         */
+        public List<JSONObject> files() {
+            List<JSONObject> result = new ArrayList<>();
+            try {
+                JSONArray files = json.optJSONArray("files");
+                if (files != null) {
+                    for (int i = 0; i < files.length(); i++) {
+                        JSONObject file = files.optJSONObject(i);
+                        if (file != null) {
+                            result.add(file);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // swallow-and-return-empty convention
+            }
+            return result;
+        }
+
+        /**
+         * @return the container file ids of {@link #files()}, empty when
+         *         absent
+         */
+        public List<String> fileIds() {
+            List<String> result = new ArrayList<>();
+            for (JSONObject file : files()) {
+                String fileId = file.optString("file_id", null);
+                if (fileId != null) {
+                    result.add(fileId);
+                }
+            }
+            return result;
+        }
+
+        /** @return the verbatim block object */
+        public JSONObject json() {
+            return json;
         }
     }
 

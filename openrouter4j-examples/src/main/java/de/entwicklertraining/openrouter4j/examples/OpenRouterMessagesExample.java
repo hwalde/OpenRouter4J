@@ -102,6 +102,37 @@ public class OpenRouterMessagesExample {
             System.out.println("safeguard " + result.type() + ": " + result.status());
         }
 
+        // Typed views over the remaining content-block kinds: the compaction
+        // summary a compact_20260112 edit inserted, the container file a
+        // bash/shell server tool wrote, and the server-tool results (their
+        // content is a union - errorCode() is set on the error form).
+        for (OpenRouterMessagesResponse.OpenRouterCompactionBlock block
+                : response.compactionBlocks()) {
+            System.out.println("compaction summary: " + block.content());
+        }
+        for (OpenRouterMessagesResponse.OpenRouterContainerUploadBlock block
+                : response.containerUploadBlocks()) {
+            System.out.println("container file written: " + block.fileId());
+        }
+        for (OpenRouterMessagesResponse.OpenRouterWebSearchToolResultBlock block
+                : response.webSearchToolResultBlocks()) {
+            System.out.println("web search " + block.toolUseId() + ": "
+                    + (block.errorCode() != null ? "error " + block.errorCode()
+                        : block.results().size() + " results"));
+        }
+        for (OpenRouterMessagesResponse.OpenRouterBashToolResultBlock block
+                : response.bashToolResultBlocks()) {
+            System.out.println("sandbox bash in " + block.containerId() + ": "
+                    + block.content() + ", files " + block.fileIds());
+        }
+        // The text-editor tool result is a four-form union - route on resultType().
+        for (OpenRouterMessagesResponse.OpenRouterTextEditorCodeExecutionToolResultBlock block
+                : response.textEditorCodeExecutionToolResultBlocks()) {
+            System.out.println("text editor " + block.toolUseId() + ": " + block.resultType()
+                    + (block.errorCode() != null ? " error " + block.errorCode()
+                        : " lines " + block.lines() + " file updated " + block.isFileUpdate()));
+        }
+
         // 2. Streaming: enable SSE and parse the Anthropic event model. The
         //    body carries stream:true automatically; events are executed
         //    through the client (executeAsync) and completed when the stream

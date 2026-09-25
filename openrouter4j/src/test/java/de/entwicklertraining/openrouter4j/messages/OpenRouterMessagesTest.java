@@ -610,6 +610,17 @@ class OpenRouterMessagesTest {
         assertThat(response.appliedContextEdits()).isEmpty();
         assertThat(response.inputTransformations()).isEmpty();
         assertThat(response.safeguardResults()).isEmpty();
+        assertThat(response.compactionBlocks()).isEmpty();
+        assertThat(response.containerUploadBlocks()).isEmpty();
+        assertThat(response.webSearchToolResultBlocks()).isEmpty();
+        assertThat(response.webFetchToolResultBlocks()).isEmpty();
+        assertThat(response.codeExecutionToolResultBlocks()).isEmpty();
+        assertThat(response.bashCodeExecutionToolResultBlocks()).isEmpty();
+        assertThat(response.textEditorCodeExecutionToolResultBlocks()).isEmpty();
+        assertThat(response.toolSearchToolResultBlocks()).isEmpty();
+        assertThat(response.advisorToolResultBlocks()).isEmpty();
+        assertThat(response.shellToolResultBlocks()).isEmpty();
+        assertThat(response.bashToolResultBlocks()).isEmpty();
     }
 
     @Test
@@ -1024,6 +1035,301 @@ class OpenRouterMessagesTest {
         OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
 
         assertThat(response.safeguardResults()).isEmpty();
+    }
+
+    @Test
+    void responseExposesCompactionAndContainerUploadBlocks() {
+        String fixture = """
+                {
+                  "id": "msg_01COMP",
+                  "type": "message",
+                  "role": "assistant",
+                  "model": "claude-sonnet-4-5-20250929",
+                  "content": [
+                    {"type": "compaction", "content": "Compacted summary.",
+                     "encrypted_content": "enc-1"},
+                    {"type": "container_upload", "file_id": "cfile_01abc"}
+                  ],
+                  "stop_reason": "compaction",
+                  "usage": {"input_tokens": 12, "output_tokens": 8}
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.compactionBlocks()).hasSize(1);
+        assertThat(response.compactionBlocks().get(0).content()).isEqualTo("Compacted summary.");
+        assertThat(response.compactionBlocks().get(0).encryptedContent()).isEqualTo("enc-1");
+        assertThat(response.compactionBlocks().get(0).json().getString("type")).isEqualTo("compaction");
+        assertThat(response.containerUploadBlocks()).hasSize(1);
+        assertThat(response.containerUploadBlocks().get(0).fileId()).isEqualTo("cfile_01abc");
+        assertThat(response.containerUploadBlocks().get(0).json().getString("file_id"))
+                .isEqualTo("cfile_01abc");
+        assertThat(response.textBlocks()).isEmpty();
+    }
+
+    @Test
+    void responseCompactionBlockToleratesAbsentOptionalFields() {
+        String fixture = """
+                {
+                  "content": [{"type": "compaction", "content": "summary only"}],
+                  "stop_reason": "compaction"
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.compactionBlocks()).hasSize(1);
+        assertThat(response.compactionBlocks().get(0).content()).isEqualTo("summary only");
+        assertThat(response.compactionBlocks().get(0).encryptedContent()).isNull();
+    }
+
+    @Test
+    void responseExposesWebSearchAndWebFetchToolResultBlocks() {
+        String fixture = """
+                {
+                  "content": [
+                    {"type": "web_search_tool_result", "tool_use_id": "srvtoolu_01",
+                     "caller": {"type": "direct"},
+                     "content": [{"type": "web_search_result", "url": "https://example.com",
+                                  "title": "Example Page", "encrypted_content": "enc"}]},
+                    {"type": "web_search_tool_result", "tool_use_id": "srvtoolu_02",
+                     "caller": {"type": "direct"},
+                     "content": {"type": "web_search_tool_result_error",
+                                 "error_code": "max_uses_exceeded"}},
+                    {"type": "web_fetch_tool_result", "tool_use_id": "srvtoolu_03",
+                     "caller": {"type": "direct"},
+                     "content": {"type": "web_fetch_result", "url": "https://example.com",
+                                 "retrieved_at": "2026-09-25T00:00:00Z",
+                                 "content": {"type": "document", "title": "Example Page"}}},
+                    {"type": "web_fetch_tool_result", "tool_use_id": "srvtoolu_04",
+                     "caller": {"type": "direct"},
+                     "content": {"type": "web_fetch_tool_result_error",
+                                 "error_code": "url_not_accessible"}}
+                  ]
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.webSearchToolResultBlocks()).hasSize(2);
+        var search = response.webSearchToolResultBlocks().get(0);
+        assertThat(search.toolUseId()).isEqualTo("srvtoolu_01");
+        assertThat(search.caller().getString("type")).isEqualTo("direct");
+        assertThat(search.results()).hasSize(1);
+        assertThat(search.results().get(0).getString("url")).isEqualTo("https://example.com");
+        assertThat(search.content()).isNull();
+        assertThat(search.errorCode()).isNull();
+        assertThat(search.json().getString("tool_use_id")).isEqualTo("srvtoolu_01");
+        var searchError = response.webSearchToolResultBlocks().get(1);
+        assertThat(searchError.errorCode()).isEqualTo("max_uses_exceeded");
+        assertThat(searchError.results()).isEmpty();
+        assertThat(searchError.content().getString("type")).isEqualTo("web_search_tool_result_error");
+
+        assertThat(response.webFetchToolResultBlocks()).hasSize(2);
+        var fetch = response.webFetchToolResultBlocks().get(0);
+        assertThat(fetch.toolUseId()).isEqualTo("srvtoolu_03");
+        assertThat(fetch.caller().getString("type")).isEqualTo("direct");
+        assertThat(fetch.url()).isEqualTo("https://example.com");
+        assertThat(fetch.retrievedAt()).isEqualTo("2026-09-25T00:00:00Z");
+        assertThat(fetch.document().getString("title")).isEqualTo("Example Page");
+        assertThat(fetch.errorCode()).isNull();
+        assertThat(fetch.json().getString("type")).isEqualTo("web_fetch_tool_result");
+        assertThat(response.webFetchToolResultBlocks().get(1).errorCode())
+                .isEqualTo("url_not_accessible");
+    }
+
+    @Test
+    void responseExposesCodeExecutionToolResultBlocks() {
+        String fixture = """
+                {
+                  "content": [
+                    {"type": "code_execution_tool_result", "tool_use_id": "srvtoolu_05",
+                     "content": {"type": "code_execution_result",
+                                 "content": [{"type": "code_execution_output",
+                                              "file_id": "file_01abc"}],
+                                 "return_code": 0, "stderr": "", "stdout": "Hello"}},
+                    {"type": "code_execution_tool_result", "tool_use_id": "srvtoolu_06",
+                     "content": {"type": "code_execution_tool_result_error",
+                                 "error_code": "execution_time_exceeded"}},
+                    {"type": "code_execution_tool_result", "tool_use_id": "srvtoolu_06b",
+                     "content": {"type": "encrypted_code_execution_result",
+                                 "content": [],
+                                 "encrypted_stdout": "enc_stdout_1",
+                                 "return_code": 0, "stderr": ""}},
+                    {"type": "bash_code_execution_tool_result", "tool_use_id": "srvtoolu_07",
+                     "content": {"type": "bash_code_execution_result",
+                                 "content": [{"type": "bash_code_execution_output",
+                                              "file_id": "file_02"}],
+                                 "return_code": 1, "stderr": "boom", "stdout": "partial out"}},
+                    {"type": "bash_code_execution_tool_result", "tool_use_id": "srvtoolu_07b",
+                     "content": {"type": "bash_code_execution_tool_result_error",
+                                 "error_code": "output_file_too_large"}}
+                  ]
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.codeExecutionToolResultBlocks()).hasSize(3);
+        var execution = response.codeExecutionToolResultBlocks().get(0);
+        assertThat(execution.toolUseId()).isEqualTo("srvtoolu_05");
+        assertThat(execution.returnCode()).isEqualTo(0);
+        assertThat(execution.stdout()).isEqualTo("Hello");
+        assertThat(execution.stderr()).isEmpty();
+        assertThat(execution.outputFileIds()).containsExactly("file_01abc");
+        assertThat(execution.encryptedStdout()).isNull();
+        assertThat(execution.errorCode()).isNull();
+        assertThat(execution.json().getString("tool_use_id")).isEqualTo("srvtoolu_05");
+        var executionError = response.codeExecutionToolResultBlocks().get(1);
+        assertThat(executionError.errorCode()).isEqualTo("execution_time_exceeded");
+        assertThat(executionError.returnCode()).isNull();
+        assertThat(executionError.outputFileIds()).isEmpty();
+        var encrypted = response.codeExecutionToolResultBlocks().get(2);
+        assertThat(encrypted.encryptedStdout()).isEqualTo("enc_stdout_1");
+        assertThat(encrypted.stdout()).isNull();
+        assertThat(encrypted.errorCode()).isNull();
+
+        assertThat(response.bashCodeExecutionToolResultBlocks()).hasSize(2);
+        var bash = response.bashCodeExecutionToolResultBlocks().get(0);
+        assertThat(bash.toolUseId()).isEqualTo("srvtoolu_07");
+        assertThat(bash.returnCode()).isEqualTo(1);
+        assertThat(bash.stdout()).isEqualTo("partial out");
+        assertThat(bash.stderr()).isEqualTo("boom");
+        assertThat(bash.outputFileIds()).containsExactly("file_02");
+        assertThat(bash.errorCode()).isNull();
+        assertThat(bash.json().getString("type")).isEqualTo("bash_code_execution_tool_result");
+        var bashError = response.bashCodeExecutionToolResultBlocks().get(1);
+        assertThat(bashError.errorCode()).isEqualTo("output_file_too_large");
+        assertThat(bashError.returnCode()).isNull();
+        assertThat(bashError.stdout()).isNull();
+        assertThat(bashError.outputFileIds()).isEmpty();
+    }
+
+    @Test
+    void responseExposesTextEditorAndToolSearchToolResultBlocks() {
+        String fixture = """
+                {
+                  "content": [
+                    {"type": "text_editor_code_execution_tool_result", "tool_use_id": "srvtoolu_08",
+                     "content": {"type": "text_editor_code_execution_view_result",
+                                 "content": "file content", "file_type": "text",
+                                 "num_lines": 10, "start_line": 1, "total_lines": 42}},
+                    {"type": "text_editor_code_execution_tool_result", "tool_use_id": "srvtoolu_09",
+                     "content": {"type": "text_editor_code_execution_tool_result_error",
+                                 "error_code": "file_not_found", "error_message": "missing"}},
+                    {"type": "text_editor_code_execution_tool_result", "tool_use_id": "srvtoolu_09b",
+                     "content": {"type": "text_editor_code_execution_create_result",
+                                 "is_file_update": true}},
+                    {"type": "text_editor_code_execution_tool_result", "tool_use_id": "srvtoolu_09c",
+                     "content": {"type": "text_editor_code_execution_str_replace_result",
+                                 "lines": ["old", "new"], "old_start": 3, "old_lines": 1,
+                                 "new_start": 7, "new_lines": 2}},
+                    {"type": "tool_search_tool_result", "tool_use_id": "srvtoolu_10",
+                     "content": {"type": "tool_search_tool_search_result",
+                                 "tool_references": [{"type": "tool_reference",
+                                                      "tool_name": "my_tool"}]}},
+                    {"type": "tool_search_tool_result", "tool_use_id": "srvtoolu_10b",
+                     "content": {"type": "tool_search_tool_result_error",
+                                 "error_code": "too_many_requests",
+                                 "error_message": "slow down"}}
+                  ]
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.textEditorCodeExecutionToolResultBlocks()).hasSize(4);
+        var view = response.textEditorCodeExecutionToolResultBlocks().get(0);
+        assertThat(view.toolUseId()).isEqualTo("srvtoolu_08");
+        assertThat(view.resultType()).isEqualTo("text_editor_code_execution_view_result");
+        assertThat(view.text()).isEqualTo("file content");
+        assertThat(view.fileType()).isEqualTo("text");
+        assertThat(view.numLines()).isEqualTo(10);
+        assertThat(view.startLine()).isEqualTo(1);
+        assertThat(view.totalLines()).isEqualTo(42);
+        assertThat(view.errorCode()).isNull();
+        assertThat(view.isFileUpdate()).isNull();
+        assertThat(view.lines()).isEmpty();
+        assertThat(view.json().getString("type")).isEqualTo("text_editor_code_execution_tool_result");
+        var viewError = response.textEditorCodeExecutionToolResultBlocks().get(1);
+        assertThat(viewError.errorCode()).isEqualTo("file_not_found");
+        assertThat(viewError.errorMessage()).isEqualTo("missing");
+        assertThat(viewError.text()).isNull();
+        var created = response.textEditorCodeExecutionToolResultBlocks().get(2);
+        assertThat(created.resultType()).isEqualTo("text_editor_code_execution_create_result");
+        assertThat(created.isFileUpdate()).isTrue();
+        assertThat(created.errorCode()).isNull();
+        var replaced = response.textEditorCodeExecutionToolResultBlocks().get(3);
+        assertThat(replaced.resultType()).isEqualTo("text_editor_code_execution_str_replace_result");
+        assertThat(replaced.lines()).containsExactly("old", "new");
+        assertThat(replaced.oldStart()).isEqualTo(3);
+        assertThat(replaced.oldLines()).isEqualTo(1);
+        assertThat(replaced.newStart()).isEqualTo(7);
+        assertThat(replaced.newLines()).isEqualTo(2);
+        assertThat(replaced.isFileUpdate()).isNull();
+
+        assertThat(response.toolSearchToolResultBlocks()).hasSize(2);
+        var search = response.toolSearchToolResultBlocks().get(0);
+        assertThat(search.toolUseId()).isEqualTo("srvtoolu_10");
+        assertThat(search.toolReferenceNames()).containsExactly("my_tool");
+        assertThat(search.errorCode()).isNull();
+        assertThat(search.errorMessage()).isNull();
+        assertThat(search.json().getString("tool_use_id")).isEqualTo("srvtoolu_10");
+        var searchError = response.toolSearchToolResultBlocks().get(1);
+        assertThat(searchError.errorCode()).isEqualTo("too_many_requests");
+        assertThat(searchError.errorMessage()).isEqualTo("slow down");
+        assertThat(searchError.toolReferenceNames()).isEmpty();
+    }
+
+    @Test
+    void responseExposesAdvisorAndSandboxToolResultBlocks() {
+        String fixture = """
+                {
+                  "content": [
+                    {"type": "advisor_tool_result", "tool_use_id": "srvtoolu_11",
+                     "content": {"type": "advisor_result", "text": "Advisor response text"}},
+                    {"type": "openrouter_shell_tool_result", "tool_use_id": "srvtoolu_12",
+                     "container_id": "ctr_01abc",
+                     "content": {"output": [{"stdout": "README.md\\n", "stderr": "",
+                                             "outcome": {"type": "exit", "exit_code": 0}}]},
+                     "files": [{"type": "container_file_citation", "container_id": "ctr_01abc",
+                                "file_id": "cfile_1", "filename": "out.txt",
+                                "start_index": 0, "end_index": 5}]},
+                    {"type": "openrouter_bash_tool_result", "tool_use_id": "srvtoolu_13",
+                     "container_id": "ctr_02",
+                     "content": {"command": "ls", "exitCode": 0, "stderr": "",
+                                 "stdout": "README.md\\n"},
+                     "files": [{"type": "container_file_citation", "container_id": "ctr_02",
+                                "file_id": "cfile_9", "filename": "notes.md",
+                                "start_index": 1, "end_index": 9}]}
+                  ]
+                }
+                """;
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse(fixture);
+
+        assertThat(response.advisorToolResultBlocks()).hasSize(1);
+        assertThat(response.advisorToolResultBlocks().get(0).toolUseId()).isEqualTo("srvtoolu_11");
+        assertThat(response.advisorToolResultBlocks().get(0).text())
+                .isEqualTo("Advisor response text");
+        assertThat(response.advisorToolResultBlocks().get(0).json().getString("tool_use_id"))
+                .isEqualTo("srvtoolu_11");
+
+        assertThat(response.shellToolResultBlocks()).hasSize(1);
+        var shell = response.shellToolResultBlocks().get(0);
+        assertThat(shell.toolUseId()).isEqualTo("srvtoolu_12");
+        assertThat(shell.containerId()).isEqualTo("ctr_01abc");
+        assertThat(shell.files()).hasSize(1);
+        assertThat(shell.files().get(0).getString("filename")).isEqualTo("out.txt");
+        assertThat(shell.fileIds()).containsExactly("cfile_1");
+        assertThat(shell.content().getJSONArray("output")).hasSize(1);
+        assertThat(shell.json().getString("type")).isEqualTo("openrouter_shell_tool_result");
+
+        assertThat(response.bashToolResultBlocks()).hasSize(1);
+        var bash = response.bashToolResultBlocks().get(0);
+        assertThat(bash.toolUseId()).isEqualTo("srvtoolu_13");
+        assertThat(bash.containerId()).isEqualTo("ctr_02");
+        assertThat(bash.content().getString("command")).isEqualTo("ls");
+        assertThat(bash.files()).hasSize(1);
+        assertThat(bash.files().get(0).getString("filename")).isEqualTo("notes.md");
+        assertThat(bash.files().get(0).getInt("start_index")).isEqualTo(1);
+        assertThat(bash.fileIds()).containsExactly("cfile_9");
+        assertThat(bash.json().getString("type")).isEqualTo("openrouter_bash_tool_result");
     }
 
     @Test
