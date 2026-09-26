@@ -34,7 +34,7 @@ class OpenRouterBatchesTest {
         return new OpenRouterBatchSubmitRequest.Builder(client())
                 .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
                 .model("openai/gpt-4o")
-                .addRequest("req-0001", new JSONObject()
+                .addRequestBody("req-0001", new JSONObject()
                         .put("messages", new JSONArray()
                                 .put(new JSONObject().put("role", "user").put("content", "Hi"))));
     }
@@ -104,7 +104,7 @@ class OpenRouterBatchesTest {
             JSONObject json = new JSONObject(new OpenRouterBatchSubmitRequest.Builder(client())
                     .endpoint(endpoint)
                     .model("openai/gpt-4o")
-                    .addRequest("req-0001", new JSONObject().put("input", "Hi"))
+                    .addRequestBody("req-0001", new JSONObject().put("input", "Hi"))
                     .build()
                     .getBody());
             assertThat(json.getString("endpoint")).isEqualTo(endpoint.wireName());
@@ -159,14 +159,22 @@ class OpenRouterBatchesTest {
     void submitBuilderRejectsMissingRequiredFieldsLoudly() {
         assertThatThrownBy(() -> new OpenRouterBatchSubmitRequest.Builder(client())
                 .model("openai/gpt-4o")
-                .addRequest("req-0001", new JSONObject())
+                .addRequestBody("req-0001", new JSONObject())
                 .build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("endpoint is required");
 
         assertThatThrownBy(() -> new OpenRouterBatchSubmitRequest.Builder(client())
                 .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
-                .addRequest("req-0001", new JSONObject())
+                .addRequestBody("req-0001", new JSONObject())
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("model is required");
+
+        assertThatThrownBy(() -> new OpenRouterBatchSubmitRequest.Builder(client())
+                .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
+                .model(" ")
+                .addRequestBody("req-0001", new JSONObject())
                 .build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("model is required");
@@ -184,8 +192,8 @@ class OpenRouterBatchesTest {
         assertThatThrownBy(() -> new OpenRouterBatchSubmitRequest.Builder(client())
                 .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
                 .model("openai/gpt-4o")
-                .addRequest("req-0001", new JSONObject().put("input", "a"))
-                .addRequest("req-0001", new JSONObject().put("input", "b"))
+                .addRequestBody("req-0001", new JSONObject().put("input", "a"))
+                .addRequestBody("req-0001", new JSONObject().put("input", "b"))
                 .build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("custom_id must be unique")
@@ -197,7 +205,7 @@ class OpenRouterBatchesTest {
         assertThatThrownBy(() -> new OpenRouterBatchSubmitRequest.Builder(client())
                 .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
                 .model("openai/gpt-4o")
-                .addRequest("req-0001", new JSONObject().put("model", "openai/gpt-4o-mini"))
+                .addRequestBody("req-0001", new JSONObject().put("model", "openai/gpt-4o-mini"))
                 .build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("must match the batch-level model");
@@ -205,8 +213,8 @@ class OpenRouterBatchesTest {
         JSONObject matched = new JSONObject(new OpenRouterBatchSubmitRequest.Builder(client())
                 .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
                 .model("openai/gpt-4o")
-                .addRequest("req-0001", new JSONObject().put("model", "openai/gpt-4o"))
-                .addRequest("req-0002", new JSONObject().put("input", "no model"))
+                .addRequestBody("req-0001", new JSONObject().put("model", "openai/gpt-4o"))
+                .addRequestBody("req-0002", new JSONObject().put("input", "no model"))
                 .build()
                 .getBody());
         assertThat(matched.getJSONArray("requests").toList()).hasSize(2);
@@ -230,7 +238,7 @@ class OpenRouterBatchesTest {
         OpenRouterBatchSubmitRequest request = new OpenRouterBatchSubmitRequest.Builder(client())
                 .endpoint(OpenRouterBatchEndpoint.EMBEDDINGS)
                 .model("openai/text-embedding-3-small")
-                .addRequest("req-0001", new JSONObject().put("input", "a"))
+                .addRequestBody("req-0001", new JSONObject().put("input", "a"))
                 .requests(List.of(OpenRouterBatchItem.of("req-0002", new JSONObject().put("input", "b"))))
                 .build();
 
@@ -243,7 +251,7 @@ class OpenRouterBatchesTest {
     }
 
     @Test
-    void batchItemFactoriesReuseTheInferenceRequestBodies() {
+    void batchItemFactoriesReuseTheInferenceRequestBodiesVerbatim() {
         OpenRouterChatCompletionRequest chat = new OpenRouterChatCompletionRequest.Builder(client())
                 .model("openai/gpt-4o")
                 .addMessage("user", "Hello")
@@ -262,12 +270,18 @@ class OpenRouterBatchesTest {
                 .input("Hello")
                 .build();
 
-        assertThat(OpenRouterBatchItem.of("a", chat).body().getJSONArray("messages").toList()).hasSize(1);
-        assertThat(OpenRouterBatchItem.of("b", messages).body().getInt("max_tokens")).isEqualTo(1024);
-        assertThat(OpenRouterBatchItem.of("c", responses).body().getString("input")).isEqualTo("Hello");
-        assertThat(OpenRouterBatchItem.of("d", embeddings).body().getString("input")).isEqualTo("Hello");
+        assertThat(OpenRouterBatchItem.fromRequest("a", chat).body().similar(new JSONObject(chat.getBody()))).isTrue();
+        assertThat(OpenRouterBatchItem.fromRequest("b", messages).body().similar(new JSONObject(messages.getBody()))).isTrue();
+        assertThat(OpenRouterBatchItem.fromRequest("c", responses).body().similar(new JSONObject(responses.getBody()))).isTrue();
+        assertThat(OpenRouterBatchItem.fromRequest("d", embeddings).body().similar(new JSONObject(embeddings.getBody()))).isTrue();
 
-        JSONObject json = OpenRouterBatchItem.of("a", chat).toJson();
+        assertThat(OpenRouterBatchItem.fromRequest("a", chat).body().getJSONArray("messages").toList()).hasSize(1);
+        assertThat(OpenRouterBatchItem.fromRequest("b", messages).body().getInt("max_tokens")).isEqualTo(1024);
+        assertThat(OpenRouterBatchItem.fromRequest("c", responses).body().getString("input")).isEqualTo("Hello");
+        assertThat(OpenRouterBatchItem.fromRequest("d", embeddings).body().getString("input")).isEqualTo("Hello");
+        assertThat(OpenRouterBatchItem.fromRequest("a", chat).body().getString("model")).isEqualTo("openai/gpt-4o");
+
+        JSONObject json = OpenRouterBatchItem.fromRequest("a", chat).toJson();
         assertThat(json.keySet()).containsExactlyInAnyOrder("custom_id", "body");
         assertThat(json.getString("custom_id")).isEqualTo("a");
     }
@@ -277,21 +291,16 @@ class OpenRouterBatchesTest {
         assertThatThrownBy(() -> OpenRouterBatchItem.of(" ", new JSONObject()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("custom_id");
-        assertThatThrownBy(() -> OpenRouterBatchItem.of("a", (JSONObject) null))
+        assertThatThrownBy(() -> OpenRouterBatchItem.of("a", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("body must not be null");
-        assertThatThrownBy(() -> OpenRouterBatchItem.of("a", (OpenRouterChatCompletionRequest) null))
+        assertThatThrownBy(() -> OpenRouterBatchItem.fromRequest("a", null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("chat completions request must not be null");
-        assertThatThrownBy(() -> OpenRouterBatchItem.of("a", (OpenRouterMessagesRequest) null))
+                .hasMessageContaining("request must not be null");
+        assertThatThrownBy(() -> OpenRouterBatchItem.fromRequest("a",
+                new OpenRouterBatchGetRequest.Builder(client(), "batch_1").build()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("messages request must not be null");
-        assertThatThrownBy(() -> OpenRouterBatchItem.of("a", (OpenRouterResponsesRequest) null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("responses request must not be null");
-        assertThatThrownBy(() -> OpenRouterBatchItem.of("a", (OpenRouterEmbeddingsRequest) null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("embeddings request must not be null");
+                .hasMessageContaining("request carries no body");
     }
 
     @Test
@@ -580,7 +589,8 @@ class OpenRouterBatchesTest {
                 """).result("req-1").responsesResponse();
 
         assertThat(response).isNotNull();
-        assertThat(response.getJson().getString("id")).isEqualTo("resp_01X");
+        assertThat(response.id()).isEqualTo("resp_01X");
+        assertThat(response.outputText()).isEqualTo("Hi.");
     }
 
     @Test

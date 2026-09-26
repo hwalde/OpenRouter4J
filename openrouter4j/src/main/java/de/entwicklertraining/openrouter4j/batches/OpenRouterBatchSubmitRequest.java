@@ -38,22 +38,32 @@ import java.util.List;
  *
  * <p>Submission success is not request success: the answer is
  * {@code 202 Accepted} with {@code status: "validating"} and only means the
- * batch was persisted and queued for validation. Per-request problems
- * (banned modalities, an {@code :online} model, a per-item body that
- * disagrees with the batch-level {@code model}, ...) surface after the
- * {@code 202}: the batch moves to {@code failed} and its {@code error}
- * explains the rejection. Documented per-request restrictions worth checking
- * before submitting: URL-only multimodal input (base64 and {@code data:}
- * URIs rejected everywhere), no audio/video input parts, no {@code stream:
- * true}, no {@code speed}, no OpenRouter-orchestrated web search ({@code
- * :online} variants are rejected with 422, the {@code web} plugin with
- * 422/400). A batch routes to exactly one provider; {@code provider.only} is
- * recommended for content not every provider's batch API accepts. The model
- * must have a {@code :batch} endpoint variant (a submit without one answers
- * 400; a {@code provider.only} list matching none of them answers 404).
- * Batch inference is typically billed at ~50% of the standard per-token
- * pricing; BYOK batches route through the provider key automatically
- * ({@code usage.is_byok: true}).
+ * batch was persisted and queued for validation. A per-item body that sets
+ * its own {@code model} and disagrees with the batch-level one is rejected
+ * with the submission itself (this class rejects it at {@code build()}); an
+ * {@code :online} model variant is rejected synchronously with 422. The
+ * documented per-request restrictions are checked after the {@code 202} -
+ * a violating request moves the whole batch to {@code failed} and its
+ * {@code error} explains the rejection - and are worth checking before
+ * submitting: URL-only multimodal input (base64 and {@code data:} URIs
+ * rejected everywhere), no audio/video input parts, no non-text output via
+ * {@code modalities}/{@code audio}/{@code image_config} on
+ * {@code /v1/chat/completions}, no {@code stream: true}, no {@code speed},
+ * no request without input, no max output token cap below 1, no Anthropic
+ * beta-gated features, and no OpenRouter-orchestrated web search (the
+ * {@code web} plugin, {@code web_search_options} outside OpenAI models that
+ * execute it natively, and web search tools with an {@code engine} other
+ * than {@code auto}/{@code native}). On Google models every request of a
+ * batch must ask for the same {@code response_format} (all omitted, all
+ * {@code json_object}, or all {@code json_schema} with the same schema) -
+ * a mismatched batch fails validation and names the first conflicting
+ * request, so send one batch per format and schema. A batch routes to
+ * exactly one provider; {@code provider.only} is recommended for content not
+ * every provider's batch API accepts. The model must have a {@code :batch}
+ * endpoint variant (a submit without one answers 400; a {@code
+ * provider.only} list matching none of them answers 404). Batch inference is
+ * typically billed at ~50% of the standard per-token pricing; BYOK batches
+ * route through the provider key automatically ({@code usage.is_byok: true}).
  */
 public final class OpenRouterBatchSubmitRequest
         extends OpenRouterRequest<OpenRouterBatchResponse<OpenRouterBatchSubmitRequest>> {
@@ -241,64 +251,43 @@ public final class OpenRouterBatchSubmitRequest
         }
 
         /**
+         * Adds one item whose body is taken verbatim from an existing
+         * inference request ({@code getBody()}) - an
+         * {@link OpenRouterChatCompletionRequest}, {@link OpenRouterMessagesRequest},
+         * {@link OpenRouterResponsesRequest} or {@link OpenRouterEmbeddingsRequest}
+         * in the shape of the batch's {@link #endpoint(OpenRouterBatchEndpoint)}.
+         * See {@link OpenRouterBatchItem#fromRequest(String, OpenRouterRequest)}
+         * for the model-matching rule.
+         *
+         * <p>Deliberately not an {@code addRequestBody} overload: the two
+         * would make {@code addRequest(customId, null)} ambiguous at compile
+         * time (the same reason {@code addInput} is not an
+         * {@code addInputItem} overload).
+         *
+         * @param customId the caller-assigned id, unique within the batch
+         * @param request the inference request to take the body from
+         * @return this builder
+         */
+        public Builder addRequest(String customId, OpenRouterRequest<?> request) {
+            return addRequest(OpenRouterBatchItem.fromRequest(customId, request));
+        }
+
+        /**
          * Adds one item from a verbatim request body:
          * {@code {custom_id, body}} with the body in the shape of the
-         * batch's {@link #endpoint(OpenRouterBatchEndpoint)}.
+         * batch's {@link #endpoint(OpenRouterBatchEndpoint)}. The body may
+         * omit {@code model} to inherit the batch-level model.
+         *
+         * <p>Deliberately not an {@code addRequest(customId, body)} overload:
+         * that would make the bare {@code null} body ambiguous at compile
+         * time against {@link #addRequest(String, OpenRouterRequest)}.
          *
          * @param customId the caller-assigned id, unique within the batch
          * @param body the request body
          * @return this builder
          */
-        public Builder addRequest(String customId, JSONObject body) {
+        public Builder addRequestBody(String customId, JSONObject body) {
             return addRequest(OpenRouterBatchItem.of(customId, body));
-        }
-
-        /**
-         * Adds one item whose body is taken verbatim from an existing chat
-         * completions request ({@code getBody()}).
-         *
-         * @param customId the caller-assigned id, unique within the batch
-         * @param request the chat completions request to take the body from
-         * @return this builder
-         */
-        public Builder addRequest(String customId, OpenRouterChatCompletionRequest request) {
-            return addRequest(OpenRouterBatchItem.of(customId, request));
-        }
-
-        /**
-         * Adds one item whose body is taken verbatim from an existing
-         * Anthropic Messages request ({@code getBody()}).
-         *
-         * @param customId the caller-assigned id, unique within the batch
-         * @param request the messages request to take the body from
-         * @return this builder
-         */
-        public Builder addRequest(String customId, OpenRouterMessagesRequest request) {
-            return addRequest(OpenRouterBatchItem.of(customId, request));
-        }
-
-        /**
-         * Adds one item whose body is taken verbatim from an existing
-         * Responses request ({@code getBody()}).
-         *
-         * @param customId the caller-assigned id, unique within the batch
-         * @param request the responses request to take the body from
-         * @return this builder
-         */
-        public Builder addRequest(String customId, OpenRouterResponsesRequest request) {
-            return addRequest(OpenRouterBatchItem.of(customId, request));
-        }
-
-        /**
-         * Adds one item whose body is taken verbatim from an existing
-         * embeddings request ({@code getBody()}).
-         *
-         * @param customId the caller-assigned id, unique within the batch
-         * @param request the embeddings request to take the body from
-         * @return this builder
-         */
-        public Builder addRequest(String customId, OpenRouterEmbeddingsRequest request) {
-            return addRequest(OpenRouterBatchItem.of(customId, request));
         }
 
         /**

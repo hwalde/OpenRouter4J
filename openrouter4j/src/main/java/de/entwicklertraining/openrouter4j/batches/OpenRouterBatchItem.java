@@ -1,5 +1,6 @@
 package de.entwicklertraining.openrouter4j.batches;
 
+import de.entwicklertraining.openrouter4j.OpenRouterRequest;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsRequest;
 import de.entwicklertraining.openrouter4j.messages.OpenRouterMessagesRequest;
@@ -28,8 +29,8 @@ import java.util.Objects;
  * (base64 and {@code data:} URIs are rejected everywhere), audio and video
  * input parts are rejected, {@code stream: true} and {@code speed} are
  * rejected, and OpenRouter-orchestrated web search is unavailable ({@code
- * :online} variants are rejected with 422, the {@code web} plugin with
- * 422/400).
+ * :online} variants are rejected synchronously with 422, the {@code web}
+ * plugin is dropped as a per-request ban after the 202 and fails the batch).
  */
 public final class OpenRouterBatchItem {
 
@@ -59,70 +60,34 @@ public final class OpenRouterBatchItem {
     }
 
     /**
-     * Creates an item from an existing chat completions request; the request
-     * body is reused verbatim via {@code getBody()}.
+     * Creates an item from an existing inference request, whose body is
+     * reused verbatim via {@code getBody()}: an
+     * {@link OpenRouterChatCompletionRequest}, {@link OpenRouterMessagesRequest},
+     * {@link OpenRouterResponsesRequest} or {@link OpenRouterEmbeddingsRequest}
+     * in the shape of the batch's {@link OpenRouterBatchEndpoint}. A body
+     * built this way carries its own {@code model}; it must match the
+     * batch-level model or the submission is rejected (a raw
+     * {@link #of(String, JSONObject)} body may omit {@code model} to inherit
+     * the batch-level value instead).
+     *
+     * <p>Deliberately not an {@code of(customId, request)} overload per
+     * request type: those would make {@code of(customId, null)} ambiguous at
+     * compile time (the same reason {@code addInput} is not an
+     * {@code addInputItem} overload).
      *
      * @param customId the caller-assigned id, unique within the batch
-     * @param request the chat completions request to take the body from
+     * @param request the inference request to take the body from
      * @return the item
      */
-    public static OpenRouterBatchItem of(String customId, OpenRouterChatCompletionRequest request) {
+    public static OpenRouterBatchItem fromRequest(String customId, OpenRouterRequest<?> request) {
         if (request == null) {
-            throw new IllegalArgumentException("chat completions request must not be null");
+            throw new IllegalArgumentException("request must not be null");
         }
-        return of(customId, bodyFrom(request.getBody(), "chat completions request"));
-    }
-
-    /**
-     * Creates an item from an existing Anthropic Messages request; the
-     * request body is reused verbatim via {@code getBody()}.
-     *
-     * @param customId the caller-assigned id, unique within the batch
-     * @param request the messages request to take the body from
-     * @return the item
-     */
-    public static OpenRouterBatchItem of(String customId, OpenRouterMessagesRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("messages request must not be null");
-        }
-        return of(customId, bodyFrom(request.getBody(), "messages request"));
-    }
-
-    /**
-     * Creates an item from an existing Responses request; the request body is
-     * reused verbatim via {@code getBody()}.
-     *
-     * @param customId the caller-assigned id, unique within the batch
-     * @param request the responses request to take the body from
-     * @return the item
-     */
-    public static OpenRouterBatchItem of(String customId, OpenRouterResponsesRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("responses request must not be null");
-        }
-        return of(customId, bodyFrom(request.getBody(), "responses request"));
-    }
-
-    /**
-     * Creates an item from an existing embeddings request; the request body
-     * is reused verbatim via {@code getBody()}.
-     *
-     * @param customId the caller-assigned id, unique within the batch
-     * @param request the embeddings request to take the body from
-     * @return the item
-     */
-    public static OpenRouterBatchItem of(String customId, OpenRouterEmbeddingsRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("embeddings request must not be null");
-        }
-        return of(customId, bodyFrom(request.getBody(), "embeddings request"));
-    }
-
-    private static JSONObject bodyFrom(String json, String what) {
+        String json = request.getBody();
         if (json == null || json.isBlank()) {
-            throw new IllegalArgumentException(what + " carries no body");
+            throw new IllegalArgumentException("request carries no body");
         }
-        return new JSONObject(json);
+        return of(customId, new JSONObject(json));
     }
 
     /**
