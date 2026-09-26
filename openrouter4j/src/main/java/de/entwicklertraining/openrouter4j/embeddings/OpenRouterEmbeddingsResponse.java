@@ -18,7 +18,15 @@ import java.util.List;
  */
 public final class OpenRouterEmbeddingsResponse extends OpenRouterResponse<OpenRouterEmbeddingsRequest> {
 
-    OpenRouterEmbeddingsResponse(JSONObject json, OpenRouterEmbeddingsRequest request) {
+    /**
+     * Creates the response view.
+     *
+     * @param json the parsed response body
+     * @param request the request that produced this response, or
+     *                {@code null} when the body is read from a source that
+     *                is not one executed request (e.g. a batch result item)
+     */
+    public OpenRouterEmbeddingsResponse(JSONObject json, OpenRouterEmbeddingsRequest request) {
         super(json, request);
     }
 

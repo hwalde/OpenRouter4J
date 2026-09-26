@@ -1,5 +1,7 @@
 package de.entwicklertraining.openrouter4j;
 
+import de.entwicklertraining.openrouter4j.batches.OpenRouterBatchEndpoint;
+import de.entwicklertraining.openrouter4j.batches.OpenRouterBatchItem;
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
 import org.json.JSONObject;
@@ -173,6 +175,18 @@ class OpenRouterClientEntryPointsTest {
         assertThat(client().keys().get("abc123").build().getRelativeUrl()).isEqualTo("/keys/abc123");
         assertThat(client().keys().update("abc123").disabled(true).build().getHttpMethod()).isEqualTo("PATCH");
         assertThat(client().keys().delete("abc123").build().getHttpMethod()).isEqualTo("DELETE");
+    }
+
+    @Test
+    void batchesEntryPointsProduceTheBatchRequests() {
+        assertThat(client().batches().list().build().getRelativeUrl()).isEqualTo("/batches");
+        assertThat(client().batches().submit()
+                .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
+                .model("openai/gpt-4o")
+                .addRequest(OpenRouterBatchItem.of("req-1", new JSONObject().put("messages", "x")))
+                .build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().batches().get("batch_1").build().getRelativeUrl()).isEqualTo("/batches/batch_1");
+        assertThat(client().batches().delete("batch_1").build().getHttpMethod()).isEqualTo("DELETE");
     }
 
     @Test

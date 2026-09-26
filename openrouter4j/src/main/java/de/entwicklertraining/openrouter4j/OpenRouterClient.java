@@ -13,6 +13,10 @@ import de.entwicklertraining.openrouter4j.byok.OpenRouterByokDeleteRequest;
 import de.entwicklertraining.openrouter4j.byok.OpenRouterByokGetRequest;
 import de.entwicklertraining.openrouter4j.byok.OpenRouterByokListRequest;
 import de.entwicklertraining.openrouter4j.byok.OpenRouterByokUpdateRequest;
+import de.entwicklertraining.openrouter4j.batches.OpenRouterBatchDeleteRequest;
+import de.entwicklertraining.openrouter4j.batches.OpenRouterBatchGetRequest;
+import de.entwicklertraining.openrouter4j.batches.OpenRouterBatchListRequest;
+import de.entwicklertraining.openrouter4j.batches.OpenRouterBatchSubmitRequest;
 import de.entwicklertraining.openrouter4j.chat.completion.OpenRouterChatCompletionRequest;
 import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFileContentRequest;
 import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFileGetRequest;
@@ -443,6 +447,17 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterKeys keys() {
         return new OpenRouterKeys(this);
+    }
+
+    /**
+     * Manages asynchronous inference batches:
+     * POST /batches (submit), GET /batches (list), GET /batches/{id} (poll
+     * for results), DELETE /batches/{id} (delete a terminal batch).
+     *
+     * @return the starting point for the batch requests
+     */
+    public OpenRouterBatches batches() {
+        return new OpenRouterBatches(this);
     }
 
     /**
@@ -1070,6 +1085,67 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterKeyDeleteRequest.Builder delete(String hash) {
             return new OpenRouterKeyDeleteRequest.Builder(client, hash);
+        }
+    }
+
+    /**
+     * Entry point for the Batch API: submit asynchronous batches of
+     * inference requests, list and poll them, delete terminal ones.
+     */
+    public static class OpenRouterBatches {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterBatches(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Submits a batch of inference requests:
+         * POST /batches - answers 202 {@code validating} (submission success
+         * is not request success; poll for the outcome).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterBatchSubmitRequest.Builder submit() {
+            return new OpenRouterBatchSubmitRequest.Builder(client);
+        }
+
+        /**
+         * Lists the batches of the workspace, newest first (metadata only,
+         * no results):
+         * GET /batches.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterBatchListRequest.Builder list() {
+            return new OpenRouterBatchListRequest.Builder(client);
+        }
+
+        /**
+         * Polls one batch for its status and, once completed, its inline
+         * results:
+         * GET /batches/{id}.
+         *
+         * @param batchId the id of the batch (e.g. {@code batch_123})
+         * @return the starting point for the request
+         */
+        public OpenRouterBatchGetRequest.Builder get(String batchId) {
+            return new OpenRouterBatchGetRequest.Builder(client, batchId);
+        }
+
+        /**
+         * Deletes a terminal batch and purges its artifacts:
+         * DELETE /batches/{id} (an in-flight batch answers 409; deletion is
+         * not cancellation).
+         *
+         * @param batchId the id of the batch
+         * @return the starting point for the request
+         */
+        public OpenRouterBatchDeleteRequest.Builder delete(String batchId) {
+            return new OpenRouterBatchDeleteRequest.Builder(client, batchId);
         }
     }
 
