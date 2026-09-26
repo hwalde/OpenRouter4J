@@ -55,6 +55,17 @@ public class OpenRouterInternsExample {
         System.out.println("Invoke " + invoked.status() + " (session "
                 + invoked.sessionId() + ")");
 
+        // Continue the same conversation by sending the session_id back.
+        // Trap: the id is only accepted from the caller it was issued to,
+        // on the same intern - any other answers 404 (unlike the chat
+        // endpoint's session_id, a mistyped one does not fork).
+        OpenRouterInternInvokeResponse steered = client.interns()
+                .invoke(created.id(), "Follow up on the summary.")
+                .sessionId(invoked.sessionId())
+                .execute();
+        System.out.println("Follow-up " + steered.status()
+                + (steered.isSteered() ? " (delivered into the running turn)" : ""));
+
         // Daemon access for `ori tui --host`: origin + bearer token. The
         // token is a credential (each reveal is logged server-side), and
         // regional hostnames such as eu.openrouter.ai refuse this endpoint.

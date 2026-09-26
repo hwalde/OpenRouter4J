@@ -590,6 +590,20 @@ class OpenRouterInternsTest {
     }
 
     @Test
+    void invokeAndDaemonAccessUrlEncodeTheInternIdInThePath() {
+        OpenRouterInternInvokeRequest invoke = client().interns()
+                .invoke("id/with space", "hi").build();
+        assertThat(invoke.getRelativeUrl()).isEqualTo("/interns/id%2Fwith+space/invoke");
+        assertThat(invoke.internId()).isEqualTo("id%2Fwith+space");
+
+        OpenRouterInternDaemonAccessRequest daemon = client().interns()
+                .daemonAccess("id/with space").build();
+        assertThat(daemon.getRelativeUrl())
+                .isEqualTo("/interns/id%2Fwith+space/daemon-access");
+        assertThat(daemon.internId()).isEqualTo("id%2Fwith+space");
+    }
+
+    @Test
     void daemonAccessResponseSurfacesOriginAndTokenButRedactsToString() {
         OpenRouterInternDaemonAccessRequest request = client().interns()
                 .daemonAccess("7c9e6679").build();

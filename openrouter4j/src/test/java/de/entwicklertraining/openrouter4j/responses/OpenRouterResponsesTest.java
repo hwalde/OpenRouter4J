@@ -1308,8 +1308,9 @@ class OpenRouterResponsesTest {
                     "content": [{
                       "type": "output_text", "text": "See the report.",
                       "annotations": [
-                        {"type": "file", "file": {"name": "report.md",
-                         "hash": "abc", "content": ["# Report"]}}
+                        {"type": "container_file_citation",
+                         "container_id": "cntr-1", "file_id": "file-9",
+                         "filename": "report.md", "start_index": 0, "end_index": 4}
                       ]
                     }]
                   }]
@@ -1317,16 +1318,19 @@ class OpenRouterResponsesTest {
                 """);
         OpenRouterTextAnnotation annotation = response.messageItems().get(0)
                 .annotations().get(0);
-        assertThat(annotation.type()).isEqualTo("file");
+        assertThat(annotation.type()).isEqualTo("container_file_citation");
+        assertThat(annotation.isUrlCitation()).isFalse();
+        assertThat(annotation.isFileCitation()).isFalse();
+        assertThat(annotation.isFilePath()).isFalse();
         assertThat(annotation.urlCitation()).isNull();
         assertThat(annotation.fileCitation()).isNull();
         assertThat(annotation.filePath()).isNull();
-        assertThat(annotation.json().getJSONObject("file").getString("name"))
-                .isEqualTo("report.md");
+        assertThat(annotation.json().getString("filename")).isEqualTo("report.md");
+        assertThat(annotation.json().getString("container_id")).isEqualTo("cntr-1");
     }
 
     @Test
-    void absentAnnotationsYieldEmptyAndFlattenAcrossParts() {
+    void absentAnnotationsYieldEmptyAndFlattenAcrossPartsInOrder() {
         OpenRouterResponsesResponse response = responseOf("""
                 {
                   "output": [{
@@ -1335,24 +1339,63 @@ class OpenRouterResponsesTest {
                       {"type": "output_text", "text": "First.",
                        "annotations": [{"type": "file_path", "file_id": "f", "index": 1}]},
                       {"type": "output_text", "text": "Second.", "annotations": []},
-                      {"type": "output_text", "text": "Third."}
+                      {"type": "output_text", "text": "Third.",
+                       "annotations": [{"type": "file_path", "file_id": "g", "index": 2}]}
                     ]
                   }]
                 }
                 """);
         OpenRouterResponsesResponse.OutputMessageItem item = response.messageItems().get(0);
-        assertThat(item.annotations()).hasSize(1);
-        assertThat(item.annotations().get(0).filePath().fileId()).isEqualTo("f");
+        assertThat(item.annotations())
+                .extracting(a -> a.filePath().fileId())
+                .containsExactly("f", "g");
         List<OpenRouterResponsesResponse.OutputTextPart> parts = item.outputTextParts();
         assertThat(parts).hasSize(3);
         assertThat(parts.get(0).annotations()).hasSize(1);
         assertThat(parts.get(1).annotations()).isEmpty();
-        assertThat(parts.get(2).annotations()).isEmpty();
+        assertThat(parts.get(2).annotations()).hasSize(1);
 
         OpenRouterResponsesResponse none = responseOf("""
                 {"output": [{"type": "message", "content": "plain string"}]}
                 """);
         assertThat(none.messageItems().get(0).outputTextParts()).isEmpty();
         assertThat(none.messageItems().get(0).annotations()).isEmpty();
+    }
+
+    @Test
+    void annotationAccessorsSwallowMissingAndMalformedFields() {
+        OpenRouterResponsesResponse response = responseOf("""
+                {
+                  "output": [{
+                    "type": "message", "role": "assistant",
+                    "content": [{
+                      "type": "output_text", "text": "T",
+                      "annotations": [
+                        {"type": "url_citation", "url": "https://example.com"},
+                        {"type": "url_citation", "start_index": "x", "end_index": null},
+                        {"type": "file_citation", "file_id": "f"},
+                        {"type": "file_path", "file_id": "p"}
+                      ]
+                    }]
+                  }]
+                }
+                """);
+        List<OpenRouterTextAnnotation> annotations =
+                response.messageItems().get(0).annotations();
+
+        OpenRouterTextAnnotation bare = annotations.get(0);
+        assertThat(bare.urlCitation().url()).isEqualTo("https://example.com");
+        assertThat(bare.urlCitation().title()).isNull();
+        assertThat(bare.urlCitation().startIndex()).isNull();
+        assertThat(bare.urlCitation().endIndex()).isNull();
+        assertThat(bare.urlCitation().content()).isNull();
+
+        OpenRouterTextAnnotation malformed = annotations.get(1);
+        assertThat(malformed.urlCitation().startIndex()).isNull();
+        assertThat(malformed.urlCitation().endIndex()).isNull();
+
+        assertThat(annotations.get(2).fileCitation().filename()).isNull();
+        assertThat(annotations.get(2).fileCitation().index()).isNull();
+        assertThat(annotations.get(3).filePath().index()).isNull();
     }
 }

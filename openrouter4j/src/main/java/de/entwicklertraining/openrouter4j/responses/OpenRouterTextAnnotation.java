@@ -7,13 +7,16 @@ import org.json.JSONObject;
  * {@code OpenAIResponsesAnnotation} union on {@code ResponseOutputText}):
  * the citations that attribute a span of the answer text to its source.
  *
- * <p>Three documented annotation types are surfaced:
+ * <p>The union declares three annotation types, all surfaced here:
  * {@link #urlCitation()} ({@code url_citation} - the web-search citation
  * surface), {@link #fileCitation()} ({@code file_citation}) and
- * {@link #filePath()} ({@code file_path}). The output-message union
- * additionally shows a container-file citation form ({@code type: "file"},
- * {@code file.{name, hash, content[]}}) for files a code-interpreter/bash
- * run cited; that long tail is reachable verbatim through {@link #json()}.
+ * {@link #filePath()} ({@code file_path}). Annotation forms outside that
+ * union - e.g. the {@code container_file_citation} a bash/code-interpreter
+ * run can cite (flat {@code container_id}/{@code file_id}/{@code filename}/
+ * {@code start_index}/{@code end_index}) - reach {@link #json()} verbatim;
+ * the library deliberately types only the three schema-declared members.
+ * (The {@code type: "file"} container-file form belongs to the
+ * <b>chat-completions</b> annotation union, not to this one.)
  *
  * <p>Positional use: {@code start_index}/{@code end_index} of a url citation
  * are character offsets into the annotated text part's {@code text}, so a
@@ -37,22 +40,28 @@ public final class OpenRouterTextAnnotation {
      * @param raw the annotation object ({@code type} discriminator plus the
      *            type's fields)
      * @return the typed view
+     * @throws IllegalArgumentException when {@code raw} is {@code null}
      */
     public static OpenRouterTextAnnotation of(JSONObject raw) {
+        if (raw == null) {
+            throw new IllegalArgumentException("raw must not be null");
+        }
         return new OpenRouterTextAnnotation(raw);
     }
 
-    /** @return the raw annotation JSON - the escape hatch for annotation
-     *         forms the library does not type (e.g. the container-file
-     *         {@code file} form) */
+    /**
+     * @return the raw annotation JSON - the escape hatch for annotation
+     *         forms outside the schema-declared union (e.g.
+     *         {@code container_file_citation})
+     */
     public JSONObject json() {
         return raw;
     }
 
     /**
      * @return the JSON field {@code type} - {@code url_citation},
-     *         {@code file_citation}, {@code file_path}, {@code file}
-     *         (container-file citation), or whatever the provider sends
+     *         {@code file_citation}, {@code file_path}, or whatever the
+     *         provider sends for untyped forms
      */
     public String type() {
         return raw.optString("type", null);
@@ -145,8 +154,10 @@ public final class OpenRouterTextAnnotation {
 
         /**
          * @return the JSON field {@code end_index} - the character offset
-         *         where the cited span ends (exclusive), in the annotated
-         *         text part's {@code text}
+         *         where the cited span ends, in the annotated text part's
+         *         {@code text} (the schema leaves the exact end convention
+         *         undescribed - slice {@code text()} against the provider's
+         *         behaviour when it matters)
          */
         public Long endIndex() {
             return optLong("end_index");
