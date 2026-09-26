@@ -3,11 +3,14 @@ package de.entwicklertraining.openrouter4j.examples;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterIntern;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternChatAccumulator;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternDaemonAccessResponse;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternInvokeResponse;
 import java.util.List;
 
 /**
  * Demonstrates the interns surface (the OpenRouter "Ori" programme): list,
- * create, lifecycle actions and the streaming chat with the
+ * create, lifecycle actions, fire-and-forget invoke, daemon access for
+ * {@code ori tui --host} and the streaming chat with the
  * {@code openrouter.provide_input} interaction loop.
  *
  * <p>Traps: every path answers 404 for keys outside the interns programme;
@@ -40,6 +43,25 @@ public class OpenRouterInternsExample {
         client.interns().provision(created.id()).execute();
         // client.interns().suspend(created.id()).execute(); // stop the runtime,
         // keep disk and configuration
+
+        // Start a run without waiting for it (fire-and-forget): answers 202
+        // with session_id + status; the run continues on the intern and
+        // reports through its own tools (e.g. Slack). Send the session_id
+        // back to continue the conversation - it is only accepted from the
+        // caller it was issued to, on the same intern.
+        OpenRouterInternInvokeResponse invoked =
+                client.interns().invoke(created.id(), "Summarize the open pull requests.")
+                        .execute();
+        System.out.println("Invoke " + invoked.status() + " (session "
+                + invoked.sessionId() + ")");
+
+        // Daemon access for `ori tui --host`: origin + bearer token. The
+        // token is a credential (each reveal is logged server-side), and
+        // regional hostnames such as eu.openrouter.ai refuse this endpoint.
+        OpenRouterInternDaemonAccessResponse daemon =
+                client.interns().daemonAccess(created.id()).execute();
+        System.out.println("Attach: ori tui --host " + daemon.origin());
+        // daemon.token() is the one plaintext reveal - never log it.
 
         // Stream one turn. The accumulator forwards every raw chunk and gives
         // typed access to the pieces of the interaction loop.

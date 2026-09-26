@@ -500,4 +500,112 @@ class OpenRouterInternsTest {
         assertThat(turn.finishReason()).isNull();
         assertThat(turn.text()).isEmpty();
     }
+
+    @Test
+    void invokeRequestEmitsInputAlwaysAndSessionIdOnlyWhenSet() {
+        OpenRouterInternInvokeRequest minimal = client().interns()
+                .invoke("7c9e6679", "Summarize the open pull requests.").build();
+        assertThat(minimal.getRelativeUrl()).isEqualTo("/interns/7c9e6679/invoke");
+        assertThat(minimal.getHttpMethod()).isEqualTo("POST");
+        assertThat(minimal.internId()).isEqualTo("7c9e6679");
+        assertThat(minimal.input()).isEqualTo("Summarize the open pull requests.");
+        assertThat(minimal.sessionId()).isNull();
+        JSONObject body = new JSONObject(minimal.getBody());
+        assertThat(body.keySet()).containsExactly("input");
+        assertThat(body.getString("input")).isEqualTo("Summarize the open pull requests.");
+
+        OpenRouterInternInvokeRequest withSession = client().interns()
+                .invoke("7c9e6679", "And the closed ones.")
+                .sessionId("sess-42")
+                .build();
+        assertThat(withSession.sessionId()).isEqualTo("sess-42");
+        JSONObject withSessionBody = new JSONObject(withSession.getBody());
+        assertThat(withSessionBody.keySet()).containsExactly("input", "session_id");
+        assertThat(withSessionBody.getString("session_id")).isEqualTo("sess-42");
+    }
+
+    @Test
+    void invokeRequestValidatesInputAndSessionIdLoudlyAndUnsessionId() {
+        assertThatThrownBy(() -> client().interns().invoke("7c9e6679", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("input");
+        assertThatThrownBy(() -> client().interns().invoke("7c9e6679", ""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("input");
+        assertThatThrownBy(() -> client().interns().invoke("7c9e6679", "x".repeat(32_001)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("32,000");
+        client().interns().invoke("7c9e6679", "x".repeat(32_000)).build();
+        assertThatThrownBy(() -> client().interns().invoke("7c9e6679", "hi")
+                .sessionId(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1 to 256");
+        assertThatThrownBy(() -> client().interns().invoke("7c9e6679", "hi")
+                .sessionId("s".repeat(257)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1 to 256");
+        client().interns().invoke("7c9e6679", "hi").sessionId("s".repeat(256)).build();
+
+        OpenRouterInternInvokeRequest unset = client().interns()
+                .invoke("7c9e6679", "hi")
+                .sessionId("sess-42")
+                .sessionId(null)
+                .build();
+        assertThat(unset.sessionId()).isNull();
+        assertThat(new JSONObject(unset.getBody()).keySet()).containsExactly("input");
+    }
+
+    @Test
+    void invokeResponseSurfacesSessionAndStatus() {
+        OpenRouterInternInvokeRequest request = client().interns()
+                .invoke("7c9e6679", "Summarize the open pull requests.").build();
+
+        OpenRouterInternInvokeResponse started = request.createResponse(
+                "{\"session_id\": \"sess-42\", \"status\": \"started\"}");
+        assertThat(started.sessionId()).isEqualTo("sess-42");
+        assertThat(started.status()).isEqualTo("started");
+        assertThat(started.isStarted()).isTrue();
+        assertThat(started.isSteered()).isFalse();
+
+        OpenRouterInternInvokeResponse steered = request.createResponse(
+                "{\"session_id\": \"sess-42\", \"status\": \"steered\"}");
+        assertThat(steered.isSteered()).isTrue();
+        assertThat(steered.isStarted()).isFalse();
+
+        OpenRouterInternInvokeResponse empty = request.createResponse("{}");
+        assertThat(empty.sessionId()).isNull();
+        assertThat(empty.status()).isNull();
+        assertThat(empty.isStarted()).isFalse();
+        assertThat(empty.isSteered()).isFalse();
+    }
+
+    @Test
+    void daemonAccessRequestHitsTheDaemonAccessRoute() {
+        OpenRouterInternDaemonAccessRequest request = client().interns()
+                .daemonAccess("7c9e6679").build();
+        assertThat(request.getRelativeUrl()).isEqualTo("/interns/7c9e6679/daemon-access");
+        assertThat(request.getHttpMethod()).isEqualTo("GET");
+        assertThat(request.getBody()).isNull();
+        assertThat(request.internId()).isEqualTo("7c9e6679");
+    }
+
+    @Test
+    void daemonAccessResponseSurfacesOriginAndTokenButRedactsToString() {
+        OpenRouterInternDaemonAccessRequest request = client().interns()
+                .daemonAccess("7c9e6679").build();
+        OpenRouterInternDaemonAccessResponse response = request.createResponse("""
+                {"origin": "https://research-assistant-7c9e6679.or.bot",
+                 "token": "daemon-token-value"}
+                """);
+        assertThat(response.origin())
+                .isEqualTo("https://research-assistant-7c9e6679.or.bot");
+        assertThat(response.token()).isEqualTo("daemon-token-value");
+        assertThat(response.toString())
+                .isEqualTo("OpenRouterInternDaemonAccessResponse{token=<redacted>}")
+                .doesNotContain("daemon-token-value");
+
+        OpenRouterInternDaemonAccessResponse empty = request.createResponse("{}");
+        assertThat(empty.origin()).isNull();
+        assertThat(empty.token()).isNull();
+    }
 }

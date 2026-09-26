@@ -100,8 +100,10 @@ import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobCreateReques
 import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobGetRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternChatRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternCreateRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternDaemonAccessRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternDeleteRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternGetRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternInvokeRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternProvisionRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternSuspendRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternUpdateRequest;
@@ -571,8 +573,10 @@ public final class OpenRouterClient extends ApiClient {
      * Manages and drives the interns of the account - the OpenRouter "Ori"
      * programme:
      * GET/POST /interns, GET/PATCH/DELETE /interns/{internId},
-     * POST /interns/{internId}/provision, POST /interns/{internId}/suspend
-     * and the streaming chat POST /interns/{internId}/chat/completions.
+     * POST /interns/{internId}/provision, POST /interns/{internId}/suspend,
+     * POST /interns/{internId}/invoke (fire-and-forget run),
+     * GET /interns/{internId}/daemon-access (ori tui attach credential) and
+     * the streaming chat POST /interns/{internId}/chat/completions.
      * Every path answers 404 for keys outside the interns programme.
      *
      * @return the starting point for the intern requests
@@ -1974,6 +1978,37 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterInternChatRequest.Builder chat(String internId) {
             return new OpenRouterInternChatRequest.Builder(client, internId);
+        }
+
+        /**
+         * Starts an intern run without waiting for it:
+         * POST /interns/{internId}/invoke. Answers 202 with
+         * {@code session_id} and {@code status} ({@code started} or
+         * {@code steered}); the run continues on the intern and reports
+         * through its own tools. Trap: a {@code session_id} is accepted only
+         * from the caller it was issued to, on the same intern.
+         *
+         * @param internId the id (UUID) of the intern
+         * @param input the prompt text (1-32,000 characters, validated
+         *              loudly)
+         * @return the starting point for the request
+         */
+        public OpenRouterInternInvokeRequest.Builder invoke(String internId, String input) {
+            return new OpenRouterInternInvokeRequest.Builder(client, internId, input);
+        }
+
+        /**
+         * Reads one intern's daemon access - origin and bearer token for
+         * {@code ori tui --host}:
+         * GET /interns/{internId}/daemon-access. Trap: the token is a
+         * credential (each reveal is logged server-side); regional hostnames
+         * such as {@code eu.openrouter.ai} refuse the endpoint.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterInternDaemonAccessRequest.Builder daemonAccess(String internId) {
+            return new OpenRouterInternDaemonAccessRequest.Builder(client, internId);
         }
     }
 

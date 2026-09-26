@@ -253,6 +253,8 @@ class OpenRouterClientEntryPointsTest {
         assertThat(client().interns().delete("i1").build().getHttpMethod()).isEqualTo("DELETE");
         assertThat(client().interns().provision("i1").build().getRelativeUrl()).isEqualTo("/interns/i1/provision");
         assertThat(client().interns().suspend("i1").build().getRelativeUrl()).isEqualTo("/interns/i1/suspend");
+        assertThat(client().interns().invoke("i1", "hi").build().getRelativeUrl()).isEqualTo("/interns/i1/invoke");
+        assertThat(client().interns().daemonAccess("i1").build().getRelativeUrl()).isEqualTo("/interns/i1/daemon-access");
         assertThatThrownBy(() -> client().interns().chat("i1").addUserMessage("x").build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("only streams");
