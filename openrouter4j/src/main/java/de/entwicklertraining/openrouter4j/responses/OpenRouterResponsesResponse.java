@@ -20,6 +20,17 @@ import java.util.List;
  * function_call, server-tool items, ...); typed convenience views exist for
  * the common item kinds, and {@link #output()} exposes the raw items
  * verbatim.
+ *
+ * <p>Citations: the {@code output_text} content parts of message items carry
+ * {@link OpenRouterTextAnnotation} entries (url/file citations) reachable via
+ * {@link OutputMessageItem#outputTextParts()} /
+ * {@link OutputMessageItem#annotations()}. {@code start_index} /
+ * {@code end_index} are character offsets into the annotated part's
+ * {@code text}, so a citation span is only meaningful together with the part
+ * text it annotates. The streaming events carry annotations per content part
+ * too - on the streaming path they are readable from the raw event JSON
+ * (which the Responses streaming handler delivers verbatim) unless/until an
+ * accumulator types them.
  */
 public final class OpenRouterResponsesResponse extends OpenRouterResponse<OpenRouterResponsesRequest> {
 
@@ -300,6 +311,48 @@ public final class OpenRouterResponsesResponse extends OpenRouterResponse<OpenRo
         }
 
         /**
+         * Typed views of the {@code output_text} content parts, carrying the
+         * part text together with its {@link OpenRouterTextAnnotation}
+         * citations. Empty when the content is a plain string or carries no
+         * text parts.
+         *
+         * @return the typed text parts, in order
+         */
+        public List<OutputTextPart> outputTextParts() {
+            JSONArray content = raw.optJSONArray("content");
+            if (content == null) {
+                return List.of();
+            }
+            List<OutputTextPart> parts = new ArrayList<>();
+            for (int i = 0; i < content.length(); i++) {
+                JSONObject part = content.optJSONObject(i);
+                if (part != null && "output_text".equals(part.optString("type"))) {
+                    parts.add(new OutputTextPart(part));
+                }
+            }
+            return parts;
+        }
+
+        /**
+         * Convenience: every annotation of every {@code output_text} part,
+         * flattened across the parts in order - the citations that attribute
+         * spans of the answer to their sources. Empty when the output text
+         * carries no annotations. Pair each entry with the
+         * {@link OutputTextPart#text()} it annotates -
+         * {@code start_index}/{@code end_index} are character offsets into
+         * that part's text.
+         *
+         * @return the flattened annotations
+         */
+        public List<OpenRouterTextAnnotation> annotations() {
+            List<OpenRouterTextAnnotation> all = new ArrayList<>();
+            for (OutputTextPart part : outputTextParts()) {
+                all.addAll(part.annotations());
+            }
+            return all;
+        }
+
+        /**
          * @return the concatenated {@code output_text} parts, the plain
          *         string content, or {@code null} when neither is present
          */
@@ -399,6 +452,53 @@ public final class OpenRouterResponsesResponse extends OpenRouterResponse<OpenRo
                 }
             }
             return sb.length() > 0 ? sb.toString() : null;
+        }
+    }
+
+    /**
+     * A typed view of one {@code output_text} content part of a message item:
+     * the part text together with the {@link OpenRouterTextAnnotation}
+     * citations that attribute spans of it to their sources.
+     */
+    public static final class OutputTextPart {
+
+        private final JSONObject raw;
+
+        private OutputTextPart(JSONObject raw) {
+            this.raw = raw;
+        }
+
+        /** @return the raw content-part JSON */
+        public JSONObject json() {
+            return raw;
+        }
+
+        /**
+         * @return the JSON field {@code text} - the part text the annotations
+         *         index into ({@code start_index}/{@code end_index} are
+         *         character offsets in this string)
+         */
+        public String text() {
+            return raw.optString("text", null);
+        }
+
+        /**
+         * @return the typed {@code annotations} of this part, in order;
+         *         empty when absent (swallow-and-return-empty convention)
+         */
+        public List<OpenRouterTextAnnotation> annotations() {
+            JSONArray array = raw.optJSONArray("annotations");
+            if (array == null) {
+                return List.of();
+            }
+            List<OpenRouterTextAnnotation> annotations = new ArrayList<>();
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject entry = array.optJSONObject(i);
+                if (entry != null) {
+                    annotations.add(OpenRouterTextAnnotation.of(entry));
+                }
+            }
+            return annotations;
         }
     }
 }

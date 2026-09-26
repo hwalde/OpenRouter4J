@@ -14,6 +14,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterWebSearchServerTool;
 import de.entwicklertraining.openrouter4j.responses.OpenRouterInputItem;
 import de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesRequest;
 import de.entwicklertraining.openrouter4j.responses.OpenRouterResponsesResponse;
+import de.entwicklertraining.openrouter4j.responses.OpenRouterTextAnnotation;
 
 /**
  * Demonstrates the OpenAI Responses API on OpenRouter: POST /responses,
@@ -67,6 +68,26 @@ public class OpenRouterResponsesExample {
         if (response.errorType() != null) {
             System.out.println("Error type:    " + response.errorType()
                     + " (canonical, stable across API formats)");
+        }
+
+        // Citations: output_text parts carry annotations attributing spans
+        // of the answer to their sources (url_citation from web search,
+        // file_citation / file_path for files). start_index/end_index are
+        // character offsets into the annotated part's text.
+        for (OpenRouterResponsesResponse.OutputMessageItem item : response.messageItems()) {
+            for (OpenRouterResponsesResponse.OutputTextPart part : item.outputTextParts()) {
+                for (OpenRouterTextAnnotation annotation
+                        : part.annotations()) {
+                    if (annotation.isUrlCitation()) {
+                        System.out.println("Cited [" + annotation.urlCitation().startIndex()
+                                + "," + annotation.urlCitation().endIndex() + "]: "
+                                + annotation.urlCitation().title() + " - "
+                                + annotation.urlCitation().url());
+                    } else {
+                        System.out.println("Annotation " + annotation.type());
+                    }
+                }
+            }
         }
 
         // Streaming: the body automatically carries stream: true and every

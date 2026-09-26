@@ -1240,4 +1240,119 @@ class OpenRouterResponsesTest {
                 .getBody());
         assertThat(body.getJSONObject("provider").has("sort")).isFalse();
     }
+
+    @Test
+    void textPartAnnotationsAreTypedByDiscriminator() {
+        OpenRouterResponsesResponse response = responseOf("""
+                {
+                  "output": [{
+                    "type": "message", "role": "assistant", "status": "completed",
+                    "content": [{
+                      "type": "output_text",
+                      "text": "Paris is the capital of France.",
+                      "annotations": [
+                        {"type": "url_citation", "url": "https://example.com/fr",
+                         "title": "France", "start_index": 0, "end_index": 5,
+                         "content": "Paris is the capital."},
+                        {"type": "file_citation", "file_id": "file-1",
+                         "filename": "notes.md", "index": 2},
+                        {"type": "file_path", "file_id": "file-2", "index": 0}
+                      ]
+                    }]
+                  }]
+                }
+                """);
+        OpenRouterResponsesResponse.OutputMessageItem item = response.messageItems().get(0);
+        List<OpenRouterResponsesResponse.OutputTextPart> parts = item.outputTextParts();
+        assertThat(parts).hasSize(1);
+        assertThat(parts.get(0).text()).isEqualTo("Paris is the capital of France.");
+
+        List<OpenRouterTextAnnotation> annotations = parts.get(0).annotations();
+        assertThat(annotations).hasSize(3);
+
+        OpenRouterTextAnnotation url = annotations.get(0);
+        assertThat(url.type()).isEqualTo("url_citation");
+        assertThat(url.isUrlCitation()).isTrue();
+        assertThat(url.isFileCitation()).isFalse();
+        assertThat(url.isFilePath()).isFalse();
+        assertThat(url.urlCitation().url()).isEqualTo("https://example.com/fr");
+        assertThat(url.urlCitation().title()).isEqualTo("France");
+        assertThat(url.urlCitation().startIndex()).isEqualTo(0L);
+        assertThat(url.urlCitation().endIndex()).isEqualTo(5L);
+        assertThat(url.urlCitation().content()).isEqualTo("Paris is the capital.");
+        assertThat(url.fileCitation()).isNull();
+        assertThat(url.filePath()).isNull();
+
+        OpenRouterTextAnnotation file = annotations.get(1);
+        assertThat(file.isFileCitation()).isTrue();
+        assertThat(file.fileCitation().fileId()).isEqualTo("file-1");
+        assertThat(file.fileCitation().filename()).isEqualTo("notes.md");
+        assertThat(file.fileCitation().index()).isEqualTo(2L);
+        assertThat(file.urlCitation()).isNull();
+        assertThat(file.filePath()).isNull();
+
+        OpenRouterTextAnnotation path = annotations.get(2);
+        assertThat(path.isFilePath()).isTrue();
+        assertThat(path.filePath().fileId()).isEqualTo("file-2");
+        assertThat(path.filePath().index()).isEqualTo(0L);
+        assertThat(path.urlCitation()).isNull();
+        assertThat(path.fileCitation()).isNull();
+    }
+
+    @Test
+    void containerFileAnnotationFallsThroughToTheRawHatch() {
+        OpenRouterResponsesResponse response = responseOf("""
+                {
+                  "output": [{
+                    "type": "message", "role": "assistant",
+                    "content": [{
+                      "type": "output_text", "text": "See the report.",
+                      "annotations": [
+                        {"type": "file", "file": {"name": "report.md",
+                         "hash": "abc", "content": ["# Report"]}}
+                      ]
+                    }]
+                  }]
+                }
+                """);
+        OpenRouterTextAnnotation annotation = response.messageItems().get(0)
+                .annotations().get(0);
+        assertThat(annotation.type()).isEqualTo("file");
+        assertThat(annotation.urlCitation()).isNull();
+        assertThat(annotation.fileCitation()).isNull();
+        assertThat(annotation.filePath()).isNull();
+        assertThat(annotation.json().getJSONObject("file").getString("name"))
+                .isEqualTo("report.md");
+    }
+
+    @Test
+    void absentAnnotationsYieldEmptyAndFlattenAcrossParts() {
+        OpenRouterResponsesResponse response = responseOf("""
+                {
+                  "output": [{
+                    "type": "message", "role": "assistant",
+                    "content": [
+                      {"type": "output_text", "text": "First.",
+                       "annotations": [{"type": "file_path", "file_id": "f", "index": 1}]},
+                      {"type": "output_text", "text": "Second.", "annotations": []},
+                      {"type": "output_text", "text": "Third."}
+                    ]
+                  }]
+                }
+                """);
+        OpenRouterResponsesResponse.OutputMessageItem item = response.messageItems().get(0);
+        assertThat(item.annotations()).hasSize(1);
+        assertThat(item.annotations().get(0).filePath().fileId()).isEqualTo("f");
+        List<OpenRouterResponsesResponse.OutputTextPart> parts = item.outputTextParts();
+        assertThat(parts).hasSize(3);
+        assertThat(parts.get(0).annotations()).hasSize(1);
+        assertThat(parts.get(1).annotations()).isEmpty();
+        assertThat(parts.get(2).annotations()).isEmpty();
+
+        OpenRouterResponsesResponse none = responseOf("""
+                {"output": [{"type": "message", "content": "plain string"}]}
+                """);
+        assertThat(none.messageItems().get(0).outputTextParts()).isEmpty();
+        assertThat(none.messageItems().get(0).annotations()).isEmpty();
+    }
 }
