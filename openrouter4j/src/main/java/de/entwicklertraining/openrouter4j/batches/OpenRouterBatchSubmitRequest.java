@@ -49,7 +49,8 @@ import java.util.List;
  * rejected everywhere), no audio/video input parts, no non-text output via
  * {@code modalities}/{@code audio}/{@code image_config} on
  * {@code /v1/chat/completions}, no {@code stream: true}, no {@code speed},
- * no request without input, no max output token cap below 1, no Anthropic
+ * no request without input (empty {@code messages} or {@code input} and no
+ * {@code prompt}), no max output token cap below 1, no Anthropic
  * beta-gated features, and no OpenRouter-orchestrated web search (the
  * {@code web} plugin, {@code web_search_options} outside OpenAI models that
  * execute it natively, and web search tools with an {@code engine} other
@@ -312,15 +313,17 @@ public final class OpenRouterBatchSubmitRequest
          * provider-routing preferences of the sync API are rejected). One
          * provider runs the whole batch; if none of the listed providers has
          * an eligible {@code :batch} endpoint for the model, the submit
-         * answers 404 instead of falling back. Replaces a previously set
-         * list; {@code null}/empty unsets it so OpenRouter picks the
-         * cheapest eligible batch endpoint itself.
+         * answers 404 instead of falling back. {@code null}/empty unsets it
+         * so OpenRouter picks the cheapest eligible batch endpoint itself.
+         * A single {@code String...} method like on every other
+         * {@code providerOnly} builder, so {@code providerOnly(null)} is not
+         * ambiguous at compile time.
          *
          * @param providerSlugs the provider slugs to pin
          * @return this builder
          */
-        public Builder providerOnly(List<String> providerSlugs) {
-            if (providerSlugs == null || providerSlugs.isEmpty()) {
+        public Builder providerOnly(String... providerSlugs) {
+            if (providerSlugs == null || providerSlugs.length == 0) {
                 this.providerOnly = null;
                 return this;
             }
@@ -329,18 +332,8 @@ public final class OpenRouterBatchSubmitRequest
                     throw new IllegalArgumentException("provider slugs must not be blank");
                 }
             }
-            this.providerOnly = new ArrayList<>(providerSlugs);
+            this.providerOnly = new ArrayList<>(java.util.Arrays.asList(providerSlugs));
             return this;
-        }
-
-        /**
-         * Sets {@code provider.only} - see {@link #providerOnly(List)}.
-         *
-         * @param providerSlugs the provider slugs to pin
-         * @return this builder
-         */
-        public Builder providerOnly(String... providerSlugs) {
-            return providerOnly(providerSlugs == null ? null : java.util.Arrays.asList(providerSlugs));
         }
 
         /**

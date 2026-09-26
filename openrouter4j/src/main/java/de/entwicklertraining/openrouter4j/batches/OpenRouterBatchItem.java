@@ -23,14 +23,14 @@ import java.util.Objects;
  * checks this loudly).
  *
  * <p>Per-request restrictions the Batch API enforces after the {@code 202}
- * (they are documented on
+ * unless noted otherwise (they are documented on
  * <a href="https://openrouter.ai/docs/batch-quickstart">the Batch API page</a>
  * and are NOT checked by this class): multimodal input must be URL-only
  * (base64 and {@code data:} URIs are rejected everywhere), audio and video
  * input parts are rejected, {@code stream: true} and {@code speed} are
  * rejected, and OpenRouter-orchestrated web search is unavailable ({@code
- * :online} variants are rejected synchronously with 422, the {@code web}
- * plugin is dropped as a per-request ban after the 202 and fails the batch).
+ * :online} variants are rejected synchronously with 422; requests using the
+ * {@code web} plugin are rejected after the 202 and fail the batch).
  */
 public final class OpenRouterBatchItem {
 

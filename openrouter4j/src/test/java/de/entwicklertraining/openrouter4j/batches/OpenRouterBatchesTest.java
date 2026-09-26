@@ -231,6 +231,7 @@ class OpenRouterBatchesTest {
                 .hasMessageContaining("must not be blank");
 
         assertThat(submitBuilder().providerOnly().build().providerOnly()).isNull();
+        assertThat(submitBuilder().providerOnly(null).build().providerOnly()).isNull();
     }
 
     @Test
@@ -248,6 +249,28 @@ class OpenRouterBatchesTest {
         assertThatThrownBy(() -> submitBuilder().addRequest((OpenRouterBatchItem) null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("item must not be null");
+    }
+
+    @Test
+    void submitAddRequestFromInferenceRequestLandsTheBodyVerbatim() {
+        OpenRouterChatCompletionRequest chat = new OpenRouterChatCompletionRequest.Builder(client())
+                .model("openai/gpt-4o")
+                .addMessage("user", "Hello")
+                .build();
+
+        OpenRouterBatchSubmitRequest request = new OpenRouterBatchSubmitRequest.Builder(client())
+                .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
+                .model("openai/gpt-4o")
+                .addRequest("req-x", chat)
+                .build();
+
+        JSONObject item = new JSONObject(request.getBody()).getJSONArray("requests").getJSONObject(0);
+        assertThat(item.getString("custom_id")).isEqualTo("req-x");
+        assertThat(item.getJSONObject("body").similar(new JSONObject(chat.getBody()))).isTrue();
+
+        assertThatThrownBy(() -> submitBuilder().addRequest("req-y", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("request must not be null");
     }
 
     @Test
