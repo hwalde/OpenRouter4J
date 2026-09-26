@@ -1340,7 +1340,8 @@ class OpenRouterResponsesTest {
                        "annotations": [{"type": "file_path", "file_id": "f", "index": 1}]},
                       {"type": "output_text", "text": "Second.", "annotations": []},
                       {"type": "output_text", "text": "Third.",
-                       "annotations": [{"type": "file_path", "file_id": "g", "index": 2}]}
+                       "annotations": [{"type": "file_path", "file_id": "g", "index": 2}]},
+                      {"type": "output_text", "text": "Fourth."}
                     ]
                   }]
                 }
@@ -1350,10 +1351,11 @@ class OpenRouterResponsesTest {
                 .extracting(a -> a.filePath().fileId())
                 .containsExactly("f", "g");
         List<OpenRouterResponsesResponse.OutputTextPart> parts = item.outputTextParts();
-        assertThat(parts).hasSize(3);
+        assertThat(parts).hasSize(4);
         assertThat(parts.get(0).annotations()).hasSize(1);
         assertThat(parts.get(1).annotations()).isEmpty();
         assertThat(parts.get(2).annotations()).hasSize(1);
+        assertThat(parts.get(3).annotations()).isEmpty();
 
         OpenRouterResponsesResponse none = responseOf("""
                 {"output": [{"type": "message", "content": "plain string"}]}
