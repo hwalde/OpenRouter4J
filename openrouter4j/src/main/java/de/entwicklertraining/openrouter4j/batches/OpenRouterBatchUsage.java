@@ -4,8 +4,8 @@ import org.json.JSONObject;
 
 /**
  * A typed view of the {@code usage} object of a completed batch. {@code
- * usage} is {@code null} until the batch has completed; list items carry
- * usage only once the batch is done.
+ * usage} is {@code null} before completion in every documented example;
+ * list items carry usage only once the batch is done.
  *
  * <p>All accessors follow the swallow-and-return-{@code null} convention; use
  * {@link #json()} for fields without a typed accessor.

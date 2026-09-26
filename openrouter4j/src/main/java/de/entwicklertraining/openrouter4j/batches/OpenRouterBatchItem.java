@@ -31,6 +31,8 @@ import java.util.Objects;
  * rejected, and OpenRouter-orchestrated web search is unavailable ({@code
  * :online} variants are rejected synchronously with 422; requests using the
  * {@code web} plugin are rejected after the 202 and fail the batch).
+ * Unknown body parameters are dropped by the provider serializer, matching
+ * the sync API - a raw {@code body} with extra fields loses them silently.
  */
 public final class OpenRouterBatchItem {
 

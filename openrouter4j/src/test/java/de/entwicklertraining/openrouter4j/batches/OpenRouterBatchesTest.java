@@ -229,9 +229,18 @@ class OpenRouterBatchesTest {
         assertThatThrownBy(() -> submitBuilder().providerOnly("openai", " "))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must not be blank");
+    }
 
-        assertThat(submitBuilder().providerOnly().build().providerOnly()).isNull();
-        assertThat(submitBuilder().providerOnly(null).build().providerOnly()).isNull();
+    @Test
+    void submitBuilderUnsetContractsClearPreviouslySetValues() {
+        assertThat(submitBuilder().providerOnly("openai").providerOnly().build().providerOnly()).isNull();
+        assertThat(submitBuilder().providerOnly("openai").providerOnly(null).build().providerOnly()).isNull();
+        assertThat(new JSONObject(submitBuilder().providerOnly("openai").providerOnly(null).build().getBody())
+                .has("provider")).isFalse();
+
+        assertThat(submitBuilder().completionWindow("24h").completionWindow(null).build().completionWindow()).isNull();
+        assertThat(new JSONObject(submitBuilder().completionWindow("24h").completionWindow(null).build().getBody())
+                .has("completion_window")).isFalse();
     }
 
     @Test
@@ -374,6 +383,12 @@ class OpenRouterBatchesTest {
                 .status()
                 .build();
         assertThat(cleared.getRelativeUrl()).isEqualTo("/batches");
+
+        OpenRouterBatchListRequest clearedByNull = new OpenRouterBatchListRequest.Builder(client())
+                .status("completed")
+                .status(null)
+                .build();
+        assertThat(clearedByNull.getRelativeUrl()).isEqualTo("/batches");
     }
 
     @Test

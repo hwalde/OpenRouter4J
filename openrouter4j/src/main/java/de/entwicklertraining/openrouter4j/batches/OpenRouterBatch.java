@@ -157,7 +157,8 @@ public final class OpenRouterBatch {
 
     /**
      * JSON path: {@code usage} - the token usage and cost of the batch;
-     * {@code null} until the batch has completed.
+     * populated once the batch has completed (every documented example shows
+     * it {@code null} before that).
      *
      * @return the usage view, or {@code null} when absent
      */

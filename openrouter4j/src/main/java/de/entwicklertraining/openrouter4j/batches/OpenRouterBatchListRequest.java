@@ -149,13 +149,16 @@ public final class OpenRouterBatchListRequest
          * {@code expired}, {@code cancelled}. The transient {@code
          * finalizing} and {@code cancelling} states are not accepted as list
          * filters and are rejected loudly. Unknown values are passed through
-         * verbatim. Replaces a previously set list.
+         * verbatim. {@code null}/empty unsets the filter again; a single
+         * {@code String...} method (pass {@code list.toArray(new String[0])}
+         * for a list) so the bare {@code status(null)} is not ambiguous at
+         * compile time. Replaces a previously set filter.
          *
          * @param statuses the statuses to filter for
          * @return this builder
          */
-        public Builder status(List<String> statuses) {
-            if (statuses == null) {
+        public Builder status(String... statuses) {
+            if (statuses == null || statuses.length == 0) {
                 return queryParam("status", null);
             }
             LinkedHashSet<String> distinct = new LinkedHashSet<>();
@@ -176,17 +179,6 @@ public final class OpenRouterBatchListRequest
             }
             queryParams.put("status", new ArrayList<>(distinct));
             return this;
-        }
-
-        /**
-         * Sets the query key {@code status} - see {@link #status(List)}.
-         * Replaces a previously set list.
-         *
-         * @param statuses the statuses to filter for
-         * @return this builder
-         */
-        public Builder status(String... statuses) {
-            return status(statuses == null ? null : java.util.Arrays.asList(statuses));
         }
 
         /**
