@@ -73,21 +73,32 @@ public class OpenRouterResponsesExample {
         // Citations: output_text parts carry annotations attributing spans
         // of the answer to their sources (url_citation from web search,
         // file_citation / file_path for files). start_index/end_index are
-        // character offsets into the annotated part's text.
+        // character offsets into the annotated part's text - pair them with
+        // part.text() to slice the cited span. The flattened
+        // item.annotations() gives the same entries across all parts.
         for (OpenRouterResponsesResponse.OutputMessageItem item : response.messageItems()) {
             for (OpenRouterResponsesResponse.OutputTextPart part : item.outputTextParts()) {
-                for (OpenRouterTextAnnotation annotation
-                        : part.annotations()) {
+                for (OpenRouterTextAnnotation annotation : part.annotations()) {
                     if (annotation.isUrlCitation()) {
                         System.out.println("Cited [" + annotation.urlCitation().startIndex()
-                                + "," + annotation.urlCitation().endIndex() + "]: "
-                                + annotation.urlCitation().title() + " - "
-                                + annotation.urlCitation().url());
+                                + "," + annotation.urlCitation().endIndex() + "] of \""
+                                + part.text() + "\": " + annotation.urlCitation().title()
+                                + " - " + annotation.urlCitation().url());
+                    } else if (annotation.isFileCitation()) {
+                        System.out.println("File citation: "
+                                + annotation.fileCitation().filename() + " ("
+                                + annotation.fileCitation().fileId() + ")");
+                    } else if (annotation.isFilePath()) {
+                        System.out.println("File path: " + annotation.filePath().fileId());
                     } else {
-                        System.out.println("Annotation " + annotation.type());
+                        // untyped form (e.g. container_file_citation) - the
+                        // typed views are null; read it from the raw hatch.
+                        System.out.println("Untyped annotation "
+                                + annotation.type() + ": " + annotation.json());
                     }
                 }
             }
+            System.out.println("Flattened annotations: " + item.annotations().size());
         }
 
         // Streaming: the body automatically carries stream: true and every

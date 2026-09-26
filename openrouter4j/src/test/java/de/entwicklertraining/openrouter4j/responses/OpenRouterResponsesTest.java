@@ -1398,4 +1398,34 @@ class OpenRouterResponsesTest {
         assertThat(annotations.get(2).fileCitation().index()).isNull();
         assertThat(annotations.get(3).filePath().index()).isNull();
     }
+
+    @Test
+    void annotationParseSwallowsMalformedContainersAndEntries() {
+        OpenRouterResponsesResponse mixed = responseOf("""
+                {
+                  "output": [{
+                    "type": "message", "role": "assistant",
+                    "content": [{
+                      "type": "output_text", "text": "T",
+                      "annotations": ["oops",
+                        {"type": "file_path", "file_id": "f", "index": 1}, 7]
+                    }]
+                  }]
+                }
+                """);
+        List<OpenRouterTextAnnotation> kept =
+                mixed.messageItems().get(0).annotations();
+        assertThat(kept).hasSize(1);
+        assertThat(kept.get(0).filePath().fileId()).isEqualTo("f");
+
+        OpenRouterResponsesResponse nonArray = responseOf("""
+                {"output": [{"type": "message", "content": [{
+                  "type": "output_text", "text": "T", "annotations": "nope"}]}]}
+                """);
+        assertThat(nonArray.messageItems().get(0).annotations()).isEmpty();
+
+        assertThatThrownBy(() -> OpenRouterTextAnnotation.of(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("raw");
+    }
 }
