@@ -10,7 +10,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * A single question of a {@link OpenRouterDecisionsRequest}, sent in the
+ * A single question of an evaluation request - the Decisions API
+ * ({@code client.decisions()}, {@link OpenRouterDecisionsRequest}) and the
+ * System One API ({@code client.systemOne()}, {@code OpenRouterSystemOneRequest})
+ * share this question schema and both take the same factories. Sent in the
  * {@code questions} object under a caller-chosen key. Discriminated on the
  * {@code type} field:
  * <ul>
@@ -29,9 +32,10 @@ import java.util.Objects;
  * hatch {@link #raw(JSONObject)} for question types OpenRouter adds after
  * this library was released.
  *
- * <p>Trap: this endpoint lives in OpenRouter's alpha namespace
+ * <p>Trap: the Decisions endpoint lives in OpenRouter's alpha namespace
  * ({@code /api/alpha/decisions}) and may change or disappear without a major
- * version of the API.
+ * version of the API; the System One endpoint is a first-class
+ * {@code /api/v1} operation and carries no alpha status.
  */
 public final class OpenRouterDecisionQuestion {
 

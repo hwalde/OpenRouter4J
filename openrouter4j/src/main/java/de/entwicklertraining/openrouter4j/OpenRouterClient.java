@@ -21,6 +21,7 @@ import de.entwicklertraining.openrouter4j.containers.OpenRouterContainerFileProm
 import de.entwicklertraining.openrouter4j.containers.OpenRouterContainers;
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
 import de.entwicklertraining.openrouter4j.decisions.OpenRouterDecisionsRequest;
+import de.entwicklertraining.openrouter4j.systemone.OpenRouterSystemOneRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsModelsRequest;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsRequest;
 import de.entwicklertraining.openrouter4j.files.OpenRouterFileContentRequest;
@@ -729,6 +730,25 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterDecisionsRequest.Builder decisions() {
         return new OpenRouterDecisionsRequest.Builder(alphaClient());
+    }
+
+    /**
+     * Submits a System One request to a System One model (TypeSafe Jev
+     * family): POST /systemone - evaluate content against typed questions
+     * (boolean {@code noul}, multi-class {@code choice}, ordered
+     * {@code score}).
+     *
+     * <p>Related but distinct from {@link #decisions()}: the wire format and
+     * the {@code OpenRouterDecisionQuestion} factories are identical, but
+     * System One lives on the ordinary {@code /api/v1} base (this builder
+     * uses the normal client, no alpha routing) and accepts bare model ids
+     * such as {@code jev-1.13} / {@code jev-latest}, which the API maps onto
+     * the {@code typesafe/} namespace.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterSystemOneRequest.Builder systemOne() {
+        return new OpenRouterSystemOneRequest.Builder(this);
     }
 
     private volatile OpenRouterClient alphaClient;

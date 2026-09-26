@@ -30,6 +30,17 @@ class OpenRouterDecisionsRoutingTest {
     }
 
     @Test
+    void systemOneBindsToThePlainClientNotTheAlphaOne() throws Exception {
+        OpenRouterClient client = new OpenRouterClient();
+        var builder = client.systemOne();
+        java.lang.reflect.Field field =
+                de.entwicklertraining.api.base.ApiRequestBuilderBase.class.getDeclaredField("apiClient");
+        field.setAccessible(true);
+        assertThat(field.get(builder)).isSameAs(client);
+        assertThat(field.get(builder)).isNotSameAs(client.alphaClient());
+    }
+
+    @Test
     void decisionsBuilderBindsToTheAlphaClientAndReusesIt() {
         OpenRouterClient client = new OpenRouterClient();
         OpenRouterClient first = client.alphaClient();
