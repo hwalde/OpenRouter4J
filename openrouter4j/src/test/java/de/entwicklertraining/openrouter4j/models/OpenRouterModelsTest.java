@@ -333,6 +333,7 @@ class OpenRouterModelsTest {
         assertThat(model.pricingInputAudioCache()).isNull();
         assertThat(model.pricingInputCacheWrite1h()).isNull();
         assertThat(model.pricingInternalReasoning()).isNull();
+        assertThat(model.pricingWebSearch()).isNull();
         assertThat(model.pricingDiscount()).isNull();
         assertThat(model.pricingOverrides()).isEmpty();
     }
@@ -348,21 +349,21 @@ class OpenRouterModelsTest {
                       "pricing": {
                         "prompt": "0.00003",
                         "audio_output": "0.00006",
-                        "image_output": "0.00008",
+                        "image_output": "0.0008",
                         "image_token": "0.00001",
                         "input_audio_cache": "0.000003",
                         "input_cache_write_1h": "0.000009",
                         "internal_reasoning": "0.000015",
+                        "web_search": "0.008",
                         "discount": 0.5,
                         "overrides": [
                           {
                             "min_prompt_tokens": 128000,
-                            "utc_days": [6, 0],
+                            "utc_days": ["saturday", "sunday"],
                             "utc_start": 0,
-                            "utc_end": 3600,
+                            "utc_end": 2359,
                             "prompt": "0.000015",
                             "completion": "0.00003",
-                            "image": "0",
                             "audio": "0.00003",
                             "input_cache_read": "0.00000125",
                             "input_cache_write": "0.000003125",
@@ -378,23 +379,23 @@ class OpenRouterModelsTest {
 
         OpenRouterModel model = firstModelOf(response);
         assertThat(model.pricingAudioOutput()).isEqualTo("0.00006");
-        assertThat(model.pricingImageOutput()).isEqualTo("0.00008");
+        assertThat(model.pricingImageOutput()).isEqualTo("0.0008");
         assertThat(model.pricingImageToken()).isEqualTo("0.00001");
         assertThat(model.pricingInputAudioCache()).isEqualTo("0.000003");
         assertThat(model.pricingInputCacheWrite1h()).isEqualTo("0.000009");
         assertThat(model.pricingInternalReasoning()).isEqualTo("0.000015");
+        assertThat(model.pricingWebSearch()).isEqualTo("0.008");
         assertThat(model.pricingDiscount()).isEqualTo(0.5);
 
         List<OpenRouterPricingOverride> overrides = model.pricingOverrides();
         assertThat(overrides).hasSize(1);
         OpenRouterPricingOverride override = overrides.get(0);
         assertThat(override.minPromptTokens()).isEqualTo(128000.0);
-        assertThat(override.utcDays()).containsExactly(6L, 0L);
+        assertThat(override.utcDays()).containsExactly("saturday", "sunday");
         assertThat(override.utcStart()).isEqualTo(0L);
-        assertThat(override.utcEnd()).isEqualTo(3600L);
+        assertThat(override.utcEnd()).isEqualTo(2359L);
         assertThat(override.prompt()).isEqualTo("0.000015");
         assertThat(override.completion()).isEqualTo("0.00003");
-        assertThat(override.image()).isEqualTo("0");
         assertThat(override.audio()).isEqualTo("0.00003");
         assertThat(override.inputCacheRead()).isEqualTo("0.00000125");
         assertThat(override.inputCacheWrite()).isEqualTo("0.000003125");
@@ -411,7 +412,7 @@ class OpenRouterModelsTest {
                     {
                       "id": "openai/gpt-4",
                       "name": "GPT-4",
-                      "pricing": {"prompt": "0.00003", "overrides": []}
+                      "pricing": {"prompt": "0.00003", "discount": null, "overrides": []}
                     }
                   ]
                 }
@@ -425,6 +426,7 @@ class OpenRouterModelsTest {
         assertThat(model.pricingInputAudioCache()).isNull();
         assertThat(model.pricingInputCacheWrite1h()).isNull();
         assertThat(model.pricingInternalReasoning()).isNull();
+        assertThat(model.pricingWebSearch()).isNull();
         assertThat(model.pricingDiscount()).isNull();
         assertThat(model.pricingOverrides()).isEmpty();
     }
@@ -439,19 +441,24 @@ class OpenRouterModelsTest {
                       "name": "GPT-4",
                       "pricing": {
                         "audio_output": 0.00006,
-                        "image_output": {"usd": "0.00008"},
+                        "image_output": {"usd": "0.0008"},
                         "image_token": null,
                         "input_audio_cache": "0.000003",
                         "input_cache_write_1h": ["0.000009"],
                         "internal_reasoning": true,
+                        "web_search": 8,
                         "discount": "half",
                         "overrides": ["flat", 7, null, {
                           "min_prompt_tokens": "128k",
-                          "utc_days": [6, "sun", null, 0],
+                          "utc_days": ["saturday", 7, null, "sunday"],
                           "utc_start": "0",
                           "utc_end": null,
                           "prompt": 0.000015,
-                          "completion": "0.00003"
+                          "completion": "0.00003",
+                          "audio": null,
+                          "input_cache_read": 0.1
+                        }, {
+                          "prompt": "0.000015"
                         }]
                       }
                     }
@@ -466,22 +473,51 @@ class OpenRouterModelsTest {
         assertThat(model.pricingInputAudioCache()).isEqualTo("0.000003");
         assertThat(model.pricingInputCacheWrite1h()).isNull();
         assertThat(model.pricingInternalReasoning()).isNull();
+        assertThat(model.pricingWebSearch()).isNull();
         assertThat(model.pricingDiscount()).isNull();
 
         List<OpenRouterPricingOverride> overrides = model.pricingOverrides();
-        assertThat(overrides).hasSize(1);
-        OpenRouterPricingOverride override = overrides.get(0);
-        assertThat(override.minPromptTokens()).isNull();
-        assertThat(override.utcDays()).containsExactly(6L, 0L);
-        assertThat(override.utcStart()).isNull();
-        assertThat(override.utcEnd()).isNull();
-        assertThat(override.prompt()).isNull();
-        assertThat(override.completion()).isEqualTo("0.00003");
+        assertThat(overrides).hasSize(2);
+
+        OpenRouterPricingOverride malformed = overrides.get(0);
+        assertThat(malformed.minPromptTokens()).isNull();
+        assertThat(malformed.utcDays()).containsExactly("saturday", "sunday");
+        assertThat(malformed.utcStart()).isNull();
+        assertThat(malformed.utcEnd()).isNull();
+        assertThat(malformed.prompt()).isNull();
+        assertThat(malformed.completion()).isEqualTo("0.00003");
+        assertThat(malformed.audio()).isNull();
+        assertThat(malformed.inputCacheRead()).isNull();
+
+        OpenRouterPricingOverride bare = overrides.get(1);
+        assertThat(bare.prompt()).isEqualTo("0.000015");
+        assertThat(bare.completion()).isNull();
+        assertThat(bare.audio()).isNull();
+        assertThat(bare.inputCacheRead()).isNull();
+        assertThat(bare.inputCacheWrite()).isNull();
+        assertThat(bare.inputCacheWrite1h()).isNull();
+        assertThat(bare.inputAudioCache()).isNull();
+        assertThat(bare.minPromptTokens()).isNull();
+        assertThat(bare.utcStart()).isNull();
+        assertThat(bare.utcEnd()).isNull();
+        assertThat(bare.utcDays()).isEmpty();
 
         OpenRouterModelsListResponse notAnArray = listResponseOf("""
                 {"data": [{"id": "m", "pricing": {"overrides": {"min_prompt_tokens": 1}}}]}
                 """);
         assertThat(firstModelOf(notAnArray).pricingOverrides()).isEmpty();
+
+        OpenRouterModelsListResponse daysNotAnArray = listResponseOf("""
+                {"data": [{"id": "m", "pricing": {"overrides": [{"utc_days": 5}]}}]}
+                """);
+        assertThat(firstModelOf(daysNotAnArray).pricingOverrides().get(0).utcDays()).isEmpty();
+        assertThat(firstModelOf(daysNotAnArray).pricingOverrides().get(0).prompt()).isNull();
+
+        OpenRouterModelsListResponse unknownDay = listResponseOf("""
+                {"data": [{"id": "m", "pricing": {"overrides": [{"utc_days": ["FUNDAY", "monday"]}]}}]}
+                """);
+        assertThat(firstModelOf(unknownDay).pricingOverrides().get(0).utcDays())
+                .containsExactly("FUNDAY", "monday");
     }
 
     private OpenRouterModel firstModelOf(OpenRouterModelsListResponse response) {

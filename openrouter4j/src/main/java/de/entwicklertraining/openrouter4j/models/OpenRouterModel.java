@@ -192,7 +192,8 @@ public final class OpenRouterModel {
     }
 
     /**
-     * JSON path: {@code pricing.audio_output} - USD per output audio token.
+     * JSON path: {@code pricing.audio_output} - USD per output audio token,
+     * decimal-as-string - do not parse to double, use {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -201,8 +202,10 @@ public final class OpenRouterModel {
     }
 
     /**
-     * JSON path: {@code pricing.image_output} - USD per output image token
-     * (image generation).
+     * JSON path: {@code pricing.image_output} - USD per output image (image
+     * generation; compare {@link #pricingImageToken()} for the per-token
+     * price), decimal-as-string - do not parse to double, use
+     * {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -211,7 +214,8 @@ public final class OpenRouterModel {
     }
 
     /**
-     * JSON path: {@code pricing.image_token} - USD per image token.
+     * JSON path: {@code pricing.image_token} - USD per image token,
+     * decimal-as-string - do not parse to double, use {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -221,7 +225,8 @@ public final class OpenRouterModel {
 
     /**
      * JSON path: {@code pricing.input_audio_cache} - USD per cached input
-     * audio token.
+     * audio token, decimal-as-string - do not parse to double, use
+     * {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -232,7 +237,8 @@ public final class OpenRouterModel {
     /**
      * JSON path: {@code pricing.input_cache_write_1h} - USD per 1-hour TTL
      * prompt-cache write token (the counterpart of
-     * {@link #pricingInputCacheWrite()}, selected by the cache TTL option).
+     * {@link #pricingInputCacheWrite()}, selected by the cache TTL option),
+     * decimal-as-string - do not parse to double, use {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -242,7 +248,8 @@ public final class OpenRouterModel {
 
     /**
      * JSON path: {@code pricing.internal_reasoning} - USD per internal
-     * reasoning token.
+     * reasoning token, decimal-as-string - do not parse to double, use
+     * {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -251,8 +258,20 @@ public final class OpenRouterModel {
     }
 
     /**
-     * JSON path: {@code pricing.discount} - the discount factor applied to
-     * the listed prices (a number, unlike the decimal-as-string prices).
+     * JSON path: {@code pricing.web_search} - USD per web search,
+     * decimal-as-string - do not parse to double, use {@code BigDecimal}.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String pricingWebSearch() {
+        return strictPricingValue("web_search");
+    }
+
+    /**
+     * JSON path: {@code pricing.discount} - the discount applied to the
+     * listed prices: the effective price is {@code (1 - discount)} times the
+     * listed price ({@code 0} = no discount, {@code 1} = free). A number,
+     * unlike the decimal-as-string prices.
      *
      * @return the value, or {@code null} when absent or not a number
      */
@@ -268,9 +287,10 @@ public final class OpenRouterModel {
     /**
      * JSON path: {@code pricing.overrides} - date- and size-scoped price
      * overrides, each with its own prompt-size threshold and UTC window (see
-     * {@link OpenRouterPricingOverride}). A price lookup that ignores them is
-     * wrong for any model with a time- or size-scoped price table. Non-object
-     * entries are dropped.
+     * {@link OpenRouterPricingOverride} for the applicability and per-key
+     * merge rules). A price lookup that ignores them is wrong for any model
+     * with a time- or size-scoped price table. Non-object entries are
+     * dropped.
      *
      * @return the overrides, empty when absent or not an array
      */

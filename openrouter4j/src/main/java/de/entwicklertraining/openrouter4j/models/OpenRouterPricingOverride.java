@@ -12,14 +12,21 @@ import org.json.JSONObject;
  *
  * <p>Trap: a price lookup that ignores {@code overrides} is wrong for any
  * model with a time- or size-scoped price table - a cost estimate must
- * consult them (matched by prompt size against {@link #minPromptTokens()} and
- * by UTC day/time window against {@link #utcDays()} / {@link #utcStart()} /
- * {@link #utcEnd()}).
+ * consult them. An entry applies when the request's total prompt tokens are
+ * strictly greater than {@link #minPromptTokens()} and the UTC day/time
+ * window of {@link #utcDays()} / {@link #utcStart()} / {@link #utcEnd()}
+ * matches; absent condition fields are unrestricted ({@code null} from
+ * {@link #minPromptTokens()} means no size threshold, and empty
+ * {@link #utcDays()} with {@code null} {@link #utcStart()} /
+ * {@link #utcEnd()} means every day, all day). Among the applicable entries
+ * later entries win per price key, and a price key absent from an entry
+ * inherits the base price - a {@code null} price accessor means "not
+ * overridden", not "free".
  *
  * <p>All accessors follow the swallow-and-return-{@code null} / -empty
  * convention; use {@link #json()} for fields without a typed accessor. The
- * prices stay decimal-as-string, the wire convention - do not parse to
- * double.
+ * prices are decimal-as-string, the wire convention - do not parse to
+ * double, use {@code BigDecimal}.
  */
 public final class OpenRouterPricingOverride {
 
@@ -37,8 +44,9 @@ public final class OpenRouterPricingOverride {
     }
 
     /**
-     * JSON path: {@code min_prompt_tokens} - the prompt size this override
-     * applies from (prompts at or above this token count).
+     * JSON path: {@code min_prompt_tokens} - the prompt-size threshold of this
+     * override; the entry applies when the request's total prompt tokens are
+     * strictly greater than this value.
      *
      * @return the value, or {@code null} when absent or not a number
      */
@@ -48,21 +56,22 @@ public final class OpenRouterPricingOverride {
 
     /**
      * JSON path: {@code utc_days} - the UTC days of the week this override
-     * applies on (numeric day values as sent by the API; non-numeric entries
-     * are dropped).
+     * applies on, as day-name strings ({@code monday} .. {@code sunday};
+     * unknown values are passed through verbatim). Non-string entries are
+     * dropped.
      *
      * @return the days, empty when absent or not an array
      */
-    public List<Long> utcDays() {
-        List<Long> result = new ArrayList<>();
+    public List<String> utcDays() {
+        List<String> result = new ArrayList<>();
         JSONArray days = json.optJSONArray("utc_days");
         if (days == null) {
             return result;
         }
         for (int i = 0; i < days.length(); i++) {
             Object value = days.opt(i);
-            if (value instanceof Number number) {
-                result.add(number.longValue());
+            if (value instanceof String day) {
+                result.add(day);
             }
         }
         return result;
@@ -70,7 +79,9 @@ public final class OpenRouterPricingOverride {
 
     /**
      * JSON path: {@code utc_start} - start of the UTC time window this
-     * override applies in.
+     * override applies in, as an HHMM clock value (e.g. {@code 0},
+     * {@code 1600}). The window is half-open [{@code utc_start},
+     * {@code utc_end}) and may wrap past midnight.
      *
      * @return the value, or {@code null} when absent or not a number
      */
@@ -80,7 +91,8 @@ public final class OpenRouterPricingOverride {
 
     /**
      * JSON path: {@code utc_end} - end of the UTC time window this override
-     * applies in.
+     * applies in, as an HHMM clock value (see {@link #utcStart()} for the
+     * window semantics).
      *
      * @return the value, or {@code null} when absent or not a number
      */
@@ -89,7 +101,8 @@ public final class OpenRouterPricingOverride {
     }
 
     /**
-     * JSON path: {@code prompt} - overridden USD per prompt (input) token.
+     * JSON path: {@code prompt} - overridden USD per prompt (input) token,
+     * decimal-as-string - do not parse to double, use {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -99,7 +112,8 @@ public final class OpenRouterPricingOverride {
 
     /**
      * JSON path: {@code completion} - overridden USD per completion (output)
-     * token.
+     * token, decimal-as-string - do not parse to double, use
+     * {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -108,16 +122,8 @@ public final class OpenRouterPricingOverride {
     }
 
     /**
-     * JSON path: {@code image} - overridden USD per input image.
-     *
-     * @return the value, or {@code null} when absent or not a string
-     */
-    public String image() {
-        return optPrice("image");
-    }
-
-    /**
-     * JSON path: {@code audio} - overridden USD per audio input token.
+     * JSON path: {@code audio} - overridden USD per audio input token,
+     * decimal-as-string - do not parse to double, use {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -127,7 +133,8 @@ public final class OpenRouterPricingOverride {
 
     /**
      * JSON path: {@code input_cache_read} - overridden USD per cached input
-     * token (read).
+     * token (read), decimal-as-string - do not parse to double, use
+     * {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -137,7 +144,8 @@ public final class OpenRouterPricingOverride {
 
     /**
      * JSON path: {@code input_cache_write} - overridden USD per prompt-cache
-     * write token.
+     * write token, decimal-as-string - do not parse to double, use
+     * {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -146,8 +154,9 @@ public final class OpenRouterPricingOverride {
     }
 
     /**
-     * JSON path: {@code input_cache_write_1h} - overridden USD per 1-hour
-     * TTL prompt-cache write token.
+     * JSON path: {@code input_cache_write_1h} - overridden USD per 1-hour TTL
+     * prompt-cache write token, decimal-as-string - do not parse to double,
+     * use {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -157,7 +166,8 @@ public final class OpenRouterPricingOverride {
 
     /**
      * JSON path: {@code input_audio_cache} - overridden USD per cached input
-     * audio token.
+     * audio token, decimal-as-string - do not parse to double, use
+     * {@code BigDecimal}.
      *
      * @return the value, or {@code null} when absent or not a string
      */
