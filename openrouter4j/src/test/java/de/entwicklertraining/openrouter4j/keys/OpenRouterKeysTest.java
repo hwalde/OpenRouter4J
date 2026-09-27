@@ -111,7 +111,8 @@ class OpenRouterKeysTest {
         assertThat(quota.limit()).isEqualTo(200);
         assertThat(quota.used()).isEqualTo(12);
         assertThat(quota.remaining()).isEqualTo(188);
-        assertThat(quota.json()).isNotNull();
+        assertThat(quota.json().getInt("limit")).isEqualTo(200);
+        assertThat(quota.json().keySet()).containsOnly("limit", "used", "remaining");
     }
 
     @Test
@@ -144,6 +145,42 @@ class OpenRouterKeysTest {
         assertThat(quota.limit()).isNull();
         assertThat(quota.used()).isNull();
         assertThat(quota.remaining()).isEqualTo(5);
+
+        OpenRouterCurrentKeyResponse malformedIds = currentKeyResponseOf("""
+                {"data": {"organization_id": 42, "workspace_id": ["x"]}}
+                """);
+        assertThat(malformedIds.organizationId()).isNull();
+        assertThat(malformedIds.workspaceId()).isNull();
+    }
+
+    @Test
+    void currentKeyResponseReturnsNullForTheNewFieldsInsidePresentData() {
+        OpenRouterCurrentKeyResponse personalKey = currentKeyResponseOf("""
+                {"data": {"label": "sk-or-v1-au7...890"}}
+                """);
+        assertThat(personalKey.organizationId()).isNull();
+        assertThat(personalKey.workspaceId()).isNull();
+        assertThat(personalKey.allowedDataRegions()).isEmpty();
+        assertThat(personalKey.freeModelDailyRequests()).isNull();
+        assertThat(personalKey.label()).isEqualTo("sk-or-v1-au7...890");
+
+        OpenRouterCurrentKeyResponse partialQuota = currentKeyResponseOf("""
+                {"data": {"free_model_daily_requests": {"limit": 200}}}
+                """);
+        OpenRouterFreeModelDailyRequests quota = partialQuota.freeModelDailyRequests();
+        assertThat(quota).isNotNull();
+        assertThat(quota.limit()).isEqualTo(200);
+        assertThat(quota.used()).isNull();
+        assertThat(quota.remaining()).isNull();
+
+        OpenRouterCurrentKeyResponse emptyQuota = currentKeyResponseOf("""
+                {"data": {"free_model_daily_requests": {}}}
+                """);
+        OpenRouterFreeModelDailyRequests empty = emptyQuota.freeModelDailyRequests();
+        assertThat(empty).isNotNull();
+        assertThat(empty.limit()).isNull();
+        assertThat(empty.used()).isNull();
+        assertThat(empty.remaining()).isNull();
     }
 
     @Test

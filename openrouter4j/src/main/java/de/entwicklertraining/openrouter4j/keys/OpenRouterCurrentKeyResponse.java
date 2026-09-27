@@ -2,7 +2,6 @@ package de.entwicklertraining.openrouter4j.keys;
 
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -184,7 +183,7 @@ public final class OpenRouterCurrentKeyResponse extends OpenRouterResponse<OpenR
      * account regional-routing entitlement; empty when no region is permitted
      * or the field is absent. Reflects region policy only - other key
      * restrictions (e.g. a management key blocked from inference) still apply
-     * independently.
+     * independently. Non-string array entries are dropped.
      *
      * @return the regions, empty when absent or not an array
      */
@@ -192,11 +191,11 @@ public final class OpenRouterCurrentKeyResponse extends OpenRouterResponse<OpenR
         try {
             JSONObject data = json.optJSONObject("data");
             if (data == null) {
-                return Collections.emptyList();
+                return new ArrayList<>();
             }
             JSONArray regions = data.optJSONArray("allowed_data_regions");
             if (regions == null) {
-                return Collections.emptyList();
+                return new ArrayList<>();
             }
             List<String> result = new ArrayList<>();
             for (int i = 0; i < regions.length(); i++) {
@@ -209,7 +208,7 @@ public final class OpenRouterCurrentKeyResponse extends OpenRouterResponse<OpenR
         } catch (Exception ignored) {
             // swallow
         }
-        return Collections.emptyList();
+        return new ArrayList<>();
     }
 
     /**
@@ -238,19 +237,19 @@ public final class OpenRouterCurrentKeyResponse extends OpenRouterResponse<OpenR
      * JSON path: {@code data.organization_id} - the owning organization,
      * {@code null} for personal keys.
      *
-     * @return the value, or {@code null} when absent
+     * @return the value, or {@code null} when absent or not a string
      */
     public String organizationId() {
-        return optDataString("organization_id");
+        return optDataStringStrict("organization_id");
     }
 
     /**
      * JSON path: {@code data.workspace_id} - the key's workspace scope.
      *
-     * @return the value, or {@code null} when absent
+     * @return the value, or {@code null} when absent or not a string
      */
     public String workspaceId() {
-        return optDataString("workspace_id");
+        return optDataStringStrict("workspace_id");
     }
 
     /**
@@ -277,6 +276,19 @@ public final class OpenRouterCurrentKeyResponse extends OpenRouterResponse<OpenR
             JSONObject data = json.optJSONObject("data");
             if (data != null) {
                 return data.optString(key, null);
+            }
+        } catch (Exception ignored) {
+            // swallow
+        }
+        return null;
+    }
+
+    private String optDataStringStrict(String key) {
+        try {
+            JSONObject data = json.optJSONObject("data");
+            if (data != null) {
+                Object value = data.opt(key);
+                return value instanceof String text ? text : null;
             }
         } catch (Exception ignored) {
             // swallow
