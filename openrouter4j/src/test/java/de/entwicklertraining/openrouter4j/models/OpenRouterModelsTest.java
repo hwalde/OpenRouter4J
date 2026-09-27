@@ -326,6 +326,167 @@ class OpenRouterModelsTest {
         assertThat(model.benchmarks().codingIndex()).isNull();
         assertThat(model.benchmarks().agenticIndex()).isNull();
         assertThat(model.benchmarks().designArenaEntries()).isEmpty();
+
+        assertThat(model.pricingAudioOutput()).isNull();
+        assertThat(model.pricingImageOutput()).isNull();
+        assertThat(model.pricingImageToken()).isNull();
+        assertThat(model.pricingInputAudioCache()).isNull();
+        assertThat(model.pricingInputCacheWrite1h()).isNull();
+        assertThat(model.pricingInternalReasoning()).isNull();
+        assertThat(model.pricingDiscount()).isNull();
+        assertThat(model.pricingOverrides()).isEmpty();
+    }
+
+    @Test
+    void newPricingFieldsAndOverridesAreSurfaced() {
+        OpenRouterModelsListResponse response = listResponseOf("""
+                {
+                  "data": [
+                    {
+                      "id": "openai/gpt-4",
+                      "name": "GPT-4",
+                      "pricing": {
+                        "prompt": "0.00003",
+                        "audio_output": "0.00006",
+                        "image_output": "0.00008",
+                        "image_token": "0.00001",
+                        "input_audio_cache": "0.000003",
+                        "input_cache_write_1h": "0.000009",
+                        "internal_reasoning": "0.000015",
+                        "discount": 0.5,
+                        "overrides": [
+                          {
+                            "min_prompt_tokens": 128000,
+                            "utc_days": [6, 0],
+                            "utc_start": 0,
+                            "utc_end": 3600,
+                            "prompt": "0.000015",
+                            "completion": "0.00003",
+                            "image": "0",
+                            "audio": "0.00003",
+                            "input_cache_read": "0.00000125",
+                            "input_cache_write": "0.000003125",
+                            "input_cache_write_1h": "0.0000045",
+                            "input_audio_cache": "0.0000015"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+                """);
+
+        OpenRouterModel model = firstModelOf(response);
+        assertThat(model.pricingAudioOutput()).isEqualTo("0.00006");
+        assertThat(model.pricingImageOutput()).isEqualTo("0.00008");
+        assertThat(model.pricingImageToken()).isEqualTo("0.00001");
+        assertThat(model.pricingInputAudioCache()).isEqualTo("0.000003");
+        assertThat(model.pricingInputCacheWrite1h()).isEqualTo("0.000009");
+        assertThat(model.pricingInternalReasoning()).isEqualTo("0.000015");
+        assertThat(model.pricingDiscount()).isEqualTo(0.5);
+
+        List<OpenRouterPricingOverride> overrides = model.pricingOverrides();
+        assertThat(overrides).hasSize(1);
+        OpenRouterPricingOverride override = overrides.get(0);
+        assertThat(override.minPromptTokens()).isEqualTo(128000.0);
+        assertThat(override.utcDays()).containsExactly(6L, 0L);
+        assertThat(override.utcStart()).isEqualTo(0L);
+        assertThat(override.utcEnd()).isEqualTo(3600L);
+        assertThat(override.prompt()).isEqualTo("0.000015");
+        assertThat(override.completion()).isEqualTo("0.00003");
+        assertThat(override.image()).isEqualTo("0");
+        assertThat(override.audio()).isEqualTo("0.00003");
+        assertThat(override.inputCacheRead()).isEqualTo("0.00000125");
+        assertThat(override.inputCacheWrite()).isEqualTo("0.000003125");
+        assertThat(override.inputCacheWrite1h()).isEqualTo("0.0000045");
+        assertThat(override.inputAudioCache()).isEqualTo("0.0000015");
+        assertThat(override.json().getInt("min_prompt_tokens")).isEqualTo(128000);
+    }
+
+    @Test
+    void newPricingFieldsReturnNullWhenMissingInsidePresentPricing() {
+        OpenRouterModelsListResponse response = listResponseOf("""
+                {
+                  "data": [
+                    {
+                      "id": "openai/gpt-4",
+                      "name": "GPT-4",
+                      "pricing": {"prompt": "0.00003", "overrides": []}
+                    }
+                  ]
+                }
+                """);
+
+        OpenRouterModel model = firstModelOf(response);
+        assertThat(model.pricingPrompt()).isEqualTo("0.00003");
+        assertThat(model.pricingAudioOutput()).isNull();
+        assertThat(model.pricingImageOutput()).isNull();
+        assertThat(model.pricingImageToken()).isNull();
+        assertThat(model.pricingInputAudioCache()).isNull();
+        assertThat(model.pricingInputCacheWrite1h()).isNull();
+        assertThat(model.pricingInternalReasoning()).isNull();
+        assertThat(model.pricingDiscount()).isNull();
+        assertThat(model.pricingOverrides()).isEmpty();
+    }
+
+    @Test
+    void newPricingFieldsAndOverridesSwallowMalformedShapes() {
+        OpenRouterModelsListResponse response = listResponseOf("""
+                {
+                  "data": [
+                    {
+                      "id": "openai/gpt-4",
+                      "name": "GPT-4",
+                      "pricing": {
+                        "audio_output": 0.00006,
+                        "image_output": {"usd": "0.00008"},
+                        "image_token": null,
+                        "input_audio_cache": "0.000003",
+                        "input_cache_write_1h": ["0.000009"],
+                        "internal_reasoning": true,
+                        "discount": "half",
+                        "overrides": ["flat", 7, null, {
+                          "min_prompt_tokens": "128k",
+                          "utc_days": [6, "sun", null, 0],
+                          "utc_start": "0",
+                          "utc_end": null,
+                          "prompt": 0.000015,
+                          "completion": "0.00003"
+                        }]
+                      }
+                    }
+                  ]
+                }
+                """);
+
+        OpenRouterModel model = firstModelOf(response);
+        assertThat(model.pricingAudioOutput()).isNull();
+        assertThat(model.pricingImageOutput()).isNull();
+        assertThat(model.pricingImageToken()).isNull();
+        assertThat(model.pricingInputAudioCache()).isEqualTo("0.000003");
+        assertThat(model.pricingInputCacheWrite1h()).isNull();
+        assertThat(model.pricingInternalReasoning()).isNull();
+        assertThat(model.pricingDiscount()).isNull();
+
+        List<OpenRouterPricingOverride> overrides = model.pricingOverrides();
+        assertThat(overrides).hasSize(1);
+        OpenRouterPricingOverride override = overrides.get(0);
+        assertThat(override.minPromptTokens()).isNull();
+        assertThat(override.utcDays()).containsExactly(6L, 0L);
+        assertThat(override.utcStart()).isNull();
+        assertThat(override.utcEnd()).isNull();
+        assertThat(override.prompt()).isNull();
+        assertThat(override.completion()).isEqualTo("0.00003");
+
+        OpenRouterModelsListResponse notAnArray = listResponseOf("""
+                {"data": [{"id": "m", "pricing": {"overrides": {"min_prompt_tokens": 1}}}]}
+                """);
+        assertThat(firstModelOf(notAnArray).pricingOverrides()).isEmpty();
+    }
+
+    private OpenRouterModel firstModelOf(OpenRouterModelsListResponse response) {
+        List<OpenRouterModel> models = response.models();
+        return models.get(0);
     }
 
     @Test

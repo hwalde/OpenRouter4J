@@ -191,6 +191,108 @@ public final class OpenRouterModel {
         return json.optJSONObject("pricing");
     }
 
+    /**
+     * JSON path: {@code pricing.audio_output} - USD per output audio token.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String pricingAudioOutput() {
+        return strictPricingValue("audio_output");
+    }
+
+    /**
+     * JSON path: {@code pricing.image_output} - USD per output image token
+     * (image generation).
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String pricingImageOutput() {
+        return strictPricingValue("image_output");
+    }
+
+    /**
+     * JSON path: {@code pricing.image_token} - USD per image token.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String pricingImageToken() {
+        return strictPricingValue("image_token");
+    }
+
+    /**
+     * JSON path: {@code pricing.input_audio_cache} - USD per cached input
+     * audio token.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String pricingInputAudioCache() {
+        return strictPricingValue("input_audio_cache");
+    }
+
+    /**
+     * JSON path: {@code pricing.input_cache_write_1h} - USD per 1-hour TTL
+     * prompt-cache write token (the counterpart of
+     * {@link #pricingInputCacheWrite()}, selected by the cache TTL option).
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String pricingInputCacheWrite1h() {
+        return strictPricingValue("input_cache_write_1h");
+    }
+
+    /**
+     * JSON path: {@code pricing.internal_reasoning} - USD per internal
+     * reasoning token.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String pricingInternalReasoning() {
+        return strictPricingValue("internal_reasoning");
+    }
+
+    /**
+     * JSON path: {@code pricing.discount} - the discount factor applied to
+     * the listed prices (a number, unlike the decimal-as-string prices).
+     *
+     * @return the value, or {@code null} when absent or not a number
+     */
+    public Double pricingDiscount() {
+        JSONObject pricing = json.optJSONObject("pricing");
+        if (pricing == null || !pricing.has("discount") || pricing.isNull("discount")) {
+            return null;
+        }
+        Object value = pricing.opt("discount");
+        return value instanceof Number number ? number.doubleValue() : null;
+    }
+
+    /**
+     * JSON path: {@code pricing.overrides} - date- and size-scoped price
+     * overrides, each with its own prompt-size threshold and UTC window (see
+     * {@link OpenRouterPricingOverride}). A price lookup that ignores them is
+     * wrong for any model with a time- or size-scoped price table. Non-object
+     * entries are dropped.
+     *
+     * @return the overrides, empty when absent or not an array
+     */
+    public List<OpenRouterPricingOverride> pricingOverrides() {
+        List<OpenRouterPricingOverride> result = new ArrayList<>();
+        JSONObject pricing = json.optJSONObject("pricing");
+        if (pricing == null) {
+            return result;
+        }
+        JSONArray overrides = pricing.optJSONArray("overrides");
+        if (overrides == null) {
+            return result;
+        }
+        for (int i = 0; i < overrides.length(); i++) {
+            JSONObject entry = overrides.optJSONObject(i);
+            if (entry != null) {
+                result.add(new OpenRouterPricingOverride(entry));
+            }
+        }
+        return result;
+    }
+
     private String pricingValue(String key) {
         JSONObject pricing = json.optJSONObject("pricing");
         if (pricing == null || !pricing.has(key) || pricing.isNull(key)) {
@@ -198,6 +300,15 @@ public final class OpenRouterModel {
         }
         Object value = pricing.opt(key);
         return value != null ? String.valueOf(value) : null;
+    }
+
+    private String strictPricingValue(String key) {
+        JSONObject pricing = json.optJSONObject("pricing");
+        if (pricing == null || !pricing.has(key) || pricing.isNull(key)) {
+            return null;
+        }
+        Object value = pricing.opt(key);
+        return value instanceof String text ? text : null;
     }
 
     /**

@@ -8,6 +8,7 @@ import de.entwicklertraining.openrouter4j.models.OpenRouterModelEndpoint;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelResponse;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsCountResponse;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelsListResponse;
+import de.entwicklertraining.openrouter4j.models.OpenRouterPricingOverride;
 
 import java.util.List;
 
@@ -88,6 +89,20 @@ public class OpenRouterModelsCatalogExample {
                         + ", coding index " + model.benchmarks().codingIndex()
                         + ", agentic index " + model.benchmarks().agenticIndex()
                         + ", design-arena rows " + model.benchmarks().designArenaEntries().size());
+            }
+            // The newer price fields, and the date/size-scoped overrides - a
+            // cost estimate must consult the overrides, not only the base
+            // prices, whenever any are present.
+            System.out.println("  image token/output, audio output, reasoning: "
+                    + model.pricingImageToken() + " / " + model.pricingImageOutput()
+                    + " / " + model.pricingAudioOutput() + " / " + model.pricingInternalReasoning());
+            System.out.println("  cache write 1h / input audio cache / discount: "
+                    + model.pricingInputCacheWrite1h() + " / " + model.pricingInputAudioCache()
+                    + " / " + model.pricingDiscount());
+            if (!model.pricingOverrides().isEmpty()) {
+                OpenRouterPricingOverride first = model.pricingOverrides().get(0);
+                System.out.println("  pricing override from prompt size " + first.minPromptTokens()
+                        + " -> prompt " + first.prompt() + " / completion " + first.completion());
             }
         }
 
