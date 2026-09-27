@@ -31,6 +31,21 @@ public class OpenRouterKeysManagementExample {
         System.out.println("  limit: " + current.limit()
                 + ", remaining: " + current.limitRemaining()
                 + ", usage: " + current.usage());
+        // Region policy and scoping - region policy is one of several
+        // restrictions; other key rules (e.g. management keys blocked from
+        // inference) still apply independently.
+        System.out.println("  allowed data regions: " + current.allowedDataRegions());
+        System.out.println("  organization: " + current.organizationId()
+                + ", workspace: " + current.workspaceId());
+        // The free-model (:free variant) daily request quota - remaining can
+        // report the tier policy rather than a real budget (exempt accounts
+        // and BYOK requests are not gated by it).
+        if (current.freeModelDailyRequests() != null) {
+            System.out.println("  free-model daily requests: "
+                    + current.freeModelDailyRequests().used() + "/"
+                    + current.freeModelDailyRequests().limit() + " used, "
+                    + current.freeModelDailyRequests().remaining() + " remaining");
+        }
 
         // 2. List the keys of the account (management key required).
         OpenRouterKeysListResponse list = client.keys().list().execute();

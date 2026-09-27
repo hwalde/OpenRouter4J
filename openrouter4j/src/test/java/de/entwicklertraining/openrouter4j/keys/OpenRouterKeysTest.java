@@ -83,6 +83,67 @@ class OpenRouterKeysTest {
         assertThat(response.limit()).isNull();
         assertThat(response.isManagementKey()).isNull();
         assertThat(response.data()).isNull();
+        assertThat(response.allowedDataRegions()).isEmpty();
+        assertThat(response.freeModelDailyRequests()).isNull();
+        assertThat(response.organizationId()).isNull();
+        assertThat(response.workspaceId()).isNull();
+    }
+
+    @Test
+    void currentKeyResponseSurfacesRegionsFreeModelQuotaAndScoping() {
+        OpenRouterCurrentKeyResponse response = currentKeyResponseOf("""
+                {
+                  "data": {
+                    "allowed_data_regions": ["eu", "us"],
+                    "free_model_daily_requests": {"limit": 200, "used": 12, "remaining": 188},
+                    "organization_id": "org_2dHFtVWx2n56w6HkM0000000000",
+                    "workspace_id": "660e8400-e29b-41d4-a716-446655440000"
+                  }
+                }
+                """);
+
+        assertThat(response.allowedDataRegions()).containsExactly("eu", "us");
+        assertThat(response.organizationId()).isEqualTo("org_2dHFtVWx2n56w6HkM0000000000");
+        assertThat(response.workspaceId()).isEqualTo("660e8400-e29b-41d4-a716-446655440000");
+
+        OpenRouterFreeModelDailyRequests quota = response.freeModelDailyRequests();
+        assertThat(quota).isNotNull();
+        assertThat(quota.limit()).isEqualTo(200);
+        assertThat(quota.used()).isEqualTo(12);
+        assertThat(quota.remaining()).isEqualTo(188);
+        assertThat(quota.json()).isNotNull();
+    }
+
+    @Test
+    void currentKeyResponseSwallowsMalformedRegionsAndQuotaShapes() {
+        OpenRouterCurrentKeyResponse notAnArray = currentKeyResponseOf("""
+                {"data": {"allowed_data_regions": "europe"}}
+                """);
+        assertThat(notAnArray.allowedDataRegions()).isEmpty();
+
+        OpenRouterCurrentKeyResponse notAnObject = currentKeyResponseOf("""
+                {"data": {"free_model_daily_requests": "nope"}}
+                """);
+        assertThat(notAnObject.freeModelDailyRequests()).isNull();
+
+        OpenRouterCurrentKeyResponse explicitNullQuota = currentKeyResponseOf("""
+                {"data": {"free_model_daily_requests": null}}
+                """);
+        assertThat(explicitNullQuota.freeModelDailyRequests()).isNull();
+
+        OpenRouterCurrentKeyResponse mixedEntries = currentKeyResponseOf("""
+                {"data": {"allowed_data_regions": ["eu", 42, null, {"x": 1}, "us"]}}
+                """);
+        assertThat(mixedEntries.allowedDataRegions()).containsExactly("eu", "us");
+
+        OpenRouterCurrentKeyResponse malformedQuotaFields = currentKeyResponseOf("""
+                {"data": {"free_model_daily_requests": {"limit": "many", "used": null, "remaining": 5}}}
+                """);
+        OpenRouterFreeModelDailyRequests quota = malformedQuotaFields.freeModelDailyRequests();
+        assertThat(quota).isNotNull();
+        assertThat(quota.limit()).isNull();
+        assertThat(quota.used()).isNull();
+        assertThat(quota.remaining()).isEqualTo(5);
     }
 
     @Test

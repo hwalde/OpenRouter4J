@@ -1,12 +1,19 @@
 package de.entwicklertraining.openrouter4j.keys;
 
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
  * Response of GET /key: the data of the API key making the call.
  *
- * <p>Follows the swallow-and-return-null convention.
+ * <p>Follows the swallow-and-return-null convention. The legacy
+ * {@code rate_limit} object of the same response is documented deprecated and
+ * always answers {@code -1} - it is deliberately not typed; read it from
+ * {@link #data()} if you must.
  */
 public final class OpenRouterCurrentKeyResponse extends OpenRouterResponse<OpenRouterCurrentKeyRequest> {
 
@@ -169,6 +176,81 @@ public final class OpenRouterCurrentKeyResponse extends OpenRouterResponse<OpenR
      */
     public Boolean isProvisioningKey() {
         return optDataBoolean("is_provisioning_key");
+    }
+
+    /**
+     * JSON path: {@code data.allowed_data_regions} - the data regions
+     * permitted for this key by the guardrail policies on the key and the
+     * account regional-routing entitlement; empty when no region is permitted
+     * or the field is absent. Reflects region policy only - other key
+     * restrictions (e.g. a management key blocked from inference) still apply
+     * independently.
+     *
+     * @return the regions, empty when absent or not an array
+     */
+    public List<String> allowedDataRegions() {
+        try {
+            JSONObject data = json.optJSONObject("data");
+            if (data == null) {
+                return Collections.emptyList();
+            }
+            JSONArray regions = data.optJSONArray("allowed_data_regions");
+            if (regions == null) {
+                return Collections.emptyList();
+            }
+            List<String> result = new ArrayList<>();
+            for (int i = 0; i < regions.length(); i++) {
+                Object value = regions.opt(i);
+                if (value instanceof String region) {
+                    result.add(region);
+                }
+            }
+            return result;
+        } catch (Exception ignored) {
+            // swallow
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * JSON path: {@code data.free_model_daily_requests} - the free-model
+     * ({@code :free} variant) daily request quota of the account that owns
+     * the key; see {@link OpenRouterFreeModelDailyRequests} for the quota
+     * semantics and the "tier policy, not a real budget" trap.
+     *
+     * @return the typed view, or {@code null} when absent or not an object
+     */
+    public OpenRouterFreeModelDailyRequests freeModelDailyRequests() {
+        try {
+            JSONObject data = json.optJSONObject("data");
+            if (data == null) {
+                return null;
+            }
+            JSONObject quota = data.optJSONObject("free_model_daily_requests");
+            return quota == null ? null : new OpenRouterFreeModelDailyRequests(quota);
+        } catch (Exception ignored) {
+            // swallow
+        }
+        return null;
+    }
+
+    /**
+     * JSON path: {@code data.organization_id} - the owning organization,
+     * {@code null} for personal keys.
+     *
+     * @return the value, or {@code null} when absent
+     */
+    public String organizationId() {
+        return optDataString("organization_id");
+    }
+
+    /**
+     * JSON path: {@code data.workspace_id} - the key's workspace scope.
+     *
+     * @return the value, or {@code null} when absent
+     */
+    public String workspaceId() {
+        return optDataString("workspace_id");
     }
 
     /**
