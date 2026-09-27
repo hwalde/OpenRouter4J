@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.generation;
 
 import org.json.JSONObject;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -120,6 +121,121 @@ class OpenRouterGenerationTest {
         assertThat(response.nativeFinishReason()).isNull();
         assertThat(response.totalCost()).isNull();
         assertThat(response.data()).isNull();
+        assertThat(response.origin()).isNull();
+        assertThat(response.userAgent()).isNull();
+        assertThat(response.httpReferer()).isNull();
+        assertThat(response.workspaceId()).isNull();
+        assertThat(response.nativeTokensCompletionImages()).isNull();
+        assertThat(response.numFetches()).isNull();
+        assertThat(response.numInputAudioPrompt()).isNull();
+        assertThat(response.numMediaPrompt()).isNull();
+        assertThat(response.numMediaCompletion()).isNull();
+        assertThat(response.providerResponses()).isEmpty();
+        assertThat(response.responseCacheSourceId()).isNull();
+    }
+
+    @Test
+    void newerMetadataAccessorsAreSurfaced() {
+        OpenRouterGenerationResponse response = responseOf("""
+                {
+                  "data": {
+                    "origin": "https://example.com/app",
+                    "user_agent": "MyClient/1.0",
+                    "http_referer": "https://example.com/app",
+                    "workspace_id": "660e8400-e29b-41d4-a716-446655440000",
+                    "native_tokens_completion_images": 128,
+                    "num_fetches": 3,
+                    "num_input_audio_prompt": 2,
+                    "num_media_prompt": 1,
+                    "num_media_completion": 1,
+                    "provider_responses": [
+                      {"provider_name": "OpenAI", "id": "chatcmpl-1", "endpoint_id": "openai/gpt-4o",
+                       "latency": 120, "status": 200, "model_permaslug": "openai/gpt-4o", "is_byok": false},
+                      {"provider_name": "Azure", "id": "chatcmpl-2", "endpoint_id": "azure/gpt-4o",
+                       "latency": 80, "status": 503, "model_permaslug": "openai/gpt-4o", "is_byok": true}
+                    ],
+                    "response_cache_source_id": "gen-cached123"
+                  }
+                }
+                """);
+
+        assertThat(response.origin()).isEqualTo("https://example.com/app");
+        assertThat(response.userAgent()).isEqualTo("MyClient/1.0");
+        assertThat(response.httpReferer()).isEqualTo("https://example.com/app");
+        assertThat(response.workspaceId()).isEqualTo("660e8400-e29b-41d4-a716-446655440000");
+        assertThat(response.nativeTokensCompletionImages()).isEqualTo(128L);
+        assertThat(response.numFetches()).isEqualTo(3L);
+        assertThat(response.numInputAudioPrompt()).isEqualTo(2L);
+        assertThat(response.numMediaPrompt()).isEqualTo(1L);
+        assertThat(response.numMediaCompletion()).isEqualTo(1L);
+        assertThat(response.responseCacheSourceId()).isEqualTo("gen-cached123");
+
+        List<JSONObject> attempts = response.providerResponses();
+        assertThat(attempts).hasSize(2);
+        assertThat(attempts.get(0).getString("provider_name")).isEqualTo("OpenAI");
+        assertThat(attempts.get(0).getInt("status")).isEqualTo(200);
+        assertThat(attempts.get(1).getString("provider_name")).isEqualTo("Azure");
+        assertThat(attempts.get(1).getInt("status")).isEqualTo(503);
+        assertThat(attempts.get(1).getBoolean("is_byok")).isTrue();
+    }
+
+    @Test
+    void newerMetadataAccessorsReturnNullForFieldsMissingInsidePresentData() {
+        OpenRouterGenerationResponse response = responseOf("""
+                {"data": {"id": "gen-1", "model": "openai/gpt-4o"}}
+                """);
+
+        assertThat(response.id()).isEqualTo("gen-1");
+        assertThat(response.origin()).isNull();
+        assertThat(response.userAgent()).isNull();
+        assertThat(response.httpReferer()).isNull();
+        assertThat(response.workspaceId()).isNull();
+        assertThat(response.nativeTokensCompletionImages()).isNull();
+        assertThat(response.numFetches()).isNull();
+        assertThat(response.numInputAudioPrompt()).isNull();
+        assertThat(response.numMediaPrompt()).isNull();
+        assertThat(response.numMediaCompletion()).isNull();
+        assertThat(response.providerResponses()).isEmpty();
+        assertThat(response.responseCacheSourceId()).isNull();
+    }
+
+    @Test
+    void newerMetadataAccessorsSwallowMalformedShapes() {
+        OpenRouterGenerationResponse response = responseOf("""
+                {
+                  "data": {
+                    "origin": 42,
+                    "user_agent": null,
+                    "http_referer": true,
+                    "workspace_id": ["w"],
+                    "native_tokens_completion_images": "many",
+                    "num_fetches": null,
+                    "num_input_audio_prompt": "3",
+                    "num_media_prompt": false,
+                    "num_media_completion": {},
+                    "provider_responses": ["flat", 7, null, {"provider_name": "kept"}],
+                    "response_cache_source_id": 7
+                  }
+                }
+                """);
+
+        assertThat(response.origin()).isNull();
+        assertThat(response.userAgent()).isNull();
+        assertThat(response.httpReferer()).isNull();
+        assertThat(response.workspaceId()).isNull();
+        assertThat(response.nativeTokensCompletionImages()).isNull();
+        assertThat(response.numFetches()).isNull();
+        assertThat(response.numInputAudioPrompt()).isNull();
+        assertThat(response.numMediaPrompt()).isNull();
+        assertThat(response.numMediaCompletion()).isNull();
+        assertThat(response.responseCacheSourceId()).isNull();
+        assertThat(response.providerResponses()).hasSize(1);
+        assertThat(response.providerResponses().get(0).getString("provider_name")).isEqualTo("kept");
+
+        OpenRouterGenerationResponse notAnArray = responseOf("""
+                {"data": {"provider_responses": {"id": "x"}}}
+                """);
+        assertThat(notAnArray.providerResponses()).isEmpty();
     }
 
     @Test

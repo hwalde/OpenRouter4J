@@ -1,6 +1,9 @@
 package de.entwicklertraining.openrouter4j.generation;
 
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
+import java.util.ArrayList;
+import java.util.List;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -58,6 +61,24 @@ public final class OpenRouterGenerationResponse extends OpenRouterResponse<OpenR
             return null;
         }
         return data.optString(key, null);
+    }
+
+    private String strictStringOf(String key) {
+        JSONObject data = data();
+        if (data == null) {
+            return null;
+        }
+        Object value = data.opt(key);
+        return value instanceof String text ? text : null;
+    }
+
+    private Long strictLongOf(String key) {
+        JSONObject data = data();
+        if (data == null) {
+            return null;
+        }
+        Object value = data.opt(key);
+        return value instanceof Number number ? number.longValue() : null;
     }
 
     /**
@@ -370,5 +391,147 @@ public final class OpenRouterGenerationResponse extends OpenRouterResponse<OpenR
      */
     public Long numSearchResults() {
         return longOf("num_search_results");
+    }
+
+    /**
+     * JSON path: {@code data.origin} - the Origin URL of the request (the
+     * app/site URL, e.g. {@code https://openrouter.ai/}) the generation is
+     * attributed to.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String origin() {
+        return strictStringOf("origin");
+    }
+
+    /**
+     * JSON path: {@code data.user_agent} - the caller's user agent.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String userAgent() {
+        return strictStringOf("user_agent");
+    }
+
+    /**
+     * JSON path: {@code data.http_referer} - the caller's referrer, i.e. the
+     * app-attribution value sent with the request.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String httpReferer() {
+        return strictStringOf("http_referer");
+    }
+
+    /**
+     * JSON path: {@code data.workspace_id} - the workspace this generation is
+     * attributed to. {@code null} is the normal answer for accounts without
+     * workspaces; generations predating workspace resolution are attributed
+     * to the account default workspace.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String workspaceId() {
+        return strictStringOf("workspace_id");
+    }
+
+    /**
+     * JSON path: {@code data.native_tokens_completion_images} - native
+     * completion image tokens as reported by the provider (the token family,
+     * not a count of images - compare the item counters below).
+     *
+     * @return the value, or {@code null} when absent or not a number
+     */
+    public Long nativeTokensCompletionImages() {
+        return strictLongOf("native_tokens_completion_images");
+    }
+
+    /**
+     * JSON path: {@code data.num_fetches} - number of web fetches performed
+     * during the generation (web-search pages / {@code web_fetch} URLs).
+     *
+     * @return the value, or {@code null} when absent or not a number
+     */
+    public Long numFetches() {
+        return strictLongOf("num_fetches");
+    }
+
+    /**
+     * JSON path: {@code data.num_input_audio_prompt} - number of audio inputs
+     * in the prompt (an item count, not a token count). Nullable - {@code null}
+     * for generations without audio input.
+     *
+     * @return the value, or {@code null} when absent or not a number
+     */
+    public Long numInputAudioPrompt() {
+        return strictLongOf("num_input_audio_prompt");
+    }
+
+    /**
+     * JSON path: {@code data.num_media_prompt} - number of media items
+     * (image/audio/video) in the prompt (an item count, not a token count).
+     * Nullable - {@code null} for generations without media input (e.g.
+     * text-only models).
+     *
+     * @return the value, or {@code null} when absent or not a number
+     */
+    public Long numMediaPrompt() {
+        return strictLongOf("num_media_prompt");
+    }
+
+    /**
+     * JSON path: {@code data.num_media_completion} - number of media items
+     * generated (an item count, not a token count). Nullable - {@code null}
+     * for generations without media output.
+     *
+     * @return the value, or {@code null} when absent or not a number
+     */
+    public Long numMediaCompletion() {
+        return strictLongOf("num_media_completion");
+    }
+
+    /**
+     * JSON path: {@code data.provider_responses} - the per-attempt provider
+     * response details of this generation, including fallback attempts (the
+     * API's {@code ProviderResponse} objects: {@code provider_name},
+     * {@code id}, {@code endpoint_id}, {@code latency}, {@code status},
+     * {@code model_permaslug}, {@code is_byok}, {@code routed_service_tier}),
+     * returned untyped as {@link JSONObject}s. Non-object entries are dropped;
+     * the raw {@code data} object stays reachable through {@link #data()}.
+     *
+     * @return the attempt records, empty when absent or not an array
+     */
+    public List<JSONObject> providerResponses() {
+        List<JSONObject> result = new ArrayList<>();
+        try {
+            JSONObject data = data();
+            if (data == null) {
+                return result;
+            }
+            JSONArray responses = data.optJSONArray("provider_responses");
+            if (responses == null) {
+                return result;
+            }
+            for (int i = 0; i < responses.length(); i++) {
+                JSONObject entry = responses.optJSONObject(i);
+                if (entry != null) {
+                    result.add(entry);
+                }
+            }
+        } catch (Exception ignored) {
+            // swallow
+        }
+        return result;
+    }
+
+    /**
+     * JSON path: {@code data.response_cache_source_id} - the generation id of
+     * the cache entry this response-cache HIT was served from (the
+     * {@code X-OpenRouter-Cache} header family). Only set on a cache HIT.
+     *
+     * @return the value, or {@code null} when absent or not a string
+     */
+    public String responseCacheSourceId() {
+        return strictStringOf("response_cache_source_id");
     }
 }

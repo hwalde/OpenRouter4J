@@ -45,13 +45,28 @@ public class OpenRouterGenerationMetadataExample {
                 + " (native: " + metadata.nativeFinishReason() + ")");
         System.out.println("Tokens (prompt/completion): " + metadata.tokensPrompt()
                 + " / " + metadata.tokensCompletion());
-        System.out.println("Native tokens (prompt/completion/reasoning/cached): "
+        System.out.println("Native tokens (prompt/completion/reasoning/cached/completion-images): "
                 + metadata.nativeTokensPrompt() + " / " + metadata.nativeTokensCompletion()
-                + " / " + metadata.nativeTokensReasoning() + " / " + metadata.nativeTokensCached());
+                + " / " + metadata.nativeTokensReasoning() + " / " + metadata.nativeTokensCached()
+                + " / " + metadata.nativeTokensCompletionImages());
         System.out.println("Total cost (USD):    " + metadata.totalCost());
         System.out.println("Upstream cost (USD): " + metadata.upstreamInferenceCost());
         System.out.println("Latency / generation time (ms): " + metadata.latency()
                 + " / " + metadata.generationTime());
+        // Caller attribution and scoping. The num_media_* / num_input_audio_prompt
+        // fields are item counts (not tokens) and are null for generations
+        // without such input/output.
+        System.out.println("Origin / user agent / referrer: " + metadata.origin()
+                + " / " + metadata.userAgent() + " / " + metadata.httpReferer());
+        System.out.println("Workspace: " + metadata.workspaceId()
+                + ", fetches: " + metadata.numFetches()
+                + ", media prompt/completion/audio-input: " + metadata.numMediaPrompt()
+                + " / " + metadata.numMediaCompletion()
+                + " / " + metadata.numInputAudioPrompt());
+        // Only set on a response-cache HIT (the X-OpenRouter-Cache family).
+        System.out.println("Cache source generation: " + metadata.responseCacheSourceId());
+        // One entry per provider attempt, including fallback attempts.
+        System.out.println("Provider attempts:    " + metadata.providerResponses().size());
 
         // 2. The stored prompt and completion.
         OpenRouterGenerationContentResponse content = client.generationContent(generationId).execute();
