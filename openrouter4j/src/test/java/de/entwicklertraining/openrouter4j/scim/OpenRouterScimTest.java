@@ -132,6 +132,81 @@ class OpenRouterScimTest {
     }
 
     @Test
+    void groupsListCarriesTheTypedExactMatchFilters() {
+        OpenRouterScimGroupsListRequest request = client().scim().groups()
+                .displayName("Engineering")
+                .externalId("idp-group-42")
+                .build();
+        assertThat(request.getRelativeUrl())
+                .isEqualTo("/scim/groups?display_name=Engineering&external_id=idp-group-42");
+        assertThat(request.displayName()).isEqualTo("Engineering");
+        assertThat(request.externalId()).isEqualTo("idp-group-42");
+
+        OpenRouterScimGroupsListRequest combined = client().scim().groups()
+                .offset(5)
+                .limit(10)
+                .displayName("Engineering")
+                .externalId("idp-group-42")
+                .build();
+        assertThat(combined.getRelativeUrl()).isEqualTo(
+                "/scim/groups?offset=5&limit=10&display_name=Engineering&external_id=idp-group-42");
+    }
+
+    @Test
+    void groupsListEmitsEachFilterOnlyWhenSet() {
+        OpenRouterScimGroupsListRequest onlyName = client().scim().groups()
+                .displayName("Engineering")
+                .build();
+        assertThat(onlyName.getRelativeUrl()).isEqualTo("/scim/groups?display_name=Engineering");
+        assertThat(onlyName.externalId()).isNull();
+
+        OpenRouterScimGroupsListRequest onlyExternal = client().scim().groups()
+                .externalId("idp-group-42")
+                .build();
+        assertThat(onlyExternal.getRelativeUrl()).isEqualTo("/scim/groups?external_id=idp-group-42");
+        assertThat(onlyExternal.displayName()).isNull();
+    }
+
+    @Test
+    void groupsListUrlEncodesFilterValues() {
+        OpenRouterScimGroupsListRequest request = client().scim().groups()
+                .displayName("Team A&B / R&D")
+                .externalId("idp group+1")
+                .build();
+        assertThat(request.getRelativeUrl()).isEqualTo(
+                "/scim/groups?display_name=Team+A%26B+%2F+R%26D&external_id=idp+group%2B1");
+    }
+
+    @Test
+    void groupsListOmitsUnsetFiltersAndUnsetLeavesTheUrlShapeUnchanged() {
+        OpenRouterScimGroupsListRequest unset = client().scim().groups()
+                .displayName("Engineering")
+                .displayName(null)
+                .externalId("idp-group-42")
+                .externalId(null)
+                .offset(5)
+                .limit(10)
+                .build();
+        assertThat(unset.getRelativeUrl()).isEqualTo("/scim/groups?offset=5&limit=10");
+        assertThat(unset.displayName()).isNull();
+        assertThat(unset.externalId()).isNull();
+    }
+
+    @Test
+    void groupsListRejectsBlankFilterValuesLoudly() {
+        assertThatThrownBy(() -> client().scim().groups().displayName(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("display_name");
+        assertThatThrownBy(() -> client().scim().groups().displayName("   "))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> client().scim().groups().externalId(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("external_id");
+        assertThatThrownBy(() -> client().scim().groups().externalId("  "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void syncJobCreateSendsAnEmptyBody() {
         OpenRouterScimSyncJobCreateRequest request = client().scim().startSyncJob().build();
         assertThat(request.getRelativeUrl()).isEqualTo("/scim/sync-jobs");

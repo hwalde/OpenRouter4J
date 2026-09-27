@@ -24,9 +24,20 @@ public class OpenRouterScimExample {
         OpenRouterClient client = new OpenRouterClient();
 
         // List the SCIM groups of the organization - the group ids are the
-        // scim_group_id values the mapping endpoints accept.
-        for (OpenRouterScimGroup group : client.scim().groups().execute().groups()) {
+        // scim_group_id values the mapping endpoints accept. The display_name
+        // and external_id filters are exact matches (not substring searches);
+        // omit them to list every group.
+        for (OpenRouterScimGroup group : client.scim().groups()
+                .displayName("Engineering")
+                .execute().groups()) {
             System.out.println("Group " + group.displayName() + " (" + group.id() + ")");
+        }
+
+        // The same list filtered by the external identity-provider id.
+        for (OpenRouterScimGroup group : client.scim().groups()
+                .externalId("idp-group-42")
+                .execute().groups()) {
+            System.out.println("IdP group " + group.externalId() + " -> " + group.id());
         }
 
         // List the existing group-to-workspace mappings.
