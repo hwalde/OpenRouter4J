@@ -12,7 +12,7 @@ Dieser Skill prüft Java-Quelltext in zwei parallelen Schritten und fasst die Er
 Frage den Benutzer welchen Code er prüfen lassen möchte, falls nicht bereits klar:
 - Einzelne Java-Datei
 - Ein Package/Verzeichnis
-- Das gesamte Projekt (src/main/java)
+- Das gesamte Projekt (Multi-Modul: `openrouter4j/src/main/java` und `openrouter4j-examples/src/main/java`)
 
 Ermittle den konkreten Pfad. Falls unklar, nutze `find` um die Java-Quelltexte zu lokalisieren.
 
