@@ -193,12 +193,13 @@ class OpenRouterByokTest {
         assertThat(nullBody.isNull("declared_region")).isTrue();
         assertThat(withNull.declaredRegion()).isNull();
 
-        // unset omits the key
-        JSONObject createUnset = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+        // unset omits the key; the read-back accessor answers null
+        OpenRouterByokCreateRequest createUnset = new OpenRouterByokCreateRequest.Builder(client())
                 .provider("openai")
                 .key("sk-proj-abc123")
-                .build().getBody());
-        assertThat(createUnset.has("declared_region")).isFalse();
+                .build();
+        assertThat(new JSONObject(createUnset.getBody()).has("declared_region")).isFalse();
+        assertThat(createUnset.declaredRegion()).isNull();
     }
 
     @Test
@@ -221,11 +222,23 @@ class OpenRouterByokTest {
         assertThat(updateClear.isNull("declared_region")).isTrue();
         assertThat(clear.declaredRegion()).isNull();
 
-        // Unset omits the key and leaves the stored value unchanged.
-        JSONObject updateUnset = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+        // unknown spellings pass through verbatim on update too (no local
+        // validation - an enum-validating update setter would fail here)
+        OpenRouterByokUpdateRequest withUnknown = new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredRegion("apac")
+                .build();
+        assertThat(new JSONObject(withUnknown.getBody()).get("declared_region")).isEqualTo("apac");
+        assertThat(withUnknown.declaredRegion()).isEqualTo("apac");
+
+        // Unset omits the key and leaves the stored value unchanged (except
+        // that an OpenAI/Fireworks key rotation in the same PATCH re-derives
+        // it from the new key material - documented in the javadoc); the
+        // read-back accessor answers null for unset as well.
+        OpenRouterByokUpdateRequest updateUnset = new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
                 .name("n")
-                .build().getBody());
-        assertThat(updateUnset.has("declared_region")).isFalse();
+                .build();
+        assertThat(new JSONObject(updateUnset.getBody()).has("declared_region")).isFalse();
+        assertThat(updateUnset.declaredRegion()).isNull();
     }
 
     @Test

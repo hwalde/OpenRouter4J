@@ -73,9 +73,10 @@ public final class OpenRouterByokUpdateRequest extends OpenRouterRequest<OpenRou
      * @return the value of {@code declared_region}, or {@code null} when the
      *         declaration is unset or was explicitly set to {@code null} (the
      *         two states are indistinguishable here - on update unset leaves the
-     *         stored declaration unchanged while explicit {@code null} clears it
-     *         back to undeclared; the difference is in the body, not the
-     *         accessor)
+     *         stored declaration unchanged - except that rotating an OpenAI or
+     *         Fireworks {@code key} re-derives it from the new key material -
+     *         while explicit {@code null} clears it back to undeclared; the
+     *         difference is in the body, not the accessor)
      */
     public String declaredRegion() {
         return declaredRegion;
@@ -266,12 +267,14 @@ public final class OpenRouterByokUpdateRequest extends OpenRouterRequest<OpenRou
  * {@code europe} or {@code us} and Anthropic accepts {@code us} only.
  *
  * <p>Update-specific tri-state (differs from create): leaving this unset omits
- * the key and the stored declaration stays unchanged; a value is sent verbatim
- * ({@code global}, {@code europe} and {@code us} are the documented spellings -
- * unknown spellings pass through verbatim, leave the rejection of undocumented
- * ones to the API); {@code null} emits an explicit JSON {@code null} and clears
- * the declaration back to undeclared ("the credential follows the region
- * OpenRouter records for the endpoint").
+ * the key and the stored declaration stays unchanged - with one documented
+ * exception: rotating an OpenAI or Fireworks {@code key} in the same PATCH
+ * re-derives the declaration from the new key material; a value is sent
+ * verbatim ({@code global}, {@code europe} and {@code us} are the documented
+ * spellings - unknown spellings pass through verbatim, leave the rejection of
+ * undocumented ones to the API); {@code null} emits an explicit JSON
+ * {@code null} and clears the declaration back to undeclared ("the credential
+ * follows the region OpenRouter records for the endpoint").
  */
     public Builder declaredRegion(String declaredRegion) {
         this.declaredRegion = declaredRegion;
