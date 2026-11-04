@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.models;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterWorkloadPerf;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -638,6 +639,314 @@ class OpenRouterModelsTest {
 
         assertThat(request.createResponse("{}").endpoints()).isEmpty();
         assertThat(request.createResponse("{}").model()).isNull();
+    }
+
+    @Test
+    void modelEndpointSurfacesTheFullPublicEndpointSet() {
+        OpenRouterModelEndpointsRequest request =
+                new OpenRouterModelEndpointsRequest.Builder(client(), "openai", "gpt-4o-mini").build();
+        OpenRouterModelEndpointsResponse response = request.createResponse("""
+                {
+                  "data": {
+                    "id": "openai/gpt-4o-mini",
+                    "endpoints": [
+                      {
+                        "provider": "Azure",
+                        "model": "openai/gpt-4o-mini",
+                        "selected": true,
+                        "name": "Azure | openai/gpt-4o-mini",
+                        "tag": "azure",
+                        "model_id": "openai/gpt-4o-mini",
+                        "model_name": "OpenAI: GPT-4o-mini",
+                        "provider_name": "Azure",
+                        "status": 0,
+                        "context_length": 128000,
+                        "max_completion_tokens": 16384,
+                        "max_prompt_tokens": null,
+                        "latency_last_30m": {"p50": 1292, "p75": 1544, "p90": 1930, "p99": 4734.98},
+                        "throughput_last_30m": {"p50": 51, "p75": 41, "p90": 33, "p99": 10.9},
+                        "perf_last_30m_by_workload": {
+                          "text_generation": {
+                            "latency": {"p50": 1292, "p75": 1544, "p90": 1930, "p99": 4734.98},
+                            "throughput": {"p50": 51, "p75": 41, "p90": 33, "p99": 10.9},
+                            "request_count": 173283
+                          },
+                          "image_generation": {
+                            "latency": {"p50": 8200, "p75": 9100, "p90": 12000, "p99": 21000},
+                            "throughput": null,
+                            "request_count": null
+                          },
+                          "future_workload": {
+                            "latency": {"p50": 1},
+                            "throughput": null,
+                            "request_count": 2
+                          }
+                        },
+                        "uptime_last_5m": 100,
+                        "uptime_last_30m": 99.5,
+                        "uptime_last_1d": 99.8,
+                        "pricing": {"prompt": "0.00000015", "completion": "0.0000006", "discount": 0},
+                        "quantization": "unknown",
+                        "supported_parameters": ["temperature", "top_p", "tool_choice"],
+                        "supports_image_reference": false,
+                        "supports_implicit_caching": true,
+                        "supports_multiple_audio_references": false,
+                        "supports_voice_cloning": true,
+                        "supports_diarization": true,
+                        "supports_tool_choice": {"auto": true, "function": true, "none": false, "required": true},
+                        "service_tier": "priority",
+                        "native_tools": {"openrouter:web_search": {"type": "web_search_20260209"}}
+                      }
+                    ]
+                  }
+                }
+                """);
+
+        OpenRouterModelEndpoint endpoint = response.endpoints().get(0);
+        assertThat(endpoint.provider()).isEqualTo("Azure");
+        assertThat(endpoint.model()).isEqualTo("openai/gpt-4o-mini");
+        assertThat(endpoint.selected()).isTrue();
+        assertThat(endpoint.name()).isEqualTo("Azure | openai/gpt-4o-mini");
+        assertThat(endpoint.tag()).isEqualTo("azure");
+        assertThat(endpoint.modelId()).isEqualTo("openai/gpt-4o-mini");
+        assertThat(endpoint.modelName()).isEqualTo("OpenAI: GPT-4o-mini");
+        assertThat(endpoint.providerName()).isEqualTo("Azure");
+        assertThat(endpoint.status()).isZero();
+        assertThat(endpoint.contextLength()).isEqualTo(128000L);
+        assertThat(endpoint.maxCompletionTokens()).isEqualTo(16384L);
+        assertThat(endpoint.maxPromptTokens()).isNull();
+        assertThat(endpoint.latency()).isNotNull();
+        assertThat(endpoint.latency().p50()).isEqualTo(1292.0);
+        assertThat(endpoint.latency().p75()).isEqualTo(1544.0);
+        assertThat(endpoint.latency().p90()).isEqualTo(1930.0);
+        assertThat(endpoint.latency().p99()).isEqualTo(4734.98);
+        assertThat(endpoint.latency().json().has("p50")).isTrue();
+        assertThat(endpoint.throughput()).isNotNull();
+        assertThat(endpoint.throughput().p50()).isEqualTo(51.0);
+        assertThat(endpoint.throughput().p99()).isEqualTo(10.9);
+
+        Map<String, OpenRouterWorkloadPerf> workloads = endpoint.perfLast30mByWorkload();
+        assertThat(workloads).containsOnlyKeys("text_generation", "image_generation", "future_workload");
+        OpenRouterWorkloadPerf textGeneration = workloads.get("text_generation");
+        assertThat(textGeneration.latency().p50()).isEqualTo(1292.0);
+        assertThat(textGeneration.throughput().p99()).isEqualTo(10.9);
+        assertThat(textGeneration.requestCount()).isEqualTo(173283L);
+        assertThat(textGeneration.json().has("latency")).isTrue();
+        OpenRouterWorkloadPerf imageGeneration = workloads.get("image_generation");
+        assertThat(imageGeneration.latency().p50()).isEqualTo(8200.0);
+        assertThat(imageGeneration.throughput()).isNull();
+        assertThat(imageGeneration.requestCount()).isNull();
+        assertThat(workloads.get("future_workload").requestCount()).isEqualTo(2L);
+
+        assertThat(endpoint.uptimeLast5m()).isEqualTo(100.0);
+        assertThat(endpoint.uptimeLast30m()).isEqualTo(99.5);
+        assertThat(endpoint.uptimeLast1d()).isEqualTo(99.8);
+        assertThat(endpoint.pricing().getString("prompt")).isEqualTo("0.00000015");
+        assertThat(endpoint.quantization()).isEqualTo("unknown");
+        assertThat(endpoint.supportedParameters()).containsExactly("temperature", "top_p", "tool_choice");
+        assertThat(endpoint.supportsImageReference()).isFalse();
+        assertThat(endpoint.supportsImplicitCaching()).isTrue();
+        assertThat(endpoint.supportsMultipleAudioReferences()).isFalse();
+        assertThat(endpoint.supportsVoiceCloning()).isTrue();
+        assertThat(endpoint.supportsDiarization()).isTrue();
+        assertThat(endpoint.supportsToolChoice()).isNotNull();
+        assertThat(endpoint.supportsToolChoice().auto()).isTrue();
+        assertThat(endpoint.supportsToolChoice().function()).isTrue();
+        assertThat(endpoint.supportsToolChoice().none()).isFalse();
+        assertThat(endpoint.supportsToolChoice().required()).isTrue();
+        assertThat(endpoint.supportsToolChoice().json().has("auto")).isTrue();
+        assertThat(endpoint.serviceTier()).isEqualTo("priority");
+        assertThat(endpoint.nativeTools()).containsOnlyKeys("openrouter:web_search");
+        assertThat(endpoint.nativeTools().get("openrouter:web_search").getString("type"))
+                .isEqualTo("web_search_20260209");
+        assertThat(endpoint.json().has("name")).isTrue();
+    }
+
+    @Test
+    void modelEndpointAccessorsReturnNullWhenFieldsAbsentOrJsonNull() {
+        OpenRouterModelEndpointsRequest request =
+                new OpenRouterModelEndpointsRequest.Builder(client(), "openai", "gpt-4o-mini").build();
+
+        OpenRouterModelEndpoint absent = request.createResponse("""
+                {"data": {"endpoints": [{}]}}
+                """).endpoints().get(0);
+        assertEndpointViewEmpty(absent);
+
+        OpenRouterModelEndpoint jsonNull = request.createResponse("""
+                {
+                  "data": {
+                    "endpoints": [
+                      {
+                        "provider": null,
+                        "model": null,
+                        "selected": null,
+                        "name": null,
+                        "tag": null,
+                        "model_id": null,
+                        "model_name": null,
+                        "provider_name": null,
+                        "status": null,
+                        "context_length": null,
+                        "max_completion_tokens": null,
+                        "max_prompt_tokens": null,
+                        "latency_last_30m": null,
+                        "throughput_last_30m": null,
+                        "perf_last_30m_by_workload": null,
+                        "uptime_last_5m": null,
+                        "uptime_last_30m": null,
+                        "uptime_last_1d": null,
+                        "pricing": null,
+                        "quantization": null,
+                        "supported_parameters": null,
+                        "supports_image_reference": null,
+                        "supports_implicit_caching": null,
+                        "supports_multiple_audio_references": null,
+                        "supports_voice_cloning": null,
+                        "supports_diarization": null,
+                        "supports_tool_choice": null,
+                        "service_tier": null,
+                        "native_tools": null
+                      }
+                    ]
+                  }
+                }
+                """).endpoints().get(0);
+        assertEndpointViewEmpty(jsonNull);
+    }
+
+    @Test
+    void modelEndpointAccessorsSwallowMalformedShapes() {
+        OpenRouterModelEndpointsRequest request =
+                new OpenRouterModelEndpointsRequest.Builder(client(), "openai", "gpt-4o-mini").build();
+        OpenRouterModelEndpoint endpoint = request.createResponse("""
+                {
+                  "data": {
+                    "endpoints": [
+                      {
+                        "provider": 42,
+                        "model": {"x": 1},
+                        "selected": "yes",
+                        "name": 7,
+                        "tag": true,
+                        "model_id": [],
+                        "model_name": 1.5,
+                        "provider_name": 9,
+                        "status": "up",
+                        "context_length": "128000",
+                        "max_completion_tokens": false,
+                        "uptime_last_5m": "100",
+                        "latency_last_30m": "fast",
+                        "throughput_last_30m": {"p50": "51", "p75": 41},
+                        "perf_last_30m_by_workload": [
+                          {"latency": {"p50": 1}}
+                        ],
+                        "pricing": "cheap",
+                        "quantization": 8,
+                        "supported_parameters": "temperature",
+                        "supports_tool_choice": "all",
+                        "supports_image_reference": 1,
+                        "supports_implicit_caching": "true",
+                        "supports_multiple_audio_references": [],
+                        "supports_voice_cloning": 0,
+                        "supports_diarization": "true",
+                        "service_tier": ["priority"],
+                        "native_tools": {
+                          "openrouter:web_search": "web_search_20260209",
+                          "openrouter:files": {"type": "files_20260101"}
+                        }
+                      }
+                    ]
+                  }
+                }
+                """).endpoints().get(0);
+
+        assertThat(endpoint.provider()).isNull();
+        assertThat(endpoint.model()).isNull();
+        assertThat(endpoint.selected()).isNull();
+        assertThat(endpoint.name()).isNull();
+        assertThat(endpoint.tag()).isNull();
+        assertThat(endpoint.modelId()).isNull();
+        assertThat(endpoint.modelName()).isNull();
+        assertThat(endpoint.providerName()).isNull();
+        assertThat(endpoint.status()).isNull();
+        assertThat(endpoint.contextLength()).isNull();
+        assertThat(endpoint.maxCompletionTokens()).isNull();
+        assertThat(endpoint.uptimeLast5m()).isNull();
+        assertThat(endpoint.latency()).isNull();
+        // the good p75 survives inside a present object while the malformed
+        // p50 is swallowed
+        assertThat(endpoint.throughput()).isNotNull();
+        assertThat(endpoint.throughput().p50()).isNull();
+        assertThat(endpoint.throughput().p75()).isEqualTo(41.0);
+        assertThat(endpoint.perfLast30mByWorkload()).isEmpty();
+        assertThat(endpoint.pricing()).isNull();
+        assertThat(endpoint.quantization()).isNull();
+        assertThat(endpoint.supportedParameters()).isEmpty();
+        assertThat(endpoint.supportsToolChoice()).isNull();
+        assertThat(endpoint.supportsImageReference()).isNull();
+        assertThat(endpoint.supportsImplicitCaching()).isNull();
+        assertThat(endpoint.supportsMultipleAudioReferences()).isNull();
+        assertThat(endpoint.supportsVoiceCloning()).isNull();
+        assertThat(endpoint.supportsDiarization()).isNull();
+        assertThat(endpoint.serviceTier()).isNull();
+        assertThat(endpoint.nativeTools()).containsOnlyKeys("openrouter:files");
+
+        OpenRouterModelEndpoint workloads = request.createResponse("""
+                {
+                  "data": {
+                    "endpoints": [
+                      {
+                        "perf_last_30m_by_workload": {
+                          "text_generation": {
+                            "latency": {"p50": "x"},
+                            "throughput": "fast",
+                            "request_count": "many"
+                          },
+                          "image_generation": "nope"
+                        }
+                      }
+                    ]
+                  }
+                }
+                """).endpoints().get(0);
+        assertThat(workloads.perfLast30mByWorkload()).containsOnlyKeys("text_generation");
+        OpenRouterWorkloadPerf textGeneration = workloads.perfLast30mByWorkload().get("text_generation");
+        assertThat(textGeneration.latency()).isNotNull();
+        assertThat(textGeneration.latency().p50()).isNull();
+        assertThat(textGeneration.throughput()).isNull();
+        assertThat(textGeneration.requestCount()).isNull();
+    }
+
+    private void assertEndpointViewEmpty(OpenRouterModelEndpoint endpoint) {
+        assertThat(endpoint.provider()).isNull();
+        assertThat(endpoint.model()).isNull();
+        assertThat(endpoint.selected()).isNull();
+        assertThat(endpoint.name()).isNull();
+        assertThat(endpoint.tag()).isNull();
+        assertThat(endpoint.modelId()).isNull();
+        assertThat(endpoint.modelName()).isNull();
+        assertThat(endpoint.providerName()).isNull();
+        assertThat(endpoint.status()).isNull();
+        assertThat(endpoint.contextLength()).isNull();
+        assertThat(endpoint.maxCompletionTokens()).isNull();
+        assertThat(endpoint.maxPromptTokens()).isNull();
+        assertThat(endpoint.latency()).isNull();
+        assertThat(endpoint.throughput()).isNull();
+        assertThat(endpoint.perfLast30mByWorkload()).isEmpty();
+        assertThat(endpoint.uptimeLast5m()).isNull();
+        assertThat(endpoint.uptimeLast30m()).isNull();
+        assertThat(endpoint.uptimeLast1d()).isNull();
+        assertThat(endpoint.pricing()).isNull();
+        assertThat(endpoint.quantization()).isNull();
+        assertThat(endpoint.supportedParameters()).isEmpty();
+        assertThat(endpoint.supportsImageReference()).isNull();
+        assertThat(endpoint.supportsImplicitCaching()).isNull();
+        assertThat(endpoint.supportsMultipleAudioReferences()).isNull();
+        assertThat(endpoint.supportsVoiceCloning()).isNull();
+        assertThat(endpoint.supportsDiarization()).isNull();
+        assertThat(endpoint.supportsToolChoice()).isNull();
+        assertThat(endpoint.serviceTier()).isNull();
+        assertThat(endpoint.nativeTools()).isEmpty();
     }
 
     private OpenRouterModelsListResponse<OpenRouterModelsListRequest> listResponseOf(String json) {

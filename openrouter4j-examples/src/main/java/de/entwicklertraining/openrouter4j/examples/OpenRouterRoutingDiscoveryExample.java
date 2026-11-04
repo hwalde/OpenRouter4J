@@ -46,6 +46,13 @@ public class OpenRouterRoutingDiscoveryExample {
                     endpoint.providerName(),
                     endpoint.contextLength(),
                     endpoint.uptimeLast30m());
+            // safety_retention: prompts are not retained by default, but the
+            // provider may retain flagged prompts - a ZDR-enforced request
+            // reaches these endpoints only when the account allows it.
+            System.out.printf("    safety retention %s, service tier %s, per-workload perf %s%n",
+                    endpoint.safetyRetention(),
+                    endpoint.serviceTier(),
+                    endpoint.perfLast30mByWorkload().keySet());
         }
 
         // 3. Analytics meta: the metric/dimension names the analyticsQuery()

@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.providers;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterWorkloadPerf;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -145,6 +146,108 @@ class OpenRouterProvidersTest {
         assertThat(endpoint.throughputP75()).isNull();
         assertThat(endpoint.pricing()).isNull();
         assertThat(endpoint.status()).isNull();
+    }
+
+    @Test
+    void zdrEndpointSurfacesTheNewPublicEndpointFields() {
+        OpenRouterZdrEndpointsResponse response = zdrResponseOf("""
+                {
+                  "data": [
+                    {
+                      "name": "Google: Gemini 2.5 Flash",
+                      "safety_retention": true,
+                      "service_tier": "ultrafast",
+                      "supports_diarization": true,
+                      "supports_image_reference": true,
+                      "supports_multiple_audio_references": true,
+                      "supports_tool_choice": {"auto": true, "function": false, "none": true, "required": true},
+                      "native_tools": {"openrouter:web_search": {"type": "google_search"}},
+                      "perf_last_30m_by_workload": {
+                        "text_generation": {
+                          "latency": {"p50": 250, "p75": 350, "p90": 480, "p99": 850},
+                          "throughput": {"p50": 45.2, "p75": 38.5, "p90": 28.3, "p99": 15.1},
+                          "request_count": 1000
+                        },
+                        "custom_workload": {
+                          "latency": {"p50": 1},
+                          "throughput": null,
+                          "request_count": 2
+                        }
+                      }
+                    }
+                  ]
+                }
+                """);
+
+        OpenRouterZdrEndpoint endpoint = response.items().get(0);
+        assertThat(endpoint.safetyRetention()).isTrue();
+        assertThat(endpoint.serviceTier()).isEqualTo("ultrafast");
+        assertThat(endpoint.supportsDiarization()).isTrue();
+        assertThat(endpoint.supportsImageReference()).isTrue();
+        assertThat(endpoint.supportsMultipleAudioReferences()).isTrue();
+        assertThat(endpoint.supportsToolChoice().auto()).isTrue();
+        assertThat(endpoint.supportsToolChoice().function()).isFalse();
+        assertThat(endpoint.supportsToolChoice().none()).isTrue();
+        assertThat(endpoint.supportsToolChoice().required()).isTrue();
+        assertThat(endpoint.supportsToolChoice().json().has("auto")).isTrue();
+        assertThat(endpoint.nativeTools()).containsOnlyKeys("openrouter:web_search");
+        assertThat(endpoint.nativeTools().get("openrouter:web_search").getString("type")).isEqualTo("google_search");
+
+        assertThat(endpoint.perfLast30mByWorkload()).containsOnlyKeys("text_generation", "custom_workload");
+        OpenRouterWorkloadPerf textGeneration = endpoint.perfLast30mByWorkload().get("text_generation");
+        assertThat(textGeneration.latency().p50()).isEqualTo(250.0);
+        assertThat(textGeneration.latency().p99()).isEqualTo(850.0);
+        assertThat(textGeneration.throughput().p50()).isEqualTo(45.2);
+        assertThat(textGeneration.throughput().p99()).isEqualTo(15.1);
+        assertThat(textGeneration.requestCount()).isEqualTo(1000L);
+        assertThat(textGeneration.json().has("latency")).isTrue();
+        OpenRouterWorkloadPerf custom = endpoint.perfLast30mByWorkload().get("custom_workload");
+        assertThat(custom.latency().p50()).isEqualTo(1.0);
+        assertThat(custom.throughput()).isNull();
+        assertThat(custom.requestCount()).isEqualTo(2L);
+    }
+
+    @Test
+    void zdrEndpointSwallowsMalformedNewFields() {
+        OpenRouterZdrEndpointsResponse response = zdrResponseOf("""
+                {
+                  "data": [
+                    {
+                      "safety_retention": "yes",
+                      "service_tier": 3,
+                      "supports_diarization": "true",
+                      "supports_image_reference": 1,
+                      "supports_multiple_audio_references": [],
+                      "supports_tool_choice": "all",
+                      "native_tools": {"openrouter:web_search": "web_search_20260209"},
+                      "perf_last_30m_by_workload": {
+                        "text_generation": {
+                          "latency": {"p50": "x", "p75": 2},
+                          "throughput": "fast",
+                          "request_count": "many"
+                        },
+                        "image_generation": "nope"
+                      }
+                    }
+                  ]
+                }
+                """);
+
+        OpenRouterZdrEndpoint endpoint = response.items().get(0);
+        assertThat(endpoint.safetyRetention()).isNull();
+        assertThat(endpoint.serviceTier()).isNull();
+        assertThat(endpoint.supportsDiarization()).isNull();
+        assertThat(endpoint.supportsImageReference()).isNull();
+        assertThat(endpoint.supportsMultipleAudioReferences()).isNull();
+        assertThat(endpoint.supportsToolChoice()).isNull();
+        assertThat(endpoint.nativeTools()).isEmpty();
+        assertThat(endpoint.perfLast30mByWorkload()).containsOnlyKeys("text_generation");
+        OpenRouterWorkloadPerf textGeneration = endpoint.perfLast30mByWorkload().get("text_generation");
+        assertThat(textGeneration.latency()).isNotNull();
+        assertThat(textGeneration.latency().p50()).isNull();
+        assertThat(textGeneration.latency().p75()).isEqualTo(2.0);
+        assertThat(textGeneration.throughput()).isNull();
+        assertThat(textGeneration.requestCount()).isNull();
     }
 
     private OpenRouterProvidersResponse providersResponseOf(String json) {

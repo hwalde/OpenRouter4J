@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
+import de.entwicklertraining.openrouter4j.OpenRouterWorkloadPerf;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModel;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelEndpointsResponse;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelEndpoint;
@@ -108,15 +109,43 @@ public class OpenRouterModelsCatalogExample {
             }
         }
 
-        // 6. The serving endpoints of that model (per-provider picture; the
-        //    typed view covers provider/model/selected, everything else is
-        //    available through json()).
+        // 6. The serving endpoints of that model (per-provider picture: the
+        //    limits, prices and routing-relevant reliability numbers of each
+        //    endpoint).
         OpenRouterModelEndpointsResponse endpoints =
                 client.modelEndpoints("deepseek/deepseek-v4-flash-0731").execute();
         List<OpenRouterModelEndpoint> endpointList = endpoints.endpoints();
         System.out.println("Endpoints: " + endpointList.size());
         for (OpenRouterModelEndpoint endpoint : endpointList.stream().limit(5).toList()) {
-            System.out.printf("  %s (selected: %s)%n", endpoint.provider(), endpoint.selected());
+            System.out.printf("  %s (tag %s, context %d, uptime 30m %s)%n",
+                    endpoint.name(),
+                    endpoint.tag(),
+                    endpoint.contextLength(),
+                    endpoint.uptimeLast30m());
+            // Latency/throughput percentiles and the per-workload figures
+            // behind them - only visible when authenticated.
+            if (endpoint.latency() != null) {
+                System.out.printf("    latency p50 %s ms / throughput p50 %s tok/s%n",
+                        endpoint.latency().p50(),
+                        endpoint.throughput() != null ? endpoint.throughput().p50() : null);
+            }
+            if (endpoint.perfLast30mByWorkload().containsKey("text_generation")) {
+                OpenRouterWorkloadPerf text = endpoint.perfLast30mByWorkload().get("text_generation");
+                System.out.printf("    text_generation: %s requests, latency p50 %s ms%n",
+                        text.requestCount(),
+                        text.latency() != null ? text.latency().p50() : null);
+            }
+            // tool_choice in supported_parameters only says the parameter is
+            // accepted; the per-variant flags say which values passed testing.
+            if (endpoint.supportsToolChoice() != null) {
+                System.out.printf("    tool_choice auto %s / function %s / none %s / required %s%n",
+                        endpoint.supportsToolChoice().auto(),
+                        endpoint.supportsToolChoice().function(),
+                        endpoint.supportsToolChoice().none(),
+                        endpoint.supportsToolChoice().required());
+            }
+            System.out.printf("    service tier %s, native tools %s%n",
+                    endpoint.serviceTier(), endpoint.nativeTools().keySet());
         }
     }
 }
