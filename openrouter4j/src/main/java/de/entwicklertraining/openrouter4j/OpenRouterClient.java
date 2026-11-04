@@ -2071,12 +2071,16 @@ public final class OpenRouterClient extends ApiClient {
          * Lists the connections in scope for the intern plus the vault's
          * routing table for it:
          * GET /vault/interns/{internId}/connections. The connection keys
-         * list for every caller; {@code routing} is readable with the
-         * intern's own API key only (a slow vault leaves it {@code null}
-         * while the keys still list) and never carries credentials.
-         * Traps: 404 outside the Intern API programme or for an intern the
-         * key cannot see; 403 without a usable workspace scope or on
-         * regional hostnames (refused); 408/502/503/504 on vault problems.
+         * list for every caller; {@code routing} and {@code routing_text}
+         * are readable with the intern's own API key only (a slow vault
+         * leaves {@code routing} {@code null} while the keys still list;
+         * {@code routing_text} then carries the notice) and never carry
+         * credentials. Traps: 404 outside the Intern API programme or for
+         * an intern the key cannot see; 403 without a usable workspace
+         * scope or on regional hostnames (refused); 408 on the route
+         * deadline; 502 when the vault is unreachable or answers
+         * unexpectedly; 503 when vault writes are disabled or the vault is
+         * not configured; 504 when the vault does not answer in time.
          *
          * @param internId the id (UUID) of the intern
          * @return the starting point for the request
