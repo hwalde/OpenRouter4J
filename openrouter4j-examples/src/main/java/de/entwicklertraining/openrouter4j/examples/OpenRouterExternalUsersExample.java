@@ -14,10 +14,12 @@ import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUsersL
  * - DELETE /external-users/{user} (soft-deactivate)
  *
  * A registration is normally created implicitly by sending {@code user} on
- * inference requests or {@code external.user} on API keys - the explicit
- * register call just brings it into existence before first use. The
- * tracking string is immutable and case-sensitive; {@code is_active} is
- * registration state only and never blocks inference.
+ * inference requests or {@code external.user} on API keys (for organization
+ * keys outside HIPAA workspaces; the stored value has surrounding
+ * whitespace trimmed) - the explicit register call just brings it into
+ * existence before first use (409 when it already exists, active or
+ * deactivated). The tracking string is immutable and case-sensitive;
+ * {@code is_active} is registration state only and never blocks inference.
  */
 public class OpenRouterExternalUsersExample {
 

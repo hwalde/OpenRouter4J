@@ -8,8 +8,10 @@ import org.json.JSONObject;
  * the two timestamps.
  *
  * <p>A registration is created implicitly by sending {@code user} on
- * inference requests or {@code external.user} on API keys - the tracking
- * string is then registered with {@code is_active: true}.
+ * inference requests or {@code external.user} on API keys (for organization
+ * keys outside HIPAA workspaces; the stored value has surrounding
+ * whitespace trimmed) - the tracking string is then registered with
+ * {@code is_active: true}.
  *
  * <p>{@link #isActive()} is registration state only - it is not an
  * inference authorization decision and does not block inference when

@@ -291,4 +291,60 @@ class OpenRouterExternalUsersTest {
         assertThat(client().externalUsers().deactivate("team member").build().user())
                 .isEqualTo("team+member");
     }
+
+    @Test
+    void everyRouteValidatesTheTrackingStringContract() {
+        for (String bad : List.of(" leading", "trailing ", "a".repeat(513), "a\u0000b")) {
+            assertThatThrownBy(() -> client().externalUsers().register(bad))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().externalUsers().get(bad))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().externalUsers().update(bad, true))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().externalUsers().deactivate(bad))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().externalUsers().list().user(bad))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+        // the 512-character boundary passes on the by-user routes too
+        assertThat(client().externalUsers().get("a".repeat(512)).build().getRelativeUrl())
+                .isEqualTo("/external-users/" + "a".repeat(512));
+    }
+
+    @Test
+    void trackingStringsMustBeWellFormedUnicode() {
+        // an unpaired surrogate is not well-formed Unicode
+        assertThatThrownBy(() -> client().externalUsers().register("\uD800"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("well-formed");
+        assertThatThrownBy(() -> client().externalUsers().get("a\uDC00"))
+                .isInstanceOf(IllegalArgumentException.class);
+        // a valid surrogate pair counts as ONE character against the 512
+        // limit (code points, not UTF-16 units)
+        String emojis = "😀".repeat(512);
+        assertThat(client().externalUsers().register(emojis).build().getBody())
+                .contains(emojis);
+        assertThatThrownBy(() -> client().externalUsers().register("😀".repeat(513)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void dotIdsRemainReachableViaRegisterAndTheListFilter() {
+        // the documented escape path for ids the by-user routes reject
+        assertThat(client().externalUsers().register(".").build().getBody())
+                .contains("\"user\":\".\"");
+        assertThat(client().externalUsers().list().user("..").build().getRelativeUrl())
+                .isEqualTo("/external-users?user=..");
+    }
+
+    @Test
+    void getAndUpdateResponsesTolerateEmptyBodies() {
+        OpenRouterExternalUserGetRequest get = client().externalUsers().get("u").build();
+        assertThat(get.createResponse("").data()).isNull();
+        assertThat(get.createResponse((String) null).data()).isNull();
+        OpenRouterExternalUserUpdateRequest update =
+                client().externalUsers().update("u", true).build();
+        assertThat(update.createResponse("").data()).isNull();
+        assertThat(update.createResponse((String) null).data()).isNull();
+    }
 }

@@ -13,15 +13,18 @@ import org.json.JSONObject;
  * characters, well-formed Unicode, no NUL, no surrounding whitespace,
  * validated loudly). Registration is normally implicit - sending
  * {@code user} on inference requests or {@code external.user} on API keys
- * registers the same string with {@code is_active: true}; this route
- * exists for callers who want the registration before first use. The
- * answer is 201 with the registration.
+ * (for organization keys outside HIPAA workspaces; the stored value has
+ * surrounding whitespace trimmed) registers it with {@code is_active:
+ * true}; this route exists for callers who want the registration before
+ * first use. The answer is 201 with the registration.
  *
- * <p>Trap: an id of {@code .} or {@code ..} can be registered here (it is
- * a valid tracking string) but can never be addressed by path afterwards -
- * look it up with the {@code user} filter on
- * {@link OpenRouterExternalUsersListRequest}. Every route of this family
- * requires a management key.
+ * <p>Traps: registering a tracking id that already exists - active or
+ * deactivated - answers HTTP 409 (the soft-deactivated form is brought
+ * back with {@code update(user, true)}, not by re-registering). An id of
+ * {@code .} or {@code ..} can be registered here (it is a valid tracking
+ * string) but can never be addressed by path afterwards - look it up with
+ * the {@code user} filter on {@link OpenRouterExternalUsersListRequest}.
+ * Every route of this family requires a management key.
  */
 public final class OpenRouterExternalUserCreateRequest
         extends OpenRouterRequest<OpenRouterExternalUserResponse<OpenRouterExternalUserCreateRequest>> {

@@ -15,17 +15,21 @@ final class OpenRouterExternalUserPath {
 
     /**
      * Validates and URL-encodes a tracking string for use as a path segment.
-     * The path form cannot address an id of {@code "."} or {@code ".."}
-     * (the API resolves no such registration), so those are rejected loudly
-     * with a pointer at the list filter.
+     * The whole tracking-string contract is validated loudly first (1-512
+     * characters, well-formed Unicode, no NUL, no surrounding whitespace,
+     * see {@link OpenRouterExternalUserValidation}). The path form cannot
+     * address an id of {@code "."} or {@code ".."} (the API resolves no
+     * such registration), so those are rejected loudly with a pointer at
+     * the list filter. Note that the form encoding renders a space as
+     * {@code +}, which a path-decoding server reads as a literal plus - an
+     * id with internal spaces is likewise best looked up with the list
+     * filter.
      *
      * @param user the tracking string
      * @return the URL-encoded path segment
      */
     static String encode(String user) {
-        if (user == null || user.isEmpty()) {
-            throw new IllegalArgumentException("user must not be null or empty");
-        }
+        OpenRouterExternalUserValidation.requireValidUser(user);
         if (user.equals(".") || user.equals("..")) {
             throw new IllegalArgumentException(
                     "an external-user id of \".\" or \"..\" cannot be addressed by path - "

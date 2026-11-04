@@ -13,8 +13,9 @@ final class OpenRouterExternalUserValidation {
 
     /**
      * Validates one external tracking string against the documented
-     * contract: 1 to 512 characters, well-formed Unicode, no NUL, no
-     * surrounding whitespace.
+     * contract: 1 to 512 characters (code points, not UTF-16 units),
+     * well-formed Unicode (no unpaired surrogates), no NUL, no surrounding
+     * whitespace.
      *
      * @param user the tracking string
      * @return the unchanged string
@@ -24,7 +25,7 @@ final class OpenRouterExternalUserValidation {
         if (user == null || user.isEmpty()) {
             throw new IllegalArgumentException("user is required");
         }
-        if (user.length() > 512) {
+        if (user.codePointCount(0, user.length()) > 512) {
             throw new IllegalArgumentException("user must be at most 512 characters");
         }
         if (user.indexOf('\u0000') >= 0) {
@@ -32,6 +33,17 @@ final class OpenRouterExternalUserValidation {
         }
         if (!user.equals(user.strip())) {
             throw new IllegalArgumentException("user must not have surrounding whitespace");
+        }
+        for (int i = 0; i < user.length(); i++) {
+            char c = user.charAt(i);
+            if (Character.isHighSurrogate(c)) {
+                if (i + 1 >= user.length() || !Character.isLowSurrogate(user.charAt(i + 1))) {
+                    throw new IllegalArgumentException("user must be well-formed Unicode");
+                }
+                i++;
+            } else if (Character.isLowSurrogate(c)) {
+                throw new IllegalArgumentException("user must be well-formed Unicode");
+            }
         }
         return user;
     }

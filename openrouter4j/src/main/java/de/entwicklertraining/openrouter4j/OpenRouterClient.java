@@ -2259,7 +2259,11 @@ public final class OpenRouterClient extends ApiClient {
          * Registers an external user explicitly:
          * POST /external-users. Usually the registration is created
          * implicitly by sending {@code user} on an inference request or
-         * {@code external.user} on an API key.
+         * {@code external.user} on an API key (for organization keys
+         * outside HIPAA workspaces). Trap: a tracking id that is already
+         * registered - active or deactivated - answers HTTP 409; bring a
+         * deactivated registration back with {@code update(user, true)},
+         * not by re-registering.
          *
          * @param user the tracking string (validated loudly per the documented
          *        contract: 1-512 characters, no NUL, no surrounding whitespace)
