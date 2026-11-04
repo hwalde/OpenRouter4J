@@ -91,13 +91,35 @@ public class OpenRouterEmbeddingsExample {
         System.out.println("Multimodal embeddings: " + multimodal.embeddings().size());
 
         // Models that embed pre-tokenized input take token ids instead of
-        // text: one token array, or a batch of them (matched by index).
+        // text: one token array ...
         OpenRouterEmbeddingsResponse tokens = client.embeddings()
                 .model("openai/text-embedding-3-small")
                 .inputTokenArray(15496, 11, 262, 5764)
                 .execute();
         System.out.println("Token-array embedding dimensions: "
                 + tokens.embeddings().get(0).vectorOrDecoded().size());
+
+        // ... or a batch of token arrays (one embedding per row, matched by
+        // index, exactly like the string batch).
+        OpenRouterEmbeddingsResponse tokenBatch = client.embeddings()
+                .model("openai/text-embedding-3-small")
+                .inputTokens(new int[]{15496, 11}, new int[]{262, 5764})
+                .execute();
+        System.out.println("Token-batch embeddings: " + tokenBatch.embeddings().size());
+
+        // The value-class hatch covers part shapes without a typed factory
+        // (e.g. input_video) inside an otherwise typed item.
+        OpenRouterEmbeddingsResponse videoItem = client.embeddings()
+                .model("google/embeddinggemma-300m")
+                .addInput(OpenRouterEmbeddingsInputItem.of(
+                        OpenRouterEmbeddingsContentPart.text("summarize this clip"),
+                        OpenRouterEmbeddingsContentPart.raw(new JSONObject("""
+                                {"type": "input_video",
+                                 "input_video": {"data": "data:video/mp4;base64,AAAAGGZ0eXBtcDQy", "format": "mp4"}}
+                                """))))
+                .execute();
+        System.out.println("Video-item embedding dimensions: "
+                + videoItem.embeddings().get(0).vectorOrDecoded().size());
 
         // Everything the schema declares that has no typed factory goes
         // through the verbatim item hatch - e.g. an input_audio part.

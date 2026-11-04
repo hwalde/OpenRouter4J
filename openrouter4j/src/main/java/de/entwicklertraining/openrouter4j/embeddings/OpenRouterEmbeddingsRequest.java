@@ -124,26 +124,28 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
     }
 
     /**
-     * @return the single-string input, or {@code null} when the request was built with {@link #inputs()}
+     * @return the single-string input, or {@code null} when the request was
+     *         built with one of the other input forms
      */
     public String input() {
         return input;
     }
 
     /**
-     * @return the list input, or {@code null} when the request was built with {@link Builder#input(String)}
+     * @return the list input, or {@code null} when the request was built with
+     *         one of the other input forms
      */
     public List<String> inputs() {
         return inputs;
     }
 
     /**
-     * @return the item-object input (multimodal items, as raw JSON copies),
-     *         or {@code null} when the request was built with one of the
-     *         other input forms
+     * @return the item-object input (multimodal items, as raw JSON copies -
+     *         detached from the request), or {@code null} when the request
+     *         was built with one of the other input forms
      */
     public List<JSONObject> inputItems() {
-        return inputItems;
+        return inputItems == null ? null : copyItems(inputItems);
     }
 
     /**
@@ -555,7 +557,8 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
          * token-id array {@code [1, 2, 3]} - one input given as token ids for
          * models that embed pre-tokenized input. Calling this clears every
          * previously set input form; the last form set wins. For a batch of
-         * token rows use {@link #inputTokens(int[]...)}.
+         * token rows use {@link #inputTokens(int[]...)}. An empty call is
+         * rejected at {@code build()} like a missing input.
          *
          * @param tokenIds the token ids of the single input
          * @return this builder
@@ -575,7 +578,8 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
          * arrays {@code [[1, 2], [3, 4]]} - a batch of inputs given as token
          * ids. Calling this clears every previously set input form; the last
          * form set wins. For a single token row use
-         * {@link #inputTokenArray(int...)}.
+         * {@link #inputTokenArray(int...)}. An empty call is rejected at
+         * {@code build()} like a missing input.
          *
          * @param tokenArrays the token ids per input
          * @return this builder

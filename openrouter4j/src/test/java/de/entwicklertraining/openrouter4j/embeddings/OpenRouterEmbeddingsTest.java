@@ -415,32 +415,39 @@ class OpenRouterEmbeddingsTest {
                   {"type": "input_audio", "input_audio": {"data": "data:audio/wav;base64,AAAA", "format": "wav"}}
                 ]}
                 """);
-        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+        OpenRouterEmbeddingsRequest request = new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m")
                 .addInputItem(rawItem)
-                .build()
-                .getBody());
-
-        assertThat(body.getJSONArray("input").getJSONObject(0).toString())
+                .build();
+        assertThat(new JSONObject(request.getBody()).getJSONArray("input").getJSONObject(0).toString())
                 .isEqualTo(rawItem.toString());
-        // the hatch copies: mutating the caller's object afterwards changes nothing
+
+        // the hatch copies: mutating the caller's object afterwards cannot
+        // change what the built request sends
         rawItem.getJSONArray("content").getJSONObject(0).put("type", "text");
-        JSONObject later = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
-                .model("m")
-                .addInputItem(rawItem)
-                .build()
-                .getBody());
-        assertThat(later.getJSONArray("input").getJSONObject(0)
-                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("text");
+        assertThat(new JSONObject(request.getBody()).getJSONArray("input").getJSONObject(0)
+                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("input_audio");
+
+        // and the read-back accessor hands out detached copies too
+        request.inputItems().get(0).getJSONArray("content").getJSONObject(0).put("type", "mutated");
+        assertThat(new JSONObject(request.getBody()).getJSONArray("input").getJSONObject(0)
+                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("input_audio");
 
         // the raw() item factory covers the same shapes under the typed addInput path
-        JSONObject rawTyped = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+        JSONObject typedItem = new JSONObject("""
+                {"content": [
+                  {"type": "input_audio", "input_audio": {"data": "data:audio/wav;base64,AAAA", "format": "wav"}}
+                ]}
+                """);
+        OpenRouterEmbeddingsRequest rawTyped = new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m")
-                .addInput(OpenRouterEmbeddingsInputItem.raw(rawItem))
-                .build()
-                .getBody());
-        assertThat(rawTyped.getJSONArray("input").getJSONObject(0).toString())
-                .isEqualTo(rawItem.toString());
+                .addInput(OpenRouterEmbeddingsInputItem.raw(typedItem))
+                .build();
+        assertThat(new JSONObject(rawTyped.getBody()).getJSONArray("input").getJSONObject(0).toString())
+                .isEqualTo(typedItem.toString());
+        typedItem.getJSONArray("content").getJSONObject(0).put("type", "text");
+        assertThat(new JSONObject(rawTyped.getBody()).getJSONArray("input").getJSONObject(0)
+                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("input_audio");
 
         // and the raw() content-part factory covers one part inside a typed item
         JSONObject rawPart = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
@@ -481,57 +488,60 @@ class OpenRouterEmbeddingsTest {
     @Test
     void lastInputFormSetWinsAcrossAllTransitions() {
         // item form clears the string forms ...
-        JSONObject itemsAfterStrings = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+        OpenRouterEmbeddingsRequest itemsAfterStrings = new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m")
                 .inputs(List.of("a"))
                 .addInput(OpenRouterEmbeddingsInputItem.text("i"))
-                .build()
-                .getBody());
-        assertThat(itemsAfterStrings.getJSONArray("input").length()).isEqualTo(1);
-        assertThat(itemsAfterStrings.getJSONArray("input").getJSONObject(0)
-                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("text");
+                .build();
+        assertThat(new JSONObject(itemsAfterStrings.getBody()).getJSONArray("input").length())
+                .isEqualTo(1);
+        assertThat(itemsAfterStrings.input()).isNull();
+        assertThat(itemsAfterStrings.inputs()).isNull();
 
         // ... and every later form clears the accumulated items
-        JSONObject stringAfterItems = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+        OpenRouterEmbeddingsRequest stringAfterItems = new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m")
                 .addInput(OpenRouterEmbeddingsInputItem.text("i"))
                 .input("plain")
-                .build()
-                .getBody());
-        assertThat(stringAfterItems.getString("input")).isEqualTo("plain");
+                .build();
+        assertThat(new JSONObject(stringAfterItems.getBody()).getString("input")).isEqualTo("plain");
+        assertThat(stringAfterItems.inputItems()).isNull();
 
-        JSONObject tokensAfterItems = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+        OpenRouterEmbeddingsRequest tokensAfterItems = new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m")
                 .addInput(OpenRouterEmbeddingsInputItem.text("i"))
                 .inputTokenArray(7)
-                .build()
-                .getBody());
-        assertThat(tokensAfterItems.getJSONArray("input").toList()).containsExactly(7);
+                .build();
+        assertThat(new JSONObject(tokensAfterItems.getBody()).getJSONArray("input").toList())
+                .containsExactly(7);
+        assertThat(tokensAfterItems.inputItems()).isNull();
 
-        JSONObject rowsAfterTokens = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+        OpenRouterEmbeddingsRequest rowsAfterTokens = new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m")
                 .inputTokenArray(7)
                 .inputTokens(new int[]{5})
-                .build()
-                .getBody());
-        assertThat(rowsAfterTokens.getJSONArray("input").getJSONArray(0).toList())
-                .containsExactly(5);
+                .build();
+        assertThat(new JSONObject(rowsAfterTokens.getBody()).getJSONArray("input")
+                .getJSONArray(0).toList()).containsExactly(5);
+        assertThat(rowsAfterTokens.inputTokenArray()).isNull();
 
-        JSONObject listAfterRows = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+        OpenRouterEmbeddingsRequest listAfterRows = new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m")
                 .inputTokens(new int[]{5})
                 .inputs(List.of("a", "b"))
-                .build()
-                .getBody());
-        assertThat(listAfterRows.getJSONArray("input").toList()).containsExactly("a", "b");
+                .build();
+        assertThat(new JSONObject(listAfterRows.getBody()).getJSONArray("input").toList())
+                .containsExactly("a", "b");
+        assertThat(listAfterRows.inputTokens()).isNull();
 
-        JSONObject tokenArrayAfterList = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+        OpenRouterEmbeddingsRequest tokenArrayAfterList = new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m")
                 .inputs(List.of("a"))
                 .inputTokenArray(9)
-                .build()
-                .getBody());
-        assertThat(tokenArrayAfterList.getJSONArray("input").toList()).containsExactly(9);
+                .build();
+        assertThat(new JSONObject(tokenArrayAfterList.getBody()).getJSONArray("input").toList())
+                .containsExactly(9);
+        assertThat(tokenArrayAfterList.inputs()).isNull();
 
         // addInput appends to the item form instead of replacing it
         JSONObject twoItems = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
@@ -541,6 +551,47 @@ class OpenRouterEmbeddingsTest {
                 .build()
                 .getBody());
         assertThat(twoItems.getJSONArray("input").length()).isEqualTo(2);
+
+        // a later addInput switches back to the item form and drops the string
+        // set in between (the last form set wins, also across add-calls)
+        OpenRouterEmbeddingsRequest chained = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.text("x"))
+                .input("p")
+                .addInput(OpenRouterEmbeddingsInputItem.text("y"))
+                .build();
+        org.json.JSONArray chainedInput = new JSONObject(chained.getBody()).getJSONArray("input");
+        assertThat(chainedInput.length()).isEqualTo(1);
+        assertThat(chainedInput.getJSONObject(0).getJSONArray("content")
+                .getJSONObject(0).getString("text")).isEqualTo("y");
+        assertThat(chained.input()).isNull();
+
+        // typed and hatch items append to one shared list, in call order
+        JSONObject mixed = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.text("typed"))
+                .addInputItem(new JSONObject("{\"content\": [{\"type\": \"text\", \"text\": \"raw\"}]}"))
+                .build()
+                .getBody());
+        org.json.JSONArray mixedInput = mixed.getJSONArray("input");
+        assertThat(mixedInput.length()).isEqualTo(2);
+        assertThat(mixedInput.getJSONObject(0).getJSONArray("content")
+                .getJSONObject(0).getString("text")).isEqualTo("typed");
+        assertThat(mixedInput.getJSONObject(1).getJSONArray("content")
+                .getJSONObject(0).getString("text")).isEqualTo("raw");
+
+        JSONObject mixedReverse = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInputItem(new JSONObject("{\"content\": [{\"type\": \"text\", \"text\": \"raw\"}]}"))
+                .addInput(OpenRouterEmbeddingsInputItem.text("typed"))
+                .build()
+                .getBody());
+        org.json.JSONArray mixedReverseInput = mixedReverse.getJSONArray("input");
+        assertThat(mixedReverseInput.length()).isEqualTo(2);
+        assertThat(mixedReverseInput.getJSONObject(0).getJSONArray("content")
+                .getJSONObject(0).getString("text")).isEqualTo("raw");
+        assertThat(mixedReverseInput.getJSONObject(1).getJSONArray("content")
+                .getJSONObject(0).getString("text")).isEqualTo("typed");
     }
 
     @Test
@@ -619,6 +670,10 @@ class OpenRouterEmbeddingsTest {
         copy.getJSONArray("content").getJSONObject(0).put("text", "mutated");
         assertThat(item.toJson().getJSONArray("content").getJSONObject(0).getString("text"))
                 .isEqualTo("t");
+        OpenRouterEmbeddingsContentPart part = OpenRouterEmbeddingsContentPart.text("p");
+        JSONObject partCopy = part.toJson();
+        partCopy.put("text", "mutated");
+        assertThat(part.toJson().getString("text")).isEqualTo("p");
     }
 
     @Test
@@ -635,6 +690,64 @@ class OpenRouterEmbeddingsTest {
         assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
                 .model("m").inputTokenArray((int[]) null))
                 .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").inputTokens(new int[]{1}, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsContentPart.imageUrl(null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void inputItemsAreSnapshottedAtAddTimeAndBuildTime() {
+        // add-time snapshot: mutating the caller's item between addInputItem
+        // and build cannot change what the request sends (a shared item
+        // template must not collapse every entry to its last state)
+        JSONObject shared = new JSONObject("""
+                {"content": [
+                  {"type": "input_audio", "input_audio": {"data": "data:audio/wav;base64,AAAA", "format": "wav"}}
+                ]}
+                """);
+        OpenRouterEmbeddingsRequest.Builder hatchBuilder = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInputItem(shared);
+        shared.getJSONArray("content").getJSONObject(0).put("type", "text");
+        OpenRouterEmbeddingsRequest built = hatchBuilder.build();
+        assertThat(new JSONObject(built.getBody()).getJSONArray("input").getJSONObject(0)
+                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("input_audio");
+
+        // the typed raw() factories copy at creation: mutating their source
+        // BEFORE the item is added (and before build) changes nothing
+        JSONObject rawSource = new JSONObject("""
+                {"content": [
+                  {"type": "input_audio", "input_audio": {"data": "data:audio/wav;base64,AAAA", "format": "wav"}}
+                ]}
+                """);
+        OpenRouterEmbeddingsInputItem rawItem = OpenRouterEmbeddingsInputItem.raw(rawSource);
+        rawSource.getJSONArray("content").getJSONObject(0).put("type", "text");
+        assertThat(rawItem.toJson().getJSONArray("content").getJSONObject(0).getString("type"))
+                .isEqualTo("input_audio");
+        OpenRouterEmbeddingsRequest typedBuilt = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(rawItem)
+                .build();
+        assertThat(new JSONObject(typedBuilt.getBody()).getJSONArray("input").getJSONObject(0)
+                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("input_audio");
+
+        JSONObject rawPartSource = new JSONObject(
+                "{\"type\": \"input_audio\", \"input_audio\": {\"data\": \"data:audio/wav;base64,AAAA\", \"format\": \"wav\"}}");
+        OpenRouterEmbeddingsContentPart rawPart = OpenRouterEmbeddingsContentPart.raw(rawPartSource);
+        rawPartSource.put("type", "text");
+        assertThat(rawPart.toJson().getString("type")).isEqualTo("input_audio");
+
+        // build-time snapshot: reusing the builder afterwards cannot rewrite
+        // an already-built request
+        OpenRouterEmbeddingsRequest.Builder reused = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInputItem(new JSONObject("{\"content\": [{\"type\": \"text\", \"text\": \"one\"}]}"));
+        OpenRouterEmbeddingsRequest first = reused.build();
+        reused.addInputItem(new JSONObject("{\"content\": [{\"type\": \"text\", \"text\": \"two\"}]}"));
+        assertThat(new JSONObject(first.getBody()).getJSONArray("input").length()).isEqualTo(1);
+        assertThat(first.inputItems()).hasSize(1);
     }
 
     @Test
