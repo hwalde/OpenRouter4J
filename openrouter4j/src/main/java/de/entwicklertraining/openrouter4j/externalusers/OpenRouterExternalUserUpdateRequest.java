@@ -16,7 +16,10 @@ import org.json.JSONObject;
  * registration does not grant inference rights, deactivating does not block
  * inference. The {@code user} path segment is URL-encoded (the keys surface
  * convention); an id of {@code "."} or {@code ".."} cannot be addressed by
- * path and is rejected loudly.
+ * path and is rejected loudly, and an id with internal spaces cannot be
+ * reliably addressed either (the form encoding renders a space as
+ * {@code +}, which a path-decoding server reads as a literal plus) -
+ * look those up with the {@code user} filter of the list route.
  */
 public final class OpenRouterExternalUserUpdateRequest
         extends OpenRouterRequest<OpenRouterExternalUserResponse<OpenRouterExternalUserUpdateRequest>> {

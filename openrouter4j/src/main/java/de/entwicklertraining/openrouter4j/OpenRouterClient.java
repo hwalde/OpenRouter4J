@@ -2279,7 +2279,9 @@ public final class OpenRouterClient extends ApiClient {
          * registration; an id of {@code "."} or {@code ".."} cannot be
          * addressed by path - look those up with the list filter.
          *
-         * @param user the tracking string (URL-encoded into the path)
+         * @param user the tracking string (validated loudly; URL-encoded into
+         *        the path - ids of {@code .} / {@code ..} or with internal spaces
+         *        cannot be reliably addressed by path, use the list filter)
          * @return the starting point for the request
          */
         public OpenRouterExternalUserGetRequest.Builder get(String user) {
@@ -2291,7 +2293,9 @@ public final class OpenRouterClient extends ApiClient {
          * PATCH /external-users/{user}. Registration state only; does not
          * enforce inference access.
          *
-         * @param user the tracking string (URL-encoded into the path)
+         * @param user the tracking string (validated loudly; URL-encoded into
+         *        the path - ids of {@code .} / {@code ..} or with internal spaces
+         *        cannot be reliably addressed by path, use the list filter)
          * @param isActive the registration state to write (reactivate with {@code true})
          * @return the starting point for the request
          */
@@ -2305,7 +2309,9 @@ public final class OpenRouterClient extends ApiClient {
          * succeeds; this does not block inference - reactivate through
          * {@link #update(String, boolean)}.
          *
-         * @param user the tracking string (URL-encoded into the path)
+         * @param user the tracking string (validated loudly; URL-encoded into
+         *        the path - ids of {@code .} / {@code ..} or with internal spaces
+         *        cannot be reliably addressed by path, use the list filter)
          * @return the starting point for the request
          */
         public OpenRouterExternalUserDeactivateRequest.Builder deactivate(String user) {

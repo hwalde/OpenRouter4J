@@ -13,8 +13,9 @@ import org.json.JSONObject;
  * <p>Retrieves an active or inactive registration by its URL-encoded,
  * caller-supplied tracking ID. The {@code user} path segment is URL-encoded
  * (the keys surface convention); an id of {@code "."} or {@code ".."} cannot
- * be addressed by path and is rejected loudly - look those up with the
- * {@code user} filter of {@link OpenRouterExternalUsersListRequest}.
+ * be addressed by path and is rejected loudly, and an id with internal spaces cannot be reliably addressed either (the form encoding renders a space as {@code +}, which a path-decoding server reads as a literal plus) - look
+ * those up with the {@code user} filter of
+ * {@link OpenRouterExternalUsersListRequest}.
  */
 public final class OpenRouterExternalUserGetRequest
         extends OpenRouterRequest<OpenRouterExternalUserResponse<OpenRouterExternalUserGetRequest>> {
