@@ -79,7 +79,7 @@ public class OpenRouterWorkspacesExample {
         OpenRouterOrganizationSettings orgSettings =
                 client.organization().settings().get().execute().data();
         System.out.println("Filtered model catalog enabled: "
-                + orgSettings.isFilteredModelCatalogEnabled());
+                + (orgSettings != null ? orgSettings.isFilteredModelCatalogEnabled() : null));
         client.organization().settings().update(true).execute();
     }
 }

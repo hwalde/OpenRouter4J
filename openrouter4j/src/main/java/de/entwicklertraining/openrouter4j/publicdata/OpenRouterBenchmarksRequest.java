@@ -18,7 +18,8 @@ import java.util.Map;
  * <p>Aggregates scores from multiple benchmark sources (Artificial Analysis,
  * Design Arena, and OpenRouter's own tau-bench, GPQA and web-search evals).
  * The row shape depends on the requested {@code source}; the typed response
- * therefore exposes the rows as raw JSON objects plus typed {@code meta}
+ * therefore exposes the rows both as raw JSON objects ({@code items()}) and as
+ * typed, discriminated views ({@code benchmarkItems()}), plus typed {@code meta}
  * accessors. The endpoint works with any valid OpenRouter API key and is
  * rate-limited (30 requests/minute per key, 500/day per account).
  */
