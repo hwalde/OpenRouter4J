@@ -65,7 +65,8 @@ public final class OpenRouterByokCreateRequest extends OpenRouterRequest<OpenRou
      * @return the value of {@code declared_region}, or {@code null} when the
      *         declaration is unset or was explicitly set to {@code null} (the
      *         two states are indistinguishable here - on create both leave the
-     *         declaration undeclared and the API falls back to its default)
+     *         declaration undeclared and the API falls back to its default: the
+     *         key's region for OpenAI and Fireworks, otherwise {@code null})
      */
     public String declaredRegion() {
         return declaredRegion;
@@ -274,7 +275,7 @@ public final class OpenRouterByokCreateRequest extends OpenRouterRequest<OpenRou
  * explicit {@code null} both leave the declaration undeclared, and the API
  * defaults the field to the key's region for OpenAI and Fireworks, otherwise
  * {@code null}. The update request distinguishes the two states; see
- * {@code OpenRouterByokUpdateRequest.Builder#declaredRegion(String)}.
+ * {@link OpenRouterByokUpdateRequest.Builder#declaredRegion(String)}.
  */
     public Builder declaredRegion(String declaredRegion) {
         this.declaredRegion = declaredRegion;
