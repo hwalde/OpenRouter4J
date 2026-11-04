@@ -23,22 +23,28 @@ import org.json.JSONObject;
  * part of the rule. {@code ori features add} checks a feature's
  * {@code ori.requires.connections} against this list.
  *
- * <p>Traps: {@code routing} and {@code routing_text} are for the intern's
- * <b>own</b> API key only - {@code null} for any other caller and when the
- * vault could not build the table in time (the keys still list);
- * {@code routing_text} is also {@code null} for a caller other than the
- * intern. Never credentials - the table carries metadata about them. The
- * answer is 404 for an intern the key cannot see (a member key without an
- * admin role sees only interns its member created or interns in workspaces
- * they administer); the scope is selected by the API key - workspace
- * routes act on the key's active workspace and intern routes act on one
- * intern inside that workspace, there is no default workspace and no
- * fallback to another scope; every vault route, including this read,
- * requires access to the Intern API programme and answers 404 outside it;
- * an intern's own API key is confined to that intern (it can always read
- * the intern's secrets and effective secrets, and every other intern and
- * every workspace route answers 404); requests on regional hostnames such
- * as {@code eu.openrouter.ai} are refused.
+ * <p>Traps: {@code routing} is for the intern's <b>own</b> API key only -
+ * {@code null} for any other caller and when the vault could not build the
+ * table in time (the keys still list in that case); {@code routing_text} is
+ * {@code null} only for a caller other than the intern - when the table
+ * could not be built it carries the notice that it could not be read.
+ * Never credentials - the table carries metadata about them. Error paths:
+ * 404 for an intern the key cannot see (a member key without an admin role
+ * sees only interns its member created or interns in workspaces they
+ * administer) and outside the Intern API programme (every vault route,
+ * including this read, requires access to it); 403 when the key has no
+ * usable workspace scope or the request arrived on a regional hostname such
+ * as {@code eu.openrouter.ai} (refused - this library supports regional
+ * base URLs, so a regional client cannot use the route at all); 408 when
+ * the route deadline passes; 502 when the vault could not be reached or
+ * answered unexpectedly; 503 when vault writes are disabled for the caller
+ * or the vault is not configured; 504 when the vault did not answer in
+ * time. The scope is selected by the API key - workspace routes act on the
+ * key's active workspace and intern routes act on one intern inside that
+ * workspace, there is no default workspace and no fallback to another
+ * scope. An intern's own API key is confined to that intern: it can always
+ * read the intern's secrets and effective secrets, and every other intern
+ * and every workspace route answers 404.
  */
 public final class OpenRouterInternConnectionsRequest
         extends OpenRouterRequest<OpenRouterInternConnectionsResponse> {

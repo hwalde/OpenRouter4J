@@ -11,10 +11,12 @@ import org.json.JSONObject;
  * Response of GET /vault/interns/{internId}/connections: the connections
  * in scope for the intern plus the vault's routing table for it.
  *
- * <p>{@link #routing()} and {@link #routingText()} are for the intern's
- * <b>own</b> API key only - {@code null} for any other caller and when the
- * vault could not build the table in time; the connection keys
- * ({@link #connections()}) still list in that case.
+ * <p>{@link #routing()} is for the intern's <b>own</b> API key only -
+ * {@code null} for any other caller and when the vault could not build the
+ * table in time (the connection keys still list in that case);
+ * {@link #routingText()} is {@code null} only for a caller other than the
+ * intern - when the table could not be built it carries the notice that it
+ * could not be read.
  *
  * <p>All accessors follow the swallow-and-return-{@code null}/empty
  * convention.

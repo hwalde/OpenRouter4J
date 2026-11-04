@@ -126,6 +126,11 @@ public class OpenRouterInternsExample {
                     + connections.routing().mcpOrigins().size() + " MCP origin(s), "
                     + connections.routing().secrets().size() + " secret(s)");
         }
+        // The same table as the plain lines the intern reads in its
+        // instructions - null for a caller other than the intern; when the
+        // vault could not build the table in time this carries the notice
+        // instead.
+        System.out.println("Routing text: " + connections.routingText());
 
         // Update settings (omitted fields stay unchanged) and read back.
         client.interns().update(created.id()).model("anthropic/claude-sonnet-4.5").execute();

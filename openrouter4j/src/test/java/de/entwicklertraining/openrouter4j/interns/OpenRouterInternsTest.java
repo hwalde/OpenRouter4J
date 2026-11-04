@@ -887,17 +887,30 @@ class OpenRouterInternsTest {
                                  "installations": [{"credential_id": 1,
                                   "coverage": {"selection": 9, "repository_count": "many"},
                                   "shadowed_by": 8}],
-                                 "member_links": []}],
-                               "tokens": []},
-                    "google": {"accounts": [{"email": 3, "delegated_capabilities": ["ok", 4],
+                                 "member_links": ["bad", {"login": 5, "via": 6,
+                                                  "holds_token": "yes"}]}],
+                               "tokens": ["bad", {"login": 5, "owner": 6,
+                                          "repository_count": "n", "scope": 7,
+                                          "holds_token": 8},
+                                          {"login": "ok", "owner": null,
+                                           "repository_count": 2, "scope": "intern",
+                                           "holds_token": true}]},
+                    "google": {"accounts": ["bad", {"email": 3, "scope": 4,
+                                 "is_delegated_to_intern": "yes",
+                                 "delegated_capabilities": ["ok", 4],
                                  "holds_grant": "yes"}]},
-                    "slack": {"member_links": [{"slack_user_id": null, "holds_token": 1}]},
-                    "mcp_origins": [{"host": 4, "account_key": 5, "is_personal": "no",
+                    "slack": {"member_links": ["bad", {"slack_user_id": null,
+                                      "holds_token": 1}]},
+                    "mcp_origins": ["bad", {"host": 4, "account_key": 5,
+                                    "is_personal": "no",
                                     "routes": [{"host": 6, "path_prefix": 7}],
                                     "status": {"state": 8, "failure": 9}}],
-                    "host_rules": [{"host": 1, "secret_name": 2, "holds_secret": 3}],
-                    "custom_origins": [{"host": 1, "path_prefix": 2, "status": "usable"}],
-                    "secrets": [{"name": 1, "hosts": "x", "scope": 2, "created_at": 3},
+                    "host_rules": ["bad", {"host": 1, "secret_name": 2,
+                                   "holds_secret": 3}],
+                    "custom_origins": ["bad", {"host": 1, "path_prefix": 2,
+                                       "status": "usable"}],
+                    "secrets": ["bad", {"name": 1, "hosts": "x", "scope": 2,
+                                "created_at": 3},
                                 {"name": "ok", "hosts": ["a", 2], "scope": "intern",
                                  "created_at": "t"}]
                   },
@@ -909,21 +922,34 @@ class OpenRouterInternsTest {
         assertThat(routing).isNotNull();
         assertThat(routing.agentId()).isNull();
         assertThat(routing.readAt()).isNull();
-        // non-object rows are dropped while good rows survive
+        // non-object rows are dropped while good rows survive; wrong-typed
+        // fields are swallowed to null at every level
         assertThat(routing.githubApps()).hasSize(1);
         OpenRouterVaultGithubApp app = routing.githubApps().get(0);
         assertThat(app.appId()).isNull();
         assertThat(app.scope()).isNull();
-        assertThat(app.memberLinks()).isEmpty();
+        assertThat(app.memberLinks()).hasSize(1);
+        assertThat(app.memberLinks().get(0).login()).isNull();
+        assertThat(app.memberLinks().get(0).via()).isNull();
+        assertThat(app.memberLinks().get(0).holdsToken()).isNull();
         assertThat(app.installations()).hasSize(1);
         assertThat(app.installations().get(0).credentialId()).isNull();
         assertThat(app.installations().get(0).coverage()).isNotNull();
         assertThat(app.installations().get(0).coverage().selection()).isNull();
         assertThat(app.installations().get(0).coverage().repositoryCount()).isNull();
         assertThat(app.installations().get(0).shadowedBy()).isNull();
-        assertThat(routing.githubTokens()).isEmpty();
+        assertThat(routing.githubTokens()).hasSize(2);
+        assertThat(routing.githubTokens().get(0).login()).isNull();
+        assertThat(routing.githubTokens().get(0).owner()).isNull();
+        assertThat(routing.githubTokens().get(0).repositoryCount()).isNull();
+        assertThat(routing.githubTokens().get(0).scope()).isNull();
+        assertThat(routing.githubTokens().get(0).holdsToken()).isNull();
+        assertThat(routing.githubTokens().get(1).login()).isEqualTo("ok");
+        assertThat(routing.githubTokens().get(1).repositoryCount()).isEqualTo(2L);
         assertThat(routing.googleAccounts()).hasSize(1);
         assertThat(routing.googleAccounts().get(0).email()).isNull();
+        assertThat(routing.googleAccounts().get(0).scope()).isNull();
+        assertThat(routing.googleAccounts().get(0).isDelegatedToIntern()).isNull();
         assertThat(routing.googleAccounts().get(0).delegatedCapabilities()).containsExactly("ok");
         assertThat(routing.googleAccounts().get(0).holdsGrant()).isNull();
         assertThat(routing.slackMemberLinks()).hasSize(1);
@@ -931,19 +957,27 @@ class OpenRouterInternsTest {
         assertThat(routing.slackMemberLinks().get(0).holdsToken()).isNull();
         assertThat(routing.mcpOrigins()).hasSize(1);
         assertThat(routing.mcpOrigins().get(0).host()).isNull();
+        assertThat(routing.mcpOrigins().get(0).accountKey()).isNull();
+        assertThat(routing.mcpOrigins().get(0).isPersonal()).isNull();
         assertThat(routing.mcpOrigins().get(0).routes()).hasSize(1);
         assertThat(routing.mcpOrigins().get(0).routes().get(0).host()).isNull();
+        assertThat(routing.mcpOrigins().get(0).routes().get(0).pathPrefix()).isNull();
         assertThat(routing.mcpOrigins().get(0).status()).isNotNull();
         assertThat(routing.mcpOrigins().get(0).status().state()).isNull();
         assertThat(routing.mcpOrigins().get(0).status().failure()).isNull();
         assertThat(routing.hostRules()).hasSize(1);
         assertThat(routing.hostRules().get(0).host()).isNull();
+        assertThat(routing.hostRules().get(0).secretName()).isNull();
         assertThat(routing.hostRules().get(0).holdsSecret()).isNull();
         assertThat(routing.customOrigins()).hasSize(1);
+        assertThat(routing.customOrigins().get(0).host()).isNull();
+        assertThat(routing.customOrigins().get(0).pathPrefix()).isNull();
         assertThat(routing.customOrigins().get(0).status()).isNull();
         assertThat(routing.secrets()).hasSize(2);
         assertThat(routing.secrets().get(0).name()).isNull();
         assertThat(routing.secrets().get(0).hosts()).isNull();
+        assertThat(routing.secrets().get(0).scope()).isNull();
+        assertThat(routing.secrets().get(0).createdAt()).isNull();
         assertThat(routing.secrets().get(1).hosts()).containsExactly("a");
         assertThat(nested.routingText()).isEqualTo("ok");
 
