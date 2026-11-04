@@ -103,7 +103,9 @@ public final class OpenRouterGuardrailCreateRequest extends OpenRouterRequest<Op
 
     /**
      * @return the value of {@code enforce_first_party_harness_models}, or
-     *         {@code null} when the field is unset
+     *         {@code null} when the field is unset (the guardrail then leaves
+     *         the rule to the guardrail chain: any {@code true} across the
+     *         workspace default, member and API key guardrails applies)
      */
     public Boolean enforceFirstPartyHarnessModels() {
         return enforceFirstPartyHarnessModels;

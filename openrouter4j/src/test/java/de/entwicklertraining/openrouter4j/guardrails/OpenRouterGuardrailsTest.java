@@ -315,9 +315,14 @@ class OpenRouterGuardrailsTest {
         assertThat(request.allowSafetyRetentionOther()).isTrue();
         assertThat(request.enforceFirstPartyHarnessModels()).isFalse();
 
-        // unset (including a setter call with null) never appears in the body
+        // unset (including a setter call with null) never appears in the body;
+        // set-then-null is the non-trivial leg - a null-ignoring setter would
+        // keep the earlier value and emit it here
         OpenRouterGuardrailCreateRequest bare = new OpenRouterGuardrailCreateRequest.Builder(client())
                 .name("G")
+                .allowSafetyRetentionGoogle(true)
+                .allowSafetyRetentionOther(true)
+                .enforceFirstPartyHarnessModels(true)
                 .allowSafetyRetentionGoogle(null)
                 .allowSafetyRetentionOther(null)
                 .enforceFirstPartyHarnessModels(null)
@@ -326,6 +331,15 @@ class OpenRouterGuardrailsTest {
         assertThat(bare.allowSafetyRetentionGoogle()).isNull();
         assertThat(bare.allowSafetyRetentionOther()).isNull();
         assertThat(bare.enforceFirstPartyHarnessModels()).isNull();
+
+        // a second setter call wins (last-writer-wins)
+        OpenRouterGuardrailCreateRequest twice = new OpenRouterGuardrailCreateRequest.Builder(client())
+                .name("G")
+                .allowSafetyRetentionGoogle(false)
+                .allowSafetyRetentionGoogle(true)
+                .build();
+        assertThat(new JSONObject(twice.getBody()).get("allow_safety_retention_google")).isEqualTo(true);
+        assertThat(twice.allowSafetyRetentionGoogle()).isTrue();
     }
 
     @Test
@@ -363,8 +377,13 @@ class OpenRouterGuardrailsTest {
         assertThat(restricted.allowSafetyRetentionOther()).isFalse();
         assertThat(restricted.enforceFirstPartyHarnessModels()).isFalse();
 
-        // explicit null is the unset state: omitted from the body, stored value unchanged
+        // explicit null is the unset state: omitted from the body, stored value
+        // unchanged. Set-then-null is the non-trivial leg - a null-ignoring
+        // setter would keep the earlier value and emit it here.
         OpenRouterGuardrailUpdateRequest unset = new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .allowSafetyRetentionGoogle(true)
+                .allowSafetyRetentionOther(true)
+                .enforceFirstPartyHarnessModels(true)
                 .allowSafetyRetentionGoogle(null)
                 .allowSafetyRetentionOther(null)
                 .enforceFirstPartyHarnessModels(null)
