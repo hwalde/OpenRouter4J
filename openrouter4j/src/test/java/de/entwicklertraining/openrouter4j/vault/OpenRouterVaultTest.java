@@ -293,4 +293,142 @@ class OpenRouterVaultTest {
                 .copySecretsToIntern("i1").names("a").build();
         assertThat(copyRequest.createResponse("{}").secrets()).isEmpty();
     }
+
+    @Test
+    void effectiveInternSecretsRequestBuildsScopedUrlWithPagination() {
+        OpenRouterVaultInternEffectiveSecretsListRequest without =
+                client().vault().effectiveInternSecrets("i1").build();
+        assertThat(without.getRelativeUrl()).isEqualTo("/vault/interns/i1/effective-secrets");
+        assertThat(without.getHttpMethod()).isEqualTo("GET");
+        assertThat(without.getBody()).isNull();
+        assertThat(without.internId()).isEqualTo("i1");
+        assertThat(without.limit()).isNull();
+        assertThat(without.offset()).isNull();
+
+        OpenRouterVaultInternEffectiveSecretsListRequest with = client().vault()
+                .effectiveInternSecrets("i1")
+                .limit(50)
+                .offset(100)
+                .build();
+        assertThat(with.getRelativeUrl())
+                .isEqualTo("/vault/interns/i1/effective-secrets?limit=50&offset=100");
+        assertThat(with.limit()).isEqualTo(50);
+        assertThat(with.offset()).isEqualTo(100);
+
+        // the internId path segment is URL-encoded
+        assertThat(client().vault().effectiveInternSecrets("a b/c").build().getRelativeUrl())
+                .isEqualTo("/vault/interns/a+b%2Fc/effective-secrets");
+    }
+
+    @Test
+    void effectiveInternSecretsRequestRejectsOutOfRangePagination() {
+        assertThatThrownBy(() -> client().vault().effectiveInternSecrets("i1").limit(0).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("limit");
+        assertThatThrownBy(() -> client().vault().effectiveInternSecrets("i1").limit(101).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("limit");
+        assertThatThrownBy(() -> client().vault().effectiveInternSecrets("i1").offset(-1).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("offset");
+        assertThatThrownBy(() -> client().vault().effectiveInternSecrets("i1").offset(10_001).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("offset");
+        // the boundaries themselves are accepted
+        client().vault().effectiveInternSecrets("i1").limit(1).limit(100).offset(0).offset(10_000).build();
+    }
+
+    @Test
+    void effectiveInternSecretsResponseSurfacesTypedRows() {
+        OpenRouterVaultInternEffectiveSecretsListRequest request =
+                client().vault().effectiveInternSecrets("i1").build();
+        OpenRouterVaultEffectiveSecretsListResponse<OpenRouterVaultInternEffectiveSecretsListRequest> response =
+                request.createResponse("""
+                {
+                  "data": [
+                    {"name": "github_token",
+                     "hosts": ["api.github.com"],
+                     "fingerprint": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+                     "created_at": "2026-09-15T17:44:00.000Z",
+                     "scope": "intern"},
+                    {"name": "linear_api_key",
+                     "hosts": ["api.linear.app"],
+                     "fingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                     "created_at": "2026-09-15T17:44:00.000Z",
+                     "scope": "workspace"},
+                    {"name": "legacy_token", "hosts": null,
+                     "fingerprint": null, "created_at": "2026-08-01T09:30:00.000Z",
+                     "scope": "future_scope"}
+                  ],
+                  "has_more": true
+                }
+                """);
+
+        assertThat(response.secrets()).hasSize(3);
+        OpenRouterVaultEffectiveSecret first = response.secrets().get(0);
+        assertThat(first.name()).isEqualTo("github_token");
+        assertThat(first.hosts()).containsExactly("api.github.com");
+        assertThat(first.fingerprint())
+                .isEqualTo("sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
+        assertThat(first.createdAt()).isEqualTo("2026-09-15T17:44:00.000Z");
+        assertThat(first.scope()).isEqualTo("intern");
+        assertThat(first.json().has("name")).isTrue();
+        assertThat(response.secrets().get(1).scope()).isEqualTo("workspace");
+        // unknown scope values pass through verbatim; null hosts/fingerprint
+        // are the no-host-binding / no-fingerprint forms
+        assertThat(response.secrets().get(2).scope()).isEqualTo("future_scope");
+        assertThat(response.secrets().get(2).hosts()).isNull();
+        assertThat(response.secrets().get(2).fingerprint()).isNull();
+        assertThat(response.hasMore()).isTrue();
+
+        // paging: has_more false marks the last page
+        assertThat(request.createResponse("""
+                {"data": [{"name": "a", "hosts": [], "fingerprint": "x",
+                 "created_at": "t", "scope": "attached"}], "has_more": false}
+                """).hasMore()).isFalse();
+    }
+
+    @Test
+    void effectiveInternSecretsResponseSwallowsMalformedShapes() {
+        OpenRouterVaultInternEffectiveSecretsListRequest request =
+                client().vault().effectiveInternSecrets("i1").build();
+
+        OpenRouterVaultEffectiveSecretsListResponse<OpenRouterVaultInternEffectiveSecretsListRequest> malformed =
+                request.createResponse("""
+                {
+                  "data": [
+                    {"name": 7, "hosts": ["api.github.com", 42],
+                     "fingerprint": 8, "created_at": [], "scope": true},
+                    "not-an-object",
+                    {"name": "ok", "hosts": "api.github.com",
+                     "fingerprint": "sha256:x", "created_at": "t", "scope": "intern"},
+                    {}
+                  ],
+                  "has_more": "yes"
+                }
+                """);
+
+        // non-object rows are dropped while good rows survive
+        assertThat(malformed.secrets()).hasSize(3);
+        assertThat(malformed.secrets().get(0).name()).isNull();
+        assertThat(malformed.secrets().get(0).hosts()).containsExactly("api.github.com");
+        assertThat(malformed.secrets().get(0).fingerprint()).isNull();
+        assertThat(malformed.secrets().get(0).createdAt()).isNull();
+        assertThat(malformed.secrets().get(0).scope()).isNull();
+        // a hosts value that is not an array is swallowed to null
+        assertThat(malformed.secrets().get(1).hosts()).isNull();
+        assertThat(malformed.secrets().get(1).scope()).isEqualTo("intern");
+        // an empty row answers null on every accessor
+        assertThat(malformed.secrets().get(2).name()).isNull();
+        assertThat(malformed.secrets().get(2).hosts()).isNull();
+        assertThat(malformed.secrets().get(2).fingerprint()).isNull();
+        assertThat(malformed.secrets().get(2).createdAt()).isNull();
+        assertThat(malformed.secrets().get(2).scope()).isNull();
+        assertThat(malformed.hasMore()).isNull();
+
+        OpenRouterVaultEffectiveSecretsListResponse<OpenRouterVaultInternEffectiveSecretsListRequest> absent =
+                request.createResponse("{}");
+        assertThat(absent.secrets()).isEmpty();
+        assertThat(absent.hasMore()).isNull();
+    }
 }

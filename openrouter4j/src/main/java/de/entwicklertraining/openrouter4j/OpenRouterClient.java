@@ -108,6 +108,7 @@ import de.entwicklertraining.openrouter4j.interns.OpenRouterInternProvisionReque
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternSuspendRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternUpdateRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternsListRequest;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternEffectiveSecretsListRequest;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretDeleteRequest;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretStoreRequest;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultInternSecretsListRequest;
@@ -591,10 +592,12 @@ public final class OpenRouterClient extends ApiClient {
      * Manages the vault secrets of the account - host-bound secrets for the
      * active workspace and for interns:
      * GET /vault/secrets, PUT/DELETE /vault/secrets/{name}, the intern
-     * routes under /vault/interns/{internId}/secrets and the copy route
-     * POST /vault/interns/{internId}/secrets/copy. Responses are metadata
-     * only - the plaintext value is never returned. Every vault route,
-     * including the list, answers 404 outside the Intern API programme.
+     * routes under /vault/interns/{internId}/secrets, the effective-secrets
+     * read GET /vault/interns/{internId}/effective-secrets and the copy
+     * route POST /vault/interns/{internId}/secrets/copy. Responses are
+     * metadata only - the plaintext value is never returned. Every vault
+     * route, including the list, answers 404 outside the Intern API
+     * programme.
      *
      * @return the starting point for the vault requests
      */
@@ -2125,6 +2128,21 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterVaultInternSecretsListRequest.Builder internSecrets(String internId) {
             return new OpenRouterVaultInternSecretsListRequest.Builder(client, internId);
+        }
+
+        /**
+         * Lists the secrets an intern receives:
+         * GET /vault/interns/{internId}/effective-secrets with
+         * {@code limit} / {@code offset}, sorted by name - one entry per
+         * name, the winner of the intern, attached and workspace vaults
+         * (in that order). Metadata only, never values.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterVaultInternEffectiveSecretsListRequest.Builder effectiveInternSecrets(
+                String internId) {
+            return new OpenRouterVaultInternEffectiveSecretsListRequest.Builder(client, internId);
         }
 
         /**

@@ -239,6 +239,7 @@ class OpenRouterClientEntryPointsTest {
         assertThat(client().vault().store("token").value("v").hosts("h.com").build().getRelativeUrl()).isEqualTo("/vault/secrets/token");
         assertThat(client().vault().delete("token").build().getHttpMethod()).isEqualTo("DELETE");
         assertThat(client().vault().internSecrets("i1").build().getRelativeUrl()).isEqualTo("/vault/interns/i1/secrets");
+        assertThat(client().vault().effectiveInternSecrets("i1").build().getRelativeUrl()).isEqualTo("/vault/interns/i1/effective-secrets");
         assertThat(client().vault().storeInternSecret("i1", "token").value("v").hosts("h.com").build().getRelativeUrl()).isEqualTo("/vault/interns/i1/secrets/token");
         assertThat(client().vault().deleteInternSecret("i1", "token").build().getHttpMethod()).isEqualTo("DELETE");
         assertThat(client().vault().copySecretsToIntern("i1").names("a").build().getRelativeUrl()).isEqualTo("/vault/interns/i1/secrets/copy");

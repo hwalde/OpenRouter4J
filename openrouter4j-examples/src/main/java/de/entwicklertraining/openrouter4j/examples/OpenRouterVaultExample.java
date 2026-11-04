@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultEffectiveSecret;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecret;
 import java.util.List;
 
@@ -58,6 +59,20 @@ public class OpenRouterVaultExample {
                             .execute().secrets()) {
                 System.out.println("Intern secret " + secret.name()
                         + ", fingerprint " + secret.fingerprint());
+            }
+
+            // The effective view: one entry per name - the secret the
+            // intern's outbound requests actually receive. Where several
+            // vaults hold a name, the intern's own vault wins, then the
+            // attached vault, then the workspace vault. Metadata only,
+            // never values.
+            for (OpenRouterVaultEffectiveSecret effective
+                    : client.vault().effectiveInternSecrets("550e8400-e29b-41d4-a716-446655440000")
+                            .limit(100)
+                            .execute().secrets()) {
+                System.out.println("Effective secret " + effective.name()
+                        + " from " + effective.scope()
+                        + " scope, hosts " + effective.hosts());
             }
 
             client.vault().deleteInternSecret("550e8400-e29b-41d4-a716-446655440000",
