@@ -12,18 +12,29 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A request to create embedding vectors:
  * POST https://openrouter.ai/api/v1/embeddings
  *
- * <p>The {@code model} and the {@code input} are required; the input may be a
- * single string ({@link Builder#input(String)}) or a list of strings
- * ({@link Builder#inputs(List)}), which is sent as a JSON array. Multimodal
- * inputs (token arrays, images, audio, video, files) are not typed here yet
- * and cannot be sent through this builder; wait for a library version with a
- * typed multimodal input or use the raw response/request escape hatches of
- * other surfaces.
+ * <p>The {@code model} and the {@code input} are required; the {@code input}
+ * union carries five wire forms and the builder types all of them - a single
+ * string ({@link Builder#input(String)}), a list of strings
+ * ({@link Builder#inputs(List)}), a token-id array
+ * ({@link Builder#inputTokenArray(int...)}) or batch of token-id arrays
+ * ({@link Builder#inputTokens(int[]...)}) for models that embed token ids,
+ * and the multimodal item-object form ({@link Builder#addInput(OpenRouterEmbeddingsInputItem)}
+ * / the verbatim {@link Builder#addInputItem(JSONObject)} hatch covering
+ * {@code input_audio} / {@code input_video} / {@code input_file} parts).
+ * The forms are mutually exclusive and the last one set wins - exactly one
+ * {@code input} value is emitted.
+ *
+ * <p>Trap: multimodal item parts (images, audio, video, files) are accepted
+ * only by embedding models that declare the matching input modality - a
+ * text-only embedding model answers HTTP 400. Discover support via
+ * {@code client.embeddingsModels()} or
+ * {@link de.entwicklertraining.openrouter4j.models.OpenRouterModel#inputModalities()}.
  *
  * <p>The optional {@code provider} routing object is emitted only when at
  * least one of {@link Builder#providerOrder(String...)},
@@ -37,6 +48,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
     private final String model;
     private final String input;
     private final List<String> inputs;
+    private final List<JSONObject> inputItems;
+    private final List<Integer> inputTokenArray;
+    private final List<List<Integer>> inputTokens;
     private final Integer dimensions;
     private final String encodingFormat;
     private final String inputType;
@@ -70,6 +84,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         this.model = builder.model;
         this.input = builder.input;
         this.inputs = builder.inputs == null ? null : List.copyOf(builder.inputs);
+        this.inputItems = builder.inputItems == null ? null : copyItems(builder.inputItems);
+        this.inputTokenArray = builder.inputTokenArray == null ? null : List.copyOf(builder.inputTokenArray);
+        this.inputTokens = builder.inputTokens == null ? null : copyTokenRows(builder.inputTokens);
         this.dimensions = builder.dimensions;
         this.encodingFormat = builder.encodingFormat;
         this.inputType = builder.inputType;
@@ -118,6 +135,32 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
      */
     public List<String> inputs() {
         return inputs;
+    }
+
+    /**
+     * @return the item-object input (multimodal items, as raw JSON copies),
+     *         or {@code null} when the request was built with one of the
+     *         other input forms
+     */
+    public List<JSONObject> inputItems() {
+        return inputItems;
+    }
+
+    /**
+     * @return the token-id array input ({@code [1, 2, 3]}), or {@code null}
+     *         when the request was built with one of the other input forms
+     */
+    public List<Integer> inputTokenArray() {
+        return inputTokenArray;
+    }
+
+    /**
+     * @return the token-id array batch input ({@code [[1, 2], [3, 4]]}), or
+     *         {@code null} when the request was built with one of the other
+     *         input forms
+     */
+    public List<List<Integer>> inputTokens() {
+        return inputTokens;
     }
 
     /**
@@ -230,8 +273,10 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
 
     /**
      * JSON path: the request body - {@code model} (required), {@code input}
-     * (required; string or string array), {@code dimensions}, {@code encoding_format},
-     * {@code input_type}, {@code user}, {@code session_id} (all omitted when unset) and the
+     * (required; exactly one of string, string array, token-id array,
+     * token-id array batch or item-object array), {@code dimensions},
+     * {@code encoding_format}, {@code input_type}, {@code user},
+     * {@code session_id} (all omitted when unset) and the
      * {@code provider} object (omitted unless any provider routing option is set).
      *
      * @return the JSON body of this request
@@ -240,12 +285,36 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
     public String getBody() {
         JSONObject root = new JSONObject();
         root.put("model", model);
+        // Exactly one input form is set (the builder forms are mutually
+        // exclusive); the chain documents which form wins if that ever broke.
         if (input != null) {
             root.put("input", input);
-        } else {
+        } else if (inputs != null) {
             JSONArray inputArr = new JSONArray();
             for (String s : inputs) {
                 inputArr.put(s);
+            }
+            root.put("input", inputArr);
+        } else if (inputItems != null) {
+            JSONArray inputArr = new JSONArray();
+            for (JSONObject item : inputItems) {
+                inputArr.put(new JSONObject(item.toString()));
+            }
+            root.put("input", inputArr);
+        } else if (inputTokenArray != null) {
+            JSONArray inputArr = new JSONArray();
+            for (Integer token : inputTokenArray) {
+                inputArr.put(token);
+            }
+            root.put("input", inputArr);
+        } else if (inputTokens != null) {
+            JSONArray inputArr = new JSONArray();
+            for (List<Integer> row : inputTokens) {
+                JSONArray rowArr = new JSONArray();
+                for (Integer token : row) {
+                    rowArr.put(token);
+                }
+                inputArr.put(rowArr);
             }
             root.put("input", inputArr);
         }
@@ -372,6 +441,22 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         return new OpenRouterEmbeddingsResponse(new JSONObject(responseBody), this);
     }
 
+    private static List<JSONObject> copyItems(List<JSONObject> items) {
+        List<JSONObject> copy = new ArrayList<>();
+        for (JSONObject item : items) {
+            copy.add(new JSONObject(item.toString()));
+        }
+        return List.copyOf(copy);
+    }
+
+    private static List<List<Integer>> copyTokenRows(List<List<Integer>> rows) {
+        List<List<Integer>> copy = new ArrayList<>();
+        for (List<Integer> row : rows) {
+            copy.add(List.copyOf(row));
+        }
+        return List.copyOf(copy);
+    }
+
     /**
      * Starting point for building a {@link OpenRouterEmbeddingsRequest}.
      */
@@ -381,6 +466,9 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
         private String model;
         private String input;
         private List<String> inputs;
+        private List<JSONObject> inputItems;
+        private List<Integer> inputTokenArray;
+        private List<List<Integer>> inputTokens;
         private Integer dimensions;
         private String encodingFormat;
         private String inputType;
@@ -433,30 +521,134 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
 
         /**
          * Sets the required JSON field {@code input} to a single string.
-         * Calling this clears a previously set {@link #inputs(List)}.
+         * Calling this clears every previously set input form ({@link #inputs(List)},
+         * {@link #addInput(OpenRouterEmbeddingsInputItem)},
+         * {@link #addInputItem(JSONObject)}, {@link #inputTokenArray(int...)},
+         * {@link #inputTokens(int[]...)}); the last form set wins.
          *
          * @param input the text to embed
          * @return this builder
          */
         public Builder input(String input) {
+            clearInputForms();
             this.input = input;
-            this.inputs = null;
             return this;
         }
 
         /**
          * Sets the required JSON field {@code input} to an array of strings
-         * (batch embedding). Calling this clears a previously set
-         * {@link #input(String)}. Trap: the response returns one embedding
-         * per input, matched by {@code index}.
+         * (batch embedding). Calling this clears every previously set input
+         * form; the last form set wins. Trap: the response returns one
+         * embedding per input, matched by {@code index}.
          *
          * @param inputs the texts to embed
          * @return this builder
          */
         public Builder inputs(List<String> inputs) {
+            clearInputForms();
             this.inputs = inputs;
-            this.input = null;
             return this;
+        }
+
+        /**
+         * Sets the required JSON field {@code input} to the single-element
+         * token-id array {@code [1, 2, 3]} - one input given as token ids for
+         * models that embed pre-tokenized input. Calling this clears every
+         * previously set input form; the last form set wins. For a batch of
+         * token rows use {@link #inputTokens(int[]...)}.
+         *
+         * @param tokenIds the token ids of the single input
+         * @return this builder
+         */
+        public Builder inputTokenArray(int... tokenIds) {
+            Objects.requireNonNull(tokenIds, "tokenIds must not be null");
+            clearInputForms();
+            this.inputTokenArray = new ArrayList<>();
+            for (int token : tokenIds) {
+                this.inputTokenArray.add(token);
+            }
+            return this;
+        }
+
+        /**
+         * Sets the required JSON field {@code input} to an array of token-id
+         * arrays {@code [[1, 2], [3, 4]]} - a batch of inputs given as token
+         * ids. Calling this clears every previously set input form; the last
+         * form set wins. For a single token row use
+         * {@link #inputTokenArray(int...)}.
+         *
+         * @param tokenArrays the token ids per input
+         * @return this builder
+         */
+        public Builder inputTokens(int[]... tokenArrays) {
+            Objects.requireNonNull(tokenArrays, "tokenArrays must not be null");
+            clearInputForms();
+            this.inputTokens = new ArrayList<>();
+            for (int[] row : tokenArrays) {
+                Objects.requireNonNull(row, "token row must not be null");
+                List<Integer> copy = new ArrayList<>();
+                for (int token : row) {
+                    copy.add(token);
+                }
+                this.inputTokens.add(copy);
+            }
+            return this;
+        }
+
+        /**
+         * Adds a typed item to the item-object form of {@code input} - see
+         * {@link OpenRouterEmbeddingsInputItem} for the factories
+         * ({@code text}, {@code imageUrl}, {@code of}, {@code raw}). Switches
+         * the input to the item-object form (multimodal embedding input),
+         * clearing every other input form on the first call; later calls
+         * append further items. Deliberately not an {@code addInputItem}
+         * overload: that would make existing {@code addInputItem(null)} calls
+         * ambiguous at compile time.
+         *
+         * @param item the typed input item
+         * @return this builder
+         */
+        public Builder addInput(OpenRouterEmbeddingsInputItem item) {
+            if (item == null) {
+                throw new IllegalArgumentException("input item must not be null");
+            }
+            ensureInputItems();
+            this.inputItems.add(item.toJson());
+            return this;
+        }
+
+        /**
+         * Adds a verbatim item to the item-object form of {@code input} - the
+         * escape hatch for item shapes this library does not type (items
+         * carrying {@code input_audio} / {@code input_video} /
+         * {@code input_file} parts, provider-specific extensions). Switches
+         * the input to the item-object form like {@link #addInput(OpenRouterEmbeddingsInputItem)}.
+         *
+         * @param item the raw input item (an object with a {@code content} field)
+         * @return this builder
+         */
+        public Builder addInputItem(JSONObject item) {
+            if (item == null) {
+                throw new IllegalArgumentException("input item must not be null");
+            }
+            ensureInputItems();
+            this.inputItems.add(new JSONObject(item.toString()));
+            return this;
+        }
+
+        private void ensureInputItems() {
+            if (this.inputItems == null) {
+                clearInputForms();
+                this.inputItems = new ArrayList<>();
+            }
+        }
+
+        private void clearInputForms() {
+            this.input = null;
+            this.inputs = null;
+            this.inputItems = null;
+            this.inputTokenArray = null;
+            this.inputTokens = null;
         }
 
         /**
@@ -946,7 +1138,10 @@ public final class OpenRouterEmbeddingsRequest extends OpenRouterRequest<OpenRou
             if (model == null || model.isEmpty()) {
                 throw new IllegalStateException("model is required for an embeddings request");
             }
-            if (input == null && (inputs == null || inputs.isEmpty())) {
+            if (input == null && (inputs == null || inputs.isEmpty())
+                    && (inputItems == null || inputItems.isEmpty())
+                    && (inputTokenArray == null || inputTokenArray.isEmpty())
+                    && (inputTokens == null || inputTokens.isEmpty())) {
                 throw new IllegalStateException("input is required for an embeddings request");
             }
             return new OpenRouterEmbeddingsRequest(this);

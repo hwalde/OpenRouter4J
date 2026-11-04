@@ -353,6 +353,291 @@ class OpenRouterEmbeddingsTest {
     }
 
     @Test
+    void itemObjectFormEmitsTypedItems() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("openai/text-embedding-3-small")
+                .addInput(OpenRouterEmbeddingsInputItem.text("a caption"))
+                .addInput(OpenRouterEmbeddingsInputItem.imageUrl("https://example.com/img.png"))
+                .build()
+                .getBody());
+
+        org.json.JSONArray input = body.getJSONArray("input");
+        assertThat(input.length()).isEqualTo(2);
+        JSONObject textItem = input.getJSONObject(0);
+        assertThat(textItem.keySet()).containsExactlyInAnyOrder("content");
+        JSONObject textPart = textItem.getJSONArray("content").getJSONObject(0);
+        assertThat(textPart.keySet()).containsExactlyInAnyOrder("type", "text");
+        assertThat(textPart.getString("type")).isEqualTo("text");
+        assertThat(textPart.getString("text")).isEqualTo("a caption");
+        JSONObject imageItem = input.getJSONObject(1);
+        JSONObject imagePart = imageItem.getJSONArray("content").getJSONObject(0);
+        assertThat(imagePart.keySet()).containsExactlyInAnyOrder("type", "image_url");
+        assertThat(imagePart.getJSONObject("image_url").keySet()).containsExactlyInAnyOrder("url");
+        assertThat(imagePart.getJSONObject("image_url").getString("url"))
+                .isEqualTo("https://example.com/img.png");
+    }
+
+    @Test
+    void multiPartItemComposesContentPartsInOrder() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.of(
+                        OpenRouterEmbeddingsContentPart.imageUrl("https://example.com/img.png"),
+                        OpenRouterEmbeddingsContentPart.text("what is shown?")))
+                .build()
+                .getBody());
+
+        org.json.JSONArray content = body.getJSONArray("input")
+                .getJSONObject(0).getJSONArray("content");
+        assertThat(content.length()).isEqualTo(2);
+        assertThat(content.getJSONObject(0).getString("type")).isEqualTo("image_url");
+        assertThat(content.getJSONObject(1).getString("type")).isEqualTo("text");
+        assertThat(content.getJSONObject(1).getString("text")).isEqualTo("what is shown?");
+
+        JSONObject listForm = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.of(List.of(
+                        OpenRouterEmbeddingsContentPart.text("a"),
+                        OpenRouterEmbeddingsContentPart.text("b"))))
+                .build()
+                .getBody());
+        org.json.JSONArray listContent = listForm.getJSONArray("input")
+                .getJSONObject(0).getJSONArray("content");
+        assertThat(listContent.length()).isEqualTo(2);
+        assertThat(listContent.getJSONObject(0).getString("text")).isEqualTo("a");
+        assertThat(listContent.getJSONObject(1).getString("text")).isEqualTo("b");
+    }
+
+    @Test
+    void inputItemEscapeHatchPassesMultimodalPartsVerbatim() {
+        JSONObject rawItem = new JSONObject("""
+                {"content": [
+                  {"type": "input_audio", "input_audio": {"data": "data:audio/wav;base64,AAAA", "format": "wav"}}
+                ]}
+                """);
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInputItem(rawItem)
+                .build()
+                .getBody());
+
+        assertThat(body.getJSONArray("input").getJSONObject(0).toString())
+                .isEqualTo(rawItem.toString());
+        // the hatch copies: mutating the caller's object afterwards changes nothing
+        rawItem.getJSONArray("content").getJSONObject(0).put("type", "text");
+        JSONObject later = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInputItem(rawItem)
+                .build()
+                .getBody());
+        assertThat(later.getJSONArray("input").getJSONObject(0)
+                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("text");
+
+        // the raw() item factory covers the same shapes under the typed addInput path
+        JSONObject rawTyped = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.raw(rawItem))
+                .build()
+                .getBody());
+        assertThat(rawTyped.getJSONArray("input").getJSONObject(0).toString())
+                .isEqualTo(rawItem.toString());
+
+        // and the raw() content-part factory covers one part inside a typed item
+        JSONObject rawPart = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.of(OpenRouterEmbeddingsContentPart.raw(
+                        new JSONObject("{\"type\":\"input_file\",\"input_file\":{\"data\":\"data:application/pdf;base64,AAA\",\"format\":\"pdf\"}}"))))
+                .build()
+                .getBody());
+        assertThat(rawPart.getJSONArray("input").getJSONObject(0)
+                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("input_file");
+    }
+
+    @Test
+    void tokenArrayFormEmitsSingleNumberArray() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .inputTokenArray(1, 2, 3)
+                .build()
+                .getBody());
+
+        assertThat(body.getJSONArray("input").toList()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void tokenArraysFormEmitsNestedNumberArrays() {
+        JSONObject body = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .inputTokens(new int[]{1, 2}, new int[]{3, 4})
+                .build()
+                .getBody());
+
+        org.json.JSONArray input = body.getJSONArray("input");
+        assertThat(input.length()).isEqualTo(2);
+        assertThat(input.getJSONArray(0).toList()).containsExactly(1, 2);
+        assertThat(input.getJSONArray(1).toList()).containsExactly(3, 4);
+    }
+
+    @Test
+    void lastInputFormSetWinsAcrossAllTransitions() {
+        // item form clears the string forms ...
+        JSONObject itemsAfterStrings = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .inputs(List.of("a"))
+                .addInput(OpenRouterEmbeddingsInputItem.text("i"))
+                .build()
+                .getBody());
+        assertThat(itemsAfterStrings.getJSONArray("input").length()).isEqualTo(1);
+        assertThat(itemsAfterStrings.getJSONArray("input").getJSONObject(0)
+                .getJSONArray("content").getJSONObject(0).getString("type")).isEqualTo("text");
+
+        // ... and every later form clears the accumulated items
+        JSONObject stringAfterItems = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.text("i"))
+                .input("plain")
+                .build()
+                .getBody());
+        assertThat(stringAfterItems.getString("input")).isEqualTo("plain");
+
+        JSONObject tokensAfterItems = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.text("i"))
+                .inputTokenArray(7)
+                .build()
+                .getBody());
+        assertThat(tokensAfterItems.getJSONArray("input").toList()).containsExactly(7);
+
+        JSONObject rowsAfterTokens = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .inputTokenArray(7)
+                .inputTokens(new int[]{5})
+                .build()
+                .getBody());
+        assertThat(rowsAfterTokens.getJSONArray("input").getJSONArray(0).toList())
+                .containsExactly(5);
+
+        JSONObject listAfterRows = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .inputTokens(new int[]{5})
+                .inputs(List.of("a", "b"))
+                .build()
+                .getBody());
+        assertThat(listAfterRows.getJSONArray("input").toList()).containsExactly("a", "b");
+
+        JSONObject tokenArrayAfterList = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .inputs(List.of("a"))
+                .inputTokenArray(9)
+                .build()
+                .getBody());
+        assertThat(tokenArrayAfterList.getJSONArray("input").toList()).containsExactly(9);
+
+        // addInput appends to the item form instead of replacing it
+        JSONObject twoItems = new JSONObject(new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.text("one"))
+                .addInput(OpenRouterEmbeddingsInputItem.text("two"))
+                .build()
+                .getBody());
+        assertThat(twoItems.getJSONArray("input").length()).isEqualTo(2);
+    }
+
+    @Test
+    void inputReadBackAccessorsPerForm() {
+        OpenRouterEmbeddingsRequest stringForm = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").input("hello").build();
+        assertThat(stringForm.input()).isEqualTo("hello");
+        assertThat(stringForm.inputs()).isNull();
+        assertThat(stringForm.inputItems()).isNull();
+        assertThat(stringForm.inputTokenArray()).isNull();
+        assertThat(stringForm.inputTokens()).isNull();
+
+        OpenRouterEmbeddingsRequest listForm = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").inputs(List.of("a", "b")).build();
+        assertThat(listForm.input()).isNull();
+        assertThat(listForm.inputs()).containsExactly("a", "b");
+
+        OpenRouterEmbeddingsRequest itemForm = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m")
+                .addInput(OpenRouterEmbeddingsInputItem.text("i"))
+                .build();
+        assertThat(itemForm.input()).isNull();
+        assertThat(itemForm.inputs()).isNull();
+        assertThat(itemForm.inputItems()).hasSize(1);
+        assertThat(itemForm.inputItems().get(0).getJSONArray("content")
+                .getJSONObject(0).getString("text")).isEqualTo("i");
+        assertThat(itemForm.inputTokenArray()).isNull();
+        assertThat(itemForm.inputTokens()).isNull();
+
+        OpenRouterEmbeddingsRequest tokenForm = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").inputTokenArray(1, 2).build();
+        assertThat(tokenForm.inputTokenArray()).containsExactly(1, 2);
+        assertThat(tokenForm.inputTokens()).isNull();
+
+        OpenRouterEmbeddingsRequest rowsForm = new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").inputTokens(new int[]{1, 2}, new int[]{3}).build();
+        assertThat(rowsForm.inputTokens()).hasSize(2);
+        assertThat(rowsForm.inputTokens().get(0)).containsExactly(1, 2);
+        assertThat(rowsForm.inputTokens().get(1)).containsExactly(3);
+        assertThat(rowsForm.inputTokenArray()).isNull();
+    }
+
+    @Test
+    void inputFactoriesValidateAndStayImmutable() {
+        assertThatThrownBy(() -> OpenRouterEmbeddingsContentPart.text(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsContentPart.text(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsContentPart.imageUrl(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsContentPart.raw(new JSONObject()))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsContentPart.raw(null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsInputItem.of())
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsInputItem.of(List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsInputItem.of(
+                (OpenRouterEmbeddingsContentPart) null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsInputItem.raw(new JSONObject()))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterEmbeddingsInputItem.raw(null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").addInput(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").addInputItem(null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        // toJson() hands out detached copies - the value class stays immutable
+        OpenRouterEmbeddingsInputItem item = OpenRouterEmbeddingsInputItem.text("t");
+        JSONObject copy = item.toJson();
+        copy.getJSONArray("content").getJSONObject(0).put("text", "mutated");
+        assertThat(item.toJson().getJSONArray("content").getJSONObject(0).getString("text"))
+                .isEqualTo("t");
+    }
+
+    @Test
+    void emptyTokenFormsAreRejectedAtBuild() {
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").inputTokenArray().build())
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").inputTokens().build())
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").inputTokens((int[]) null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new OpenRouterEmbeddingsRequest.Builder(client())
+                .model("m").inputTokenArray((int[]) null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void modelsRequestUsesGetMethodAndOptionalPagination() {
         OpenRouterEmbeddingsModelsRequest request =
                 new OpenRouterEmbeddingsModelsRequest.Builder(client()).build();

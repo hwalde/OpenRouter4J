@@ -3,8 +3,11 @@ package de.entwicklertraining.openrouter4j.examples;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbedding;
+import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsContentPart;
+import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsInputItem;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsModelsResponse;
 import de.entwicklertraining.openrouter4j.embeddings.OpenRouterEmbeddingsResponse;
+import org.json.JSONObject;
 
 import java.util.List;
 
@@ -16,6 +19,10 @@ import java.util.List;
  * {@code index} of each entry. With {@code encodingFormat("base64")} the
  * vector travels base64-encoded and is decoded by
  * {@link OpenRouterEmbedding#vectorFromBase64()}.
+ *
+ * <p>The {@code input} union carries five wire forms (string, string array,
+ * token-id array, token-id array batch, multimodal item objects) - the last
+ * form set wins, exactly one {@code input} value is emitted.
  */
 public class OpenRouterEmbeddingsExample {
 
@@ -66,5 +73,44 @@ public class OpenRouterEmbeddingsExample {
                 .execute();
         System.out.println("Routed embedding dimensions: "
                 + routed.embeddings().get(0).vectorOrDecoded().size());
+
+        // Multimodal input - the item-object form of `input`: one item per
+        // input to embed, each carrying content parts (text / image_url typed;
+        // input_audio / input_video / input_file via the verbatim hatch).
+        // Trap: only embedding models that declare the matching input
+        // modality accept media parts - check client.embeddingsModels() /
+        // OpenRouterModel.inputModalities(); a text-only embedding model
+        // answers HTTP 400.
+        OpenRouterEmbeddingsResponse multimodal = client.embeddings()
+                .model("google/embeddinggemma-300m")
+                .addInput(OpenRouterEmbeddingsInputItem.of(
+                        OpenRouterEmbeddingsContentPart.imageUrl("https://example.com/photo.png"),
+                        OpenRouterEmbeddingsContentPart.text("what is shown in this image?")))
+                .addInput(OpenRouterEmbeddingsInputItem.text("a plain text item alongside"))
+                .execute();
+        System.out.println("Multimodal embeddings: " + multimodal.embeddings().size());
+
+        // Models that embed pre-tokenized input take token ids instead of
+        // text: one token array, or a batch of them (matched by index).
+        OpenRouterEmbeddingsResponse tokens = client.embeddings()
+                .model("openai/text-embedding-3-small")
+                .inputTokenArray(15496, 11, 262, 5764)
+                .execute();
+        System.out.println("Token-array embedding dimensions: "
+                + tokens.embeddings().get(0).vectorOrDecoded().size());
+
+        // Everything the schema declares that has no typed factory goes
+        // through the verbatim item hatch - e.g. an input_audio part.
+        OpenRouterEmbeddingsResponse audioItem = client.embeddings()
+                .model("google/embeddinggemma-300m")
+                .addInputItem(new JSONObject("""
+                        {"content": [
+                          {"type": "input_audio",
+                           "input_audio": {"data": "data:audio/wav;base64,UklGRiQAAABXQVZF", "format": "wav"}}
+                        ]}
+                        """))
+                .execute();
+        System.out.println("Audio-item embedding dimensions: "
+                + audioItem.embeddings().get(0).vectorOrDecoded().size());
     }
 }
