@@ -246,6 +246,17 @@ class OpenRouterClientEntryPointsTest {
     }
 
     @Test
+    void externalUsersEntryPointsProduceTheExternalUserRequests() {
+        assertThat(client().externalUsers().list().build().getRelativeUrl()).isEqualTo("/external-users");
+        assertThat(client().externalUsers().register("employee_123").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().externalUsers().register("employee_123").build().getRelativeUrl()).isEqualTo("/external-users");
+        assertThat(client().externalUsers().get("employee_123").build().getHttpMethod()).isEqualTo("GET");
+        assertThat(client().externalUsers().get("employee_123").build().getRelativeUrl()).isEqualTo("/external-users/employee_123");
+        assertThat(client().externalUsers().update("employee_123", true).build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().externalUsers().deactivate("employee_123").build().getHttpMethod()).isEqualTo("DELETE");
+    }
+
+    @Test
     void internsEntryPointsProduceTheInternRequests() {
         assertThat(client().interns().list().build().getRelativeUrl()).isEqualTo("/interns");
         assertThat(client().interns().create("ok-name").build().getHttpMethod()).isEqualTo("POST");

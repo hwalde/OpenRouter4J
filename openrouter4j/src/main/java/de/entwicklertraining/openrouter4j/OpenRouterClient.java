@@ -34,6 +34,11 @@ import de.entwicklertraining.openrouter4j.files.OpenRouterFileGetRequest;
 import de.entwicklertraining.openrouter4j.files.OpenRouterFileListRequest;
 import de.entwicklertraining.openrouter4j.files.OpenRouterFileUploadRequest;
 import de.entwicklertraining.openrouter4j.files.OpenRouterFiles;
+import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUserCreateRequest;
+import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUserDeactivateRequest;
+import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUserGetRequest;
+import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUserUpdateRequest;
+import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUsersListRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest;
@@ -604,6 +609,20 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterVault vault() {
         return new OpenRouterVault(this);
+    }
+
+    /**
+     * External-user registration management (management key required): the
+     * registrations created implicitly by sending {@code user} on inference
+     * requests or {@code external.user} on API keys. List them, register one
+     * explicitly, read it back, reactivate/deactivate its registration state
+     * and soft-deactivate it. Registration state is not an inference
+     * authorization decision - deactivating does not block inference.
+     *
+     * @return the starting point for the external-user requests
+     */
+    public OpenRouterExternalUsers externalUsers() {
+        return new OpenRouterExternalUsers(this);
     }
 
     /**
@@ -2207,6 +2226,86 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterVaultSecretCopyRequest.Builder copySecretsToIntern(String internId) {
             return new OpenRouterVaultSecretCopyRequest.Builder(client, internId);
+        }
+    }
+
+    /**
+     * Entry point for the external-user registration management routes
+     * (GET/POST /external-users, GET/PATCH/DELETE /external-users/{user}).
+     * All routes require a management key.
+     */
+    public static class OpenRouterExternalUsers {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterExternalUsers(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the organization's external-user registrations:
+         * GET /external-users. Inactive registrations are excluded unless
+         * {@code includeInactive(true)} is set.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterExternalUsersListRequest.Builder list() {
+            return new OpenRouterExternalUsersListRequest.Builder(client);
+        }
+
+        /**
+         * Registers an external user explicitly:
+         * POST /external-users. Usually the registration is created
+         * implicitly by sending {@code user} on an inference request or
+         * {@code external.user} on an API key.
+         *
+         * @param user the tracking string (validated loudly per the documented
+         *        contract: 1-512 characters, no NUL, no surrounding whitespace)
+         * @return the starting point for the request
+         */
+        public OpenRouterExternalUserCreateRequest.Builder register(String user) {
+            return new OpenRouterExternalUserCreateRequest.Builder(client, user);
+        }
+
+        /**
+         * Gets one external-user registration by its URL-encoded tracking ID:
+         * GET /external-users/{user}. Retrieves an active or inactive
+         * registration; an id of {@code "."} or {@code ".."} cannot be
+         * addressed by path - look those up with the list filter.
+         *
+         * @param user the tracking string (URL-encoded into the path)
+         * @return the starting point for the request
+         */
+        public OpenRouterExternalUserGetRequest.Builder get(String user) {
+            return new OpenRouterExternalUserGetRequest.Builder(client, user);
+        }
+
+        /**
+         * Changes an external-user registration's state:
+         * PATCH /external-users/{user}. Registration state only; does not
+         * enforce inference access.
+         *
+         * @param user the tracking string (URL-encoded into the path)
+         * @param isActive the registration state to write (reactivate with {@code true})
+         * @return the starting point for the request
+         */
+        public OpenRouterExternalUserUpdateRequest.Builder update(String user, boolean isActive) {
+            return new OpenRouterExternalUserUpdateRequest.Builder(client, user, isActive);
+        }
+
+        /**
+         * Soft-deactivates an external-user registration while retaining its
+         * tracking ID: DELETE /external-users/{user}. Repeat deactivation
+         * succeeds; this does not block inference - reactivate through
+         * {@link #update(String, boolean)}.
+         *
+         * @param user the tracking string (URL-encoded into the path)
+         * @return the starting point for the request
+         */
+        public OpenRouterExternalUserDeactivateRequest.Builder deactivate(String user) {
+            return new OpenRouterExternalUserDeactivateRequest.Builder(client, user);
         }
     }
 
