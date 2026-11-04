@@ -26,8 +26,8 @@ import org.json.JSONObject;
  * </ul>
  *
  * <p>Every accessor answers {@code null} for absent or malformed values and for
- * fields that belong to another variant - a row is always readable through the
- * same type. {@link #benchmarkType()} (and the derived {@link #isSearch()})
+ * fields that belong to another variant, which conforming rows omit - a row is
+ * always readable through the same type. {@link #benchmarkType()} (and the derived {@link #isSearch()})
  * accept unknown {@code benchmark_type} spellings verbatim (the schema allows
  * unknown values; the four {@code search_*} names above are the documented
  * ones). Use {@link #json()} for fields without a typed accessor.
@@ -123,7 +123,8 @@ public final class OpenRouterBenchmarkItem {
     }
     /**
  * JSON path: {@code pricing.prompt} - prompt-side price as a decimal string
- * (present on Artificial Analysis and Design Arena rows). Do not parse to
+ * (present on Artificial Analysis and Design Arena rows, {@code null} when
+ * pricing is unavailable there). Do not parse to
  * {@code double}; use {@code BigDecimal}.
  */
     public String pricingPrompt() {
@@ -136,7 +137,8 @@ public final class OpenRouterBenchmarkItem {
     }
     /**
  * JSON path: {@code pricing.completion} - completion-side price as a decimal
- * string (present on Artificial Analysis and Design Arena rows). Do not parse
+ * string (present on Artificial Analysis and Design Arena rows, {@code null}
+ * when pricing is unavailable there). Do not parse
  * to {@code double}; use {@code BigDecimal}.
  */
     public String pricingCompletion() {

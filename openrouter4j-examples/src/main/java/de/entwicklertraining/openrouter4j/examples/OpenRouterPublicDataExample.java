@@ -4,6 +4,7 @@ import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterAppRanking;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterAppRankingsResponse;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterBenchmarkItem;
+import de.entwicklertraining.openrouter4j.publicdata.OpenRouterBenchmarkTournamentStats;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterBenchmarksResponse;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterMacroCategory;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterRankingsDailyResponse;
@@ -46,8 +47,15 @@ public class OpenRouterPublicDataExample {
         // 1b. The typed, discriminated view: one accessor set for all four row
         //     variants (artificial-analysis, design-arena, openrouter evals and
         //     the openrouter search benchmarks - the search rows are separated
-        //     by their search_* benchmark_type, not by the source).
-        for (OpenRouterBenchmarkItem item : benchmarks.benchmarkItems()) {
+        //     by their search_* benchmark_type, not by the source). Fetch
+        //     without source/benchmark_type filters so every variant can
+        //     appear; includeRunConfig(true) fills the search rows' run_config
+        //     view.
+        OpenRouterBenchmarksResponse allVariants = client.benchmarks()
+                .includeRunConfig(true)
+                .maxResults(50)
+                .execute();
+        for (OpenRouterBenchmarkItem item : allVariants.benchmarkItems()) {
             if (item.isSearch()) {
                 System.out.printf("  %s: %s score %s (%s), %s tasks, run config %s%n",
                         item.modelPermaslug(), item.primaryMetric(), item.primaryScore(),
@@ -60,8 +68,10 @@ public class OpenRouterPublicDataExample {
                 System.out.printf("  %s: intelligence index %s%n",
                         item.modelPermaslug(), item.intelligenceIndex());
             } else if (item.isDesignArena()) {
-                System.out.printf("  %s: ELO %s, win rate %s%%%n",
-                        item.modelPermaslug(), item.elo(), item.winRate());
+                OpenRouterBenchmarkTournamentStats stats = item.tournamentStats();
+                System.out.printf("  %s: ELO %s, win rate %s%%, first places %s%n",
+                        item.modelPermaslug(), item.elo(), item.winRate(),
+                        stats != null ? stats.firstPlace() : null);
             }
         }
 
