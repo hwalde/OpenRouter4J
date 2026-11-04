@@ -43,7 +43,10 @@ public class OpenRouterGuardrailsExample {
 
         // 3. Create a guardrail: EU traffic only, two providers, a monthly
         //    spend limit of 50 USD (limit_usd and reset_interval must always
-        //    be set together) and a builtin content filter.
+        //    be set together), a builtin content filter, and the two
+        //    safety-retention switches (false allows only ZDR endpoints for
+        //    ZDR-only requests; a guardrail can only be more restrictive than
+        //    the account setting) plus the first-party harness model rule.
         OpenRouterGuardrailCreateResponse created = client.guardrails().create()
                 .name("Example EU Guardrail")
                 .description("Created by OpenRouterGuardrailsExample")
@@ -52,6 +55,9 @@ public class OpenRouterGuardrailsExample {
                 .limitUsd(50.0)
                 .resetInterval("monthly")
                 .addBuiltinContentFilter("email", "redact")
+                .allowSafetyRetentionGoogle(false)
+                .allowSafetyRetentionOther(false)
+                .enforceFirstPartyHarnessModels(true)
                 .execute();
         String id = created.data() != null ? created.data().id() : null;
         System.out.println("Created guardrail " + id);
@@ -79,7 +85,16 @@ public class OpenRouterGuardrailsExample {
         // 5. Read the guardrail back.
         OpenRouterGuardrail fetched = client.guardrails().get(id).execute().data();
         System.out.println("Fetched guardrail " + fetched.name()
-                + ", regions: " + fetched.allowedDataRegions());
+                + ", regions: " + fetched.allowedDataRegions()
+                + ", safety retention (google/other): "
+                + fetched.allowSafetyRetentionGoogle() + "/" + fetched.allowSafetyRetentionOther()
+                + ", harness models first-party: " + fetched.enforceFirstPartyHarnessModels());
+
+        // 5b. The switches can also be changed later (unset fields are left
+        //     unchanged on PATCH).
+        client.guardrails().update(id)
+                .allowSafetyRetentionGoogle(true)
+                .execute();
 
         // 6. Delete it (permanent).
         Boolean deleted = client.guardrails().delete(id).execute().deleted();

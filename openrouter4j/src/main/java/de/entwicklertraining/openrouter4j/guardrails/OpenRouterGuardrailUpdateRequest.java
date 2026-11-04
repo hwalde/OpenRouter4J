@@ -43,6 +43,9 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
     private final Boolean enforceZdrOpenai;
     private final Boolean enforceZdrXai;
     private final Boolean enforceZdrOther;
+    private final Boolean allowSafetyRetentionGoogle;
+    private final Boolean allowSafetyRetentionOther;
+    private final Boolean enforceFirstPartyHarnessModels;
     private final Boolean enableFreeModelPublication;
     private final Boolean enableFreeModelTraining;
     private final Boolean enablePaidModelTraining;
@@ -70,10 +73,38 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
         this.enforceZdrOpenai = builder.enforceZdrOpenai;
         this.enforceZdrXai = builder.enforceZdrXai;
         this.enforceZdrOther = builder.enforceZdrOther;
+        this.allowSafetyRetentionGoogle = builder.allowSafetyRetentionGoogle;
+        this.allowSafetyRetentionOther = builder.allowSafetyRetentionOther;
+        this.enforceFirstPartyHarnessModels = builder.enforceFirstPartyHarnessModels;
         this.enableFreeModelPublication = builder.enableFreeModelPublication;
         this.enableFreeModelTraining = builder.enableFreeModelTraining;
         this.enablePaidModelTraining = builder.enablePaidModelTraining;
         this.modelCatalog = builder.modelCatalog;
+    }
+
+    /**
+     * @return the value of {@code allow_safety_retention_google}, or {@code null}
+     *         when the field is unset (the stored value is then unchanged)
+     */
+    public Boolean allowSafetyRetentionGoogle() {
+        return allowSafetyRetentionGoogle;
+    }
+
+    /**
+     * @return the value of {@code allow_safety_retention_other}, or {@code null}
+     *         when the field is unset (the stored value is then unchanged)
+     */
+    public Boolean allowSafetyRetentionOther() {
+        return allowSafetyRetentionOther;
+    }
+
+    /**
+     * @return the value of {@code enforce_first_party_harness_models}, or
+     *         {@code null} when the field is unset (the stored value is then
+     *         unchanged)
+     */
+    public Boolean enforceFirstPartyHarnessModels() {
+        return enforceFirstPartyHarnessModels;
     }
 
     /**
@@ -156,6 +187,15 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
         if (enforceZdrOther != null) {
             body.put("enforce_zdr_other", enforceZdrOther);
         }
+        if (allowSafetyRetentionGoogle != null) {
+            body.put("allow_safety_retention_google", allowSafetyRetentionGoogle);
+        }
+        if (allowSafetyRetentionOther != null) {
+            body.put("allow_safety_retention_other", allowSafetyRetentionOther);
+        }
+        if (enforceFirstPartyHarnessModels != null) {
+            body.put("enforce_first_party_harness_models", enforceFirstPartyHarnessModels);
+        }
         if (enableFreeModelPublication != null) {
             body.put("enable_free_model_publication", enableFreeModelPublication);
         }
@@ -201,6 +241,9 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
     private Boolean enforceZdrOpenai;
     private Boolean enforceZdrXai;
     private Boolean enforceZdrOther;
+    private Boolean allowSafetyRetentionGoogle;
+    private Boolean allowSafetyRetentionOther;
+    private Boolean enforceFirstPartyHarnessModels;
     private Boolean enableFreeModelPublication;
     private Boolean enableFreeModelTraining;
     private Boolean enablePaidModelTraining;
@@ -391,6 +434,48 @@ public final class OpenRouterGuardrailUpdateRequest extends OpenRouterRequest<Op
  */
     public Builder enforceZdrOther(Boolean enforceZdrOther) {
         this.enforceZdrOther = enforceZdrOther;
+        return this;
+    }
+    /**
+ * Sets the body field {@code allow_safety_retention_google} (optional) - whether
+ * ZDR-only requests to {@code google/*} models may also use Safety Retention
+ * endpoints, which may retain prompts and responses from any request, only to
+ * prevent abuse, and do not use them for training. {@code false} is a set option
+ * and is emitted; it allows only ZDR endpoints. A guardrail can only be more
+ * restrictive than the account setting. Left unset (or {@code null}), the field
+ * is omitted from the body and the stored value is unchanged - there is no
+ * separate explicit-JSON-{@code null} wire state on this builder.
+ */
+    public Builder allowSafetyRetentionGoogle(Boolean allowSafetyRetentionGoogle) {
+        this.allowSafetyRetentionGoogle = allowSafetyRetentionGoogle;
+        return this;
+    }
+    /**
+ * Sets the body field {@code allow_safety_retention_other} (optional) - whether
+ * ZDR-only requests to models outside the named providers (for example
+ * open-weight models on Vertex) may also use Safety Retention endpoints, which
+ * may retain prompts and responses from any request, only to prevent abuse, and
+ * do not use them for training. {@code false} is a set option and is emitted; it
+ * allows only ZDR endpoints. A guardrail can only be more restrictive than the
+ * account setting. Left unset (or {@code null}), the field is omitted from the
+ * body and the stored value is unchanged.
+ */
+    public Builder allowSafetyRetentionOther(Boolean allowSafetyRetentionOther) {
+        this.allowSafetyRetentionOther = allowSafetyRetentionOther;
+        return this;
+    }
+    /**
+ * Sets the body field {@code enforce_first_party_harness_models} (optional) -
+ * whether coding harnesses list only their vendor's own models: Codex lists
+ * OpenAI models and Claude Code and Claude Desktop list Anthropic models.
+ * Affects only the model list those harnesses request from
+ * {@code GET /models}; a model the client names directly is still routed. Any
+ * {@code true} across the workspace default, member, and API key guardrails
+ * applies. Left unset (or {@code null}), the field is omitted from the body and
+ * the stored value is unchanged.
+ */
+    public Builder enforceFirstPartyHarnessModels(Boolean enforceFirstPartyHarnessModels) {
+        this.enforceFirstPartyHarnessModels = enforceFirstPartyHarnessModels;
         return this;
     }
     /**

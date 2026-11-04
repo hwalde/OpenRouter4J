@@ -291,6 +291,44 @@ public final class OpenRouterGuardrail {
         return json.optBoolean("enforce_zdr_other");
     }
     /**
+ * JSON path: {@code allow_safety_retention_google} - whether ZDR-only requests
+ * to {@code google/*} models may also use Safety Retention endpoints, which may
+ * retain prompts and responses from any request, only to prevent abuse, and do
+ * not use them for training ({@code false} allows only ZDR endpoints). A
+ * guardrail can only be more restrictive than the account setting; {@code null}
+ * means the account setting is inherited (or the response value was malformed).
+ */
+    public Boolean allowSafetyRetentionGoogle() {
+        Object value = json.opt("allow_safety_retention_google");
+        return value instanceof Boolean flag ? flag : null;
+    }
+    /**
+ * JSON path: {@code allow_safety_retention_other} - whether ZDR-only requests to
+ * models outside the named providers (for example open-weight models on Vertex)
+ * may also use Safety Retention endpoints, which may retain prompts and
+ * responses from any request, only to prevent abuse, and do not use them for
+ * training ({@code false} allows only ZDR endpoints). A guardrail can only be
+ * more restrictive than the account setting; {@code null} means the account
+ * setting is inherited (or the response value was malformed).
+ */
+    public Boolean allowSafetyRetentionOther() {
+        Object value = json.opt("allow_safety_retention_other");
+        return value instanceof Boolean flag ? flag : null;
+    }
+    /**
+ * JSON path: {@code enforce_first_party_harness_models} - whether coding
+ * harnesses list only their vendor's own models: Codex lists OpenAI models and
+ * Claude Code and Claude Desktop list Anthropic models. Affects only the model
+ * list those harnesses request from {@code GET /models}; a model the client
+ * names directly is still routed. Any {@code true} across the workspace
+ * default, member, and API key guardrails applies; {@code null} when unset (or
+ * the response value was malformed).
+ */
+    public Boolean enforceFirstPartyHarnessModels() {
+        Object value = json.opt("enforce_first_party_harness_models");
+        return value instanceof Boolean flag ? flag : null;
+    }
+    /**
  * JSON path: {@code enable_free_model_publication} - whether free endpoints that
  * publish prompts are allowed.
  */

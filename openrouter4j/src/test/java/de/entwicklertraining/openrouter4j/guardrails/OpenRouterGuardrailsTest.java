@@ -291,4 +291,95 @@ class OpenRouterGuardrailsTest {
                 new OpenRouterGuardrailKeysAssignResponse(new JSONObject("{\"assigned_count\": 2}"), null);
         assertThat(assigned.assignedCount()).isEqualTo(2);
     }
+
+    @Test
+    void safetyRetentionAndHarnessFieldsEmitOnlyWhenSetOnCreate() {
+        OpenRouterGuardrailCreateRequest request = new OpenRouterGuardrailCreateRequest.Builder(client())
+                .name("G")
+                .allowSafetyRetentionGoogle(false)
+                .allowSafetyRetentionOther(true)
+                .enforceFirstPartyHarnessModels(false)
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.keySet()).containsExactlyInAnyOrder(
+                "name", "allow_safety_retention_google", "allow_safety_retention_other",
+                "enforce_first_party_harness_models");
+        // false is a set option and is emitted
+        assertThat(body.getBoolean("allow_safety_retention_google")).isFalse();
+        assertThat(body.getBoolean("allow_safety_retention_other")).isTrue();
+        assertThat(body.getBoolean("enforce_first_party_harness_models")).isFalse();
+
+        // read-back accessors carry the values, not just presence
+        assertThat(request.allowSafetyRetentionGoogle()).isFalse();
+        assertThat(request.allowSafetyRetentionOther()).isTrue();
+        assertThat(request.enforceFirstPartyHarnessModels()).isFalse();
+
+        // unset (including a setter call with null) never appears in the body
+        OpenRouterGuardrailCreateRequest bare = new OpenRouterGuardrailCreateRequest.Builder(client())
+                .name("G")
+                .allowSafetyRetentionGoogle(null)
+                .build();
+        assertThat(new JSONObject(bare.getBody()).keySet()).containsExactly("name");
+        assertThat(bare.allowSafetyRetentionGoogle()).isNull();
+        assertThat(bare.allowSafetyRetentionOther()).isNull();
+        assertThat(bare.enforceFirstPartyHarnessModels()).isNull();
+    }
+
+    @Test
+    void safetyRetentionAndHarnessFieldsEmitOnlyWhenSetOnUpdate() {
+        OpenRouterGuardrailUpdateRequest request = new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .allowSafetyRetentionGoogle(true)
+                .enforceFirstPartyHarnessModels(true)
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.keySet()).containsExactlyInAnyOrder(
+                "allow_safety_retention_google", "enforce_first_party_harness_models");
+        assertThat(body.getBoolean("allow_safety_retention_google")).isTrue();
+        assertThat(body.getBoolean("enforce_first_party_harness_models")).isTrue();
+        assertThat(body.has("allow_safety_retention_other")).isFalse();
+
+        assertThat(request.allowSafetyRetentionGoogle()).isTrue();
+        assertThat(request.allowSafetyRetentionOther()).isNull();
+        assertThat(request.enforceFirstPartyHarnessModels()).isTrue();
+
+        // explicit null is the unset state: omitted from the body, stored value unchanged
+        OpenRouterGuardrailUpdateRequest unset = new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .allowSafetyRetentionOther(null)
+                .build();
+        assertThat(new JSONObject(unset.getBody()).keySet()).isEmpty();
+        assertThat(unset.allowSafetyRetentionOther()).isNull();
+    }
+
+    @Test
+    void guardrailViewExposesSafetyRetentionFieldsAndSwallowsMalformed() {
+        OpenRouterGuardrail guardrail = new OpenRouterGuardrailGetResponse(new JSONObject("""
+                {
+                  "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "allow_safety_retention_google": false,
+                    "allow_safety_retention_other": true,
+                    "enforce_first_party_harness_models": true
+                  }
+                }
+                """), null).data();
+        assertThat(guardrail.allowSafetyRetentionGoogle()).isFalse();
+        assertThat(guardrail.allowSafetyRetentionOther()).isTrue();
+        assertThat(guardrail.enforceFirstPartyHarnessModels()).isTrue();
+
+        // malformed and JSON-null values are swallowed to null
+        OpenRouterGuardrail malformed = new OpenRouterGuardrailGetResponse(new JSONObject("""
+                {
+                  "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440001",
+                    "allow_safety_retention_google": "yes",
+                    "allow_safety_retention_other": null
+                  }
+                }
+                """), null).data();
+        assertThat(malformed.allowSafetyRetentionGoogle()).isNull();
+        assertThat(malformed.allowSafetyRetentionOther()).isNull();
+        assertThat(malformed.enforceFirstPartyHarnessModels()).isNull();
+    }
 }
