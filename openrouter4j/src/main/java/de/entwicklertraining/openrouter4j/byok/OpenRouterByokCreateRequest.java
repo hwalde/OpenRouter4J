@@ -34,6 +34,8 @@ public final class OpenRouterByokCreateRequest extends OpenRouterRequest<OpenRou
     private final Boolean isByokOnly;
     private final Boolean declaredZdr;
     private final boolean declaredZdrSet;
+    private final String declaredRegion;
+    private final boolean declaredRegionSet;
     private final List<String> allowedModels;
     private final List<String> allowedApiKeyHashes;
     private final List<String> allowedUserIds;
@@ -51,10 +53,22 @@ public final class OpenRouterByokCreateRequest extends OpenRouterRequest<OpenRou
         this.isByokOnly = builder.isByokOnly;
         this.declaredZdr = builder.declaredZdr;
         this.declaredZdrSet = builder.declaredZdrSet;
+        this.declaredRegion = builder.declaredRegion;
+        this.declaredRegionSet = builder.declaredRegionSet;
         this.allowedModels = builder.allowedModels;
         this.allowedApiKeyHashes = builder.allowedApiKeyHashes;
         this.allowedUserIds = builder.allowedUserIds;
         this.workspaceId = builder.workspaceId;
+    }
+
+    /**
+     * @return the value of {@code declared_region}, or {@code null} when the
+     *         declaration is unset or was explicitly set to {@code null} (the
+     *         two states are indistinguishable here - on create both leave the
+     *         declaration undeclared and the API falls back to its default)
+     */
+    public String declaredRegion() {
+        return declaredRegion;
     }
 
 
@@ -97,6 +111,9 @@ public final class OpenRouterByokCreateRequest extends OpenRouterRequest<OpenRou
         if (declaredZdrSet) {
             body.put("declared_zdr", declaredZdr == null ? JSONObject.NULL : declaredZdr);
         }
+        if (declaredRegionSet) {
+            body.put("declared_region", declaredRegion == null ? JSONObject.NULL : declaredRegion);
+        }
         if (allowedModels != null) {
             body.put("allowed_models", new JSONArray(allowedModels));
         }
@@ -132,6 +149,8 @@ public final class OpenRouterByokCreateRequest extends OpenRouterRequest<OpenRou
     private Boolean isByokOnly;
     private Boolean declaredZdr;
     private boolean declaredZdrSet;
+    private String declaredRegion;
+    private boolean declaredRegionSet;
     private List<String> allowedModels;
     private List<String> allowedApiKeyHashes;
     private List<String> allowedUserIds;
@@ -230,6 +249,36 @@ public final class OpenRouterByokCreateRequest extends OpenRouterRequest<OpenRou
     public Builder declaredZdr(Boolean declaredZdr) {
         this.declaredZdr = declaredZdr;
         this.declaredZdrSet = true;
+        return this;
+    }
+    /**
+ * Sets the body field {@code declared_region} (optional) - your declaration of
+ * the data region in which the upstream provider account behind this credential
+ * processes requests, used for routing eligibility on OpenRouter's regional
+ * hosts. {@code null} means undeclared and {@code global} is behaviorally
+ * identical: the credential follows the region OpenRouter records for the
+ * endpoint. {@code europe} or {@code us} lets requests to
+ * {@code eu.openrouter.ai} or {@code us.openrouter.ai} use this credential for
+ * that provider (private endpoints, endpoints pinned to another cloud region,
+ * cross-region inference profiles and video models are excluded). Self-declared
+ * and not verified by OpenRouter. For OpenAI and Fireworks the region comes
+ * from the key material (a {@code {"api_key": ..., "region": ...}} key), so the
+ * value must match the key's region; among other providers Azure accepts
+ * {@code europe} or {@code us} and Anthropic accepts {@code us} only.
+ *
+ * <p>Three wire states (the {@code declaredZdr} pattern): leaving this unset
+ * sends no key; a value is sent verbatim ({@code global}, {@code europe} and
+ * {@code us} are the documented spellings - unknown spellings pass through
+ * verbatim, leave the rejection of undocumented ones to the API); passing
+ * {@code null} emits an explicit JSON {@code null}. On create, unset and
+ * explicit {@code null} both leave the declaration undeclared, and the API
+ * defaults the field to the key's region for OpenAI and Fireworks, otherwise
+ * {@code null}. The update request distinguishes the two states; see
+ * {@code OpenRouterByokUpdateRequest.Builder#declaredRegion(String)}.
+ */
+    public Builder declaredRegion(String declaredRegion) {
+        this.declaredRegion = declaredRegion;
+        this.declaredRegionSet = true;
         return this;
     }
     /**

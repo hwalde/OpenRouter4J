@@ -116,6 +116,22 @@ public final class OpenRouterByokKey {
         return json.optBoolean("declared_zdr");
     }
     /**
+ * JSON path: {@code declared_region} - your declaration of the data region in
+ * which the upstream provider account behind this credential processes requests
+ * ({@code null} = undeclared, which is behaviorally identical to {@code global}:
+ * the credential follows the region OpenRouter records for the endpoint;
+ * {@code europe} or {@code us} makes the credential eligible for requests to
+ * {@code eu.openrouter.ai} or {@code us.openrouter.ai} for that provider -
+ * private endpoints, endpoints pinned to another cloud region, cross-region
+ * inference profiles and video models are excluded). Unknown spellings pass
+ * through verbatim; non-string values answer {@code null}. Self-declared and
+ * not verified by OpenRouter.
+ */
+    public String declaredRegion() {
+        Object value = json.opt("declared_region");
+        return value instanceof String text ? text : null;
+    }
+    /**
  * JSON path: {@code allowed_models} - model slugs this credential may be used
  * for, empty when absent or null (no restriction).
  */

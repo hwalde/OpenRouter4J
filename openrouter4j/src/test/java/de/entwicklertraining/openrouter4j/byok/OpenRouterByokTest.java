@@ -61,6 +61,7 @@ class OpenRouterByokTest {
         assertThat(body.has("disabled")).isFalse();
         assertThat(body.has("is_byok_only")).isFalse();
         assertThat(body.has("declared_zdr")).isFalse();
+        assertThat(body.has("declared_region")).isFalse();
     }
 
     @Test
@@ -160,6 +161,115 @@ class OpenRouterByokTest {
         assertThat(new OpenRouterByokKey(new JSONObject().put("declared_zdr", JSONObject.NULL)).declaredZdr()).isNull();
         assertThat(new OpenRouterByokKey(new JSONObject().put("declared_zdr", false)).declaredZdr()).isFalse();
         assertThat(new OpenRouterByokKey(new JSONObject().put("declared_zdr", true)).declaredZdr()).isTrue();
+    }
+
+    @Test
+    void declaredRegionIsEmittedOnlyWhenSetOnCreate() {
+        OpenRouterByokCreateRequest withValue = new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredRegion("europe")
+                .build();
+        JSONObject valueBody = new JSONObject(withValue.getBody());
+        assertThat(valueBody.get("declared_region")).isEqualTo("europe");
+        assertThat(withValue.declaredRegion()).isEqualTo("europe");
+
+        // unknown spellings pass through verbatim (the API rejects undocumented ones)
+        JSONObject withUnknown = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredRegion("apac")
+                .build().getBody());
+        assertThat(withUnknown.get("declared_region")).isEqualTo("apac");
+
+        // explicit null emits a JSON null (undeclared)
+        OpenRouterByokCreateRequest withNull = new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredRegion(null)
+                .build();
+        JSONObject nullBody = new JSONObject(withNull.getBody());
+        assertThat(nullBody.keySet()).containsExactlyInAnyOrder("provider", "key", "declared_region");
+        assertThat(nullBody.isNull("declared_region")).isTrue();
+        assertThat(withNull.declaredRegion()).isNull();
+
+        // unset omits the key
+        JSONObject createUnset = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .build().getBody());
+        assertThat(createUnset.has("declared_region")).isFalse();
+    }
+
+    @Test
+    void declaredRegionOnUpdateDistinguishesUnsetFromExplicitNull() {
+        OpenRouterByokUpdateRequest withValue = new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredRegion("us")
+                .build();
+        JSONObject updateValue = new JSONObject(withValue.getBody());
+        assertThat(updateValue.keySet()).containsExactly("declared_region");
+        assertThat(updateValue.get("declared_region")).isEqualTo("us");
+        assertThat(withValue.declaredRegion()).isEqualTo("us");
+
+        // Explicit null emits a JSON null and clears the declaration back to
+        // undeclared ("the credential follows the region OpenRouter records").
+        OpenRouterByokUpdateRequest clear = new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredRegion(null)
+                .build();
+        JSONObject updateClear = new JSONObject(clear.getBody());
+        assertThat(updateClear.keySet()).containsExactly("declared_region");
+        assertThat(updateClear.isNull("declared_region")).isTrue();
+        assertThat(clear.declaredRegion()).isNull();
+
+        // Unset omits the key and leaves the stored value unchanged.
+        JSONObject updateUnset = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .name("n")
+                .build().getBody());
+        assertThat(updateUnset.has("declared_region")).isFalse();
+    }
+
+    @Test
+    void declaredRegionSetTwiceReplacesThePreviousValue() {
+        JSONObject clearLast = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredRegion("europe")
+                .declaredRegion(null)
+                .build().getBody());
+        assertThat(clearLast.keySet()).containsExactly("declared_region");
+        assertThat(clearLast.isNull("declared_region")).isTrue();
+
+        JSONObject valueLast = new JSONObject(new OpenRouterByokUpdateRequest.Builder(client(), "b-1")
+                .declaredRegion(null)
+                .declaredRegion("europe")
+                .build().getBody());
+        assertThat(valueLast.get("declared_region")).isEqualTo("europe");
+
+        JSONObject createClearLast = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredRegion("us")
+                .declaredRegion(null)
+                .build().getBody());
+        assertThat(createClearLast.isNull("declared_region")).isTrue();
+
+        JSONObject createValueLast = new JSONObject(new OpenRouterByokCreateRequest.Builder(client())
+                .provider("openai")
+                .key("sk-proj-abc123")
+                .declaredRegion(null)
+                .declaredRegion("global")
+                .build().getBody());
+        assertThat(createValueLast.get("declared_region")).isEqualTo("global");
+    }
+
+    @Test
+    void declaredRegionViewAccessorPassesUnknownValuesAndSwallowsNonStrings() {
+        assertThat(new OpenRouterByokKey(new JSONObject()).declaredRegion()).isNull();
+        assertThat(new OpenRouterByokKey(new JSONObject().put("declared_region", JSONObject.NULL)).declaredRegion()).isNull();
+        assertThat(new OpenRouterByokKey(new JSONObject().put("declared_region", "europe")).declaredRegion()).isEqualTo("europe");
+        // unknown enum spellings pass through verbatim
+        assertThat(new OpenRouterByokKey(new JSONObject().put("declared_region", "apac")).declaredRegion()).isEqualTo("apac");
+        // non-string values are swallowed to null
+        assertThat(new OpenRouterByokKey(new JSONObject().put("declared_region", 42)).declaredRegion()).isNull();
+        assertThat(new OpenRouterByokKey(new JSONObject().put("declared_region", true)).declaredRegion()).isNull();
     }
 
     @Test
