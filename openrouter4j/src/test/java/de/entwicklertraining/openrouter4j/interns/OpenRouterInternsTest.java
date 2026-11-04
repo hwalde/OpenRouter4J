@@ -1,6 +1,13 @@
 package de.entwicklertraining.openrouter4j.interns;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultCustomOrigin;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultGithubApp;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultGithubInstallation;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultGithubToken;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultGoogleAccount;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultMcpOrigin;
+import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultRoutingTable;
 import java.util.List;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
@@ -601,6 +608,12 @@ class OpenRouterInternsTest {
         assertThat(daemon.getRelativeUrl())
                 .isEqualTo("/interns/id%2Fwith+space/daemon-access");
         assertThat(daemon.internId()).isEqualTo("id%2Fwith+space");
+
+        OpenRouterInternConnectionsRequest connections = client().interns()
+                .connections("id/with space").build();
+        assertThat(connections.getRelativeUrl())
+                .isEqualTo("/vault/interns/id%2Fwith+space/connections");
+        assertThat(connections.internId()).isEqualTo("id%2Fwith+space");
     }
 
     @Test
@@ -621,5 +634,322 @@ class OpenRouterInternsTest {
         OpenRouterInternDaemonAccessResponse empty = request.createResponse("{}");
         assertThat(empty.origin()).isNull();
         assertThat(empty.token()).isNull();
+    }
+
+    @Test
+    void connectionsRequestHitsTheVaultConnectionsRoute() {
+        OpenRouterInternConnectionsRequest request = client().interns()
+                .connections("7c9e6679").build();
+        assertThat(request.getRelativeUrl()).isEqualTo("/vault/interns/7c9e6679/connections");
+        assertThat(request.getHttpMethod()).isEqualTo("GET");
+        assertThat(request.getBody()).isNull();
+        assertThat(request.internId()).isEqualTo("7c9e6679");
+    }
+
+    @Test
+    void connectionsResponseSurfacesKeysRoutingTableAndText() {
+        OpenRouterInternConnectionsRequest request = client().interns()
+                .connections("7c9e6679").build();
+        OpenRouterInternConnectionsResponse response = request.createResponse("""
+                {
+                  "data": [{"key": "github"}, {"key": "linear"}, {"key": "mcp:api.example.com"}],
+                  "routing": {
+                    "agent_id": "7c9e6679",
+                    "read_at": "2026-09-15T17:44:00.000Z",
+                    "github": {
+                      "apps": [
+                        {
+                          "app_id": "123456",
+                          "app_slug": "acme-bot",
+                          "scope": "workspace",
+                          "installations": [
+                            {
+                              "credential_id": "cred-1",
+                              "account": "acme-org",
+                              "account_type": "organization",
+                              "is_enabled": true,
+                              "is_off_for_intern": false,
+                              "holds_token": true,
+                              "coverage": {
+                                "selection": "selected",
+                                "repository_count": 12,
+                                "checked_at": "2026-09-15T17:40:00.000Z"
+                              },
+                              "shadowed_by": null
+                            },
+                            {
+                              "credential_id": "cred-2",
+                              "account": "acme-org",
+                              "account_type": null,
+                              "is_enabled": true,
+                              "is_off_for_intern": true,
+                              "holds_token": false,
+                              "coverage": null,
+                              "shadowed_by": "installation"
+                            }
+                          ],
+                          "member_links": [
+                            {"login": "lea", "via": "app_link", "holds_token": true}
+                          ]
+                        }
+                      ],
+                      "tokens": [
+                        {"login": "lea", "owner": "acme-org", "repository_count": 3,
+                         "scope": "intern", "holds_token": true}
+                      ]
+                    },
+                    "google": {
+                      "accounts": [
+                        {"email": "lea@acme.example", "scope": "workspace",
+                         "is_delegated_to_intern": true,
+                         "delegated_capabilities": ["drive.readonly"],
+                         "holds_grant": true}
+                      ]
+                    },
+                    "slack": {
+                      "member_links": [{"slack_user_id": "U123", "holds_token": true}]
+                    },
+                    "mcp_origins": [
+                      {
+                        "host": "mcp.linear.app",
+                        "account_key": "linear",
+                        "is_personal": false,
+                        "routes": [{"host": "mcp.linear.app", "path_prefix": "/mcp"}],
+                        "status": {"state": "usable", "failure": null}
+                      },
+                      {
+                        "host": "mcp.notion.so",
+                        "account_key": null,
+                        "is_personal": true,
+                        "routes": [],
+                        "status": null
+                      }
+                    ],
+                    "host_rules": [
+                      {"host": "api.github.com", "secret_name": "github_token",
+                       "holds_secret": true}
+                    ],
+                    "custom_origins": [
+                      {"host": "api.acme.example", "path_prefix": "/v1",
+                       "status": {"state": "failing", "failure": "expired"}}
+                    ],
+                    "secrets": [
+                      {"name": "linear_api_key", "hosts": ["api.linear.app"],
+                       "scope": "workspace", "created_at": "2026-09-15T17:44:00.000Z"},
+                      {"name": "legacy_token", "hosts": null,
+                       "scope": "future_scope", "created_at": "2026-08-01T09:30:00.000Z"}
+                    ]
+                  },
+                  "routing_text": "## Connections\\n\\n..."
+                }
+                """);
+
+        assertThat(response.connections()).hasSize(3);
+        assertThat(response.connections().get(0).key()).isEqualTo("github");
+        assertThat(response.connections().get(1).key()).isEqualTo("linear");
+        assertThat(response.connections().get(2).key()).isEqualTo("mcp:api.example.com");
+        assertThat(response.connections().get(0).json().has("key")).isTrue();
+        assertThat(response.routingText()).isEqualTo("## Connections\n\n...");
+
+        OpenRouterVaultRoutingTable routing = response.routing();
+        assertThat(routing).isNotNull();
+        assertThat(routing.agentId()).isEqualTo("7c9e6679");
+        assertThat(routing.readAt()).isEqualTo("2026-09-15T17:44:00.000Z");
+        assertThat(routing.json().has("github")).isTrue();
+
+        assertThat(routing.githubApps()).hasSize(1);
+        OpenRouterVaultGithubApp app = routing.githubApps().get(0);
+        assertThat(app.appId()).isEqualTo("123456");
+        assertThat(app.appSlug()).isEqualTo("acme-bot");
+        assertThat(app.scope()).isEqualTo("workspace");
+        assertThat(app.installations()).hasSize(2);
+        OpenRouterVaultGithubInstallation installation = app.installations().get(0);
+        assertThat(installation.credentialId()).isEqualTo("cred-1");
+        assertThat(installation.account()).isEqualTo("acme-org");
+        assertThat(installation.accountType()).isEqualTo("organization");
+        assertThat(installation.isEnabled()).isTrue();
+        assertThat(installation.isOffForIntern()).isFalse();
+        assertThat(installation.holdsToken()).isTrue();
+        assertThat(installation.shadowedBy()).isNull();
+        assertThat(installation.coverage()).isNotNull();
+        assertThat(installation.coverage().selection()).isEqualTo("selected");
+        assertThat(installation.coverage().repositoryCount()).isEqualTo(12L);
+        assertThat(installation.coverage().checkedAt()).isEqualTo("2026-09-15T17:40:00.000Z");
+        assertThat(installation.coverage().json().has("selection")).isTrue();
+        OpenRouterVaultGithubInstallation shadowed = app.installations().get(1);
+        assertThat(shadowed.accountType()).isNull();
+        assertThat(shadowed.coverage()).isNull();
+        assertThat(shadowed.shadowedBy()).isEqualTo("installation");
+        assertThat(app.memberLinks()).hasSize(1);
+        assertThat(app.memberLinks().get(0).login()).isEqualTo("lea");
+        assertThat(app.memberLinks().get(0).via()).isEqualTo("app_link");
+        assertThat(app.memberLinks().get(0).holdsToken()).isTrue();
+
+        assertThat(routing.githubTokens()).hasSize(1);
+        OpenRouterVaultGithubToken token = routing.githubTokens().get(0);
+        assertThat(token.login()).isEqualTo("lea");
+        assertThat(token.owner()).isEqualTo("acme-org");
+        assertThat(token.repositoryCount()).isEqualTo(3L);
+        assertThat(token.scope()).isEqualTo("intern");
+        assertThat(token.holdsToken()).isTrue();
+
+        assertThat(routing.googleAccounts()).hasSize(1);
+        OpenRouterVaultGoogleAccount account = routing.googleAccounts().get(0);
+        assertThat(account.email()).isEqualTo("lea@acme.example");
+        assertThat(account.scope()).isEqualTo("workspace");
+        assertThat(account.isDelegatedToIntern()).isTrue();
+        assertThat(account.delegatedCapabilities()).containsExactly("drive.readonly");
+        assertThat(account.holdsGrant()).isTrue();
+
+        assertThat(routing.slackMemberLinks()).hasSize(1);
+        assertThat(routing.slackMemberLinks().get(0).slackUserId()).isEqualTo("U123");
+        assertThat(routing.slackMemberLinks().get(0).holdsToken()).isTrue();
+
+        assertThat(routing.mcpOrigins()).hasSize(2);
+        OpenRouterVaultMcpOrigin origin = routing.mcpOrigins().get(0);
+        assertThat(origin.host()).isEqualTo("mcp.linear.app");
+        assertThat(origin.accountKey()).isEqualTo("linear");
+        assertThat(origin.isPersonal()).isFalse();
+        assertThat(origin.routes()).hasSize(1);
+        assertThat(origin.routes().get(0).host()).isEqualTo("mcp.linear.app");
+        assertThat(origin.routes().get(0).pathPrefix()).isEqualTo("/mcp");
+        assertThat(origin.status()).isNotNull();
+        assertThat(origin.status().state()).isEqualTo("usable");
+        assertThat(origin.status().failure()).isNull();
+        OpenRouterVaultMcpOrigin personal = routing.mcpOrigins().get(1);
+        assertThat(personal.accountKey()).isNull();
+        assertThat(personal.isPersonal()).isTrue();
+        assertThat(personal.routes()).isEmpty();
+        assertThat(personal.status()).isNull();
+
+        assertThat(routing.hostRules()).hasSize(1);
+        assertThat(routing.hostRules().get(0).host()).isEqualTo("api.github.com");
+        assertThat(routing.hostRules().get(0).secretName()).isEqualTo("github_token");
+        assertThat(routing.hostRules().get(0).holdsSecret()).isTrue();
+
+        assertThat(routing.customOrigins()).hasSize(1);
+        OpenRouterVaultCustomOrigin custom = routing.customOrigins().get(0);
+        assertThat(custom.host()).isEqualTo("api.acme.example");
+        assertThat(custom.pathPrefix()).isEqualTo("/v1");
+        assertThat(custom.status().state()).isEqualTo("failing");
+        assertThat(custom.status().failure()).isEqualTo("expired");
+
+        assertThat(routing.secrets()).hasSize(2);
+        assertThat(routing.secrets().get(0).name()).isEqualTo("linear_api_key");
+        assertThat(routing.secrets().get(0).hosts()).containsExactly("api.linear.app");
+        assertThat(routing.secrets().get(0).scope()).isEqualTo("workspace");
+        assertThat(routing.secrets().get(0).createdAt()).isEqualTo("2026-09-15T17:44:00.000Z");
+        // hosts: null = released on any request; unknown scope passes through
+        assertThat(routing.secrets().get(1).hosts()).isNull();
+        assertThat(routing.secrets().get(1).scope()).isEqualTo("future_scope");
+    }
+
+    @Test
+    void connectionsResponseKeepsKeysWhenRoutingIsNullForAForeignCaller() {
+        OpenRouterInternConnectionsRequest request = client().interns()
+                .connections("7c9e6679").build();
+        OpenRouterInternConnectionsResponse response = request.createResponse("""
+                {"data": [{"key": "github"}], "routing": null, "routing_text": null}
+                """);
+
+        // the keys still list for a caller other than the intern
+        assertThat(response.connections()).hasSize(1);
+        assertThat(response.connections().get(0).key()).isEqualTo("github");
+        assertThat(response.routing()).isNull();
+        assertThat(response.routingText()).isNull();
+    }
+
+    @Test
+    void connectionsResponseSwallowsMalformedShapes() {
+        OpenRouterInternConnectionsRequest request = client().interns()
+                .connections("7c9e6679").build();
+        OpenRouterInternConnectionsResponse response = request.createResponse("""
+                {
+                  "data": [{"key": 7}, "not-an-object", {"key": "github"}],
+                  "routing": "table",
+                  "routing_text": 42
+                }
+                """);
+
+        assertThat(response.connections()).hasSize(2);
+        assertThat(response.connections().get(0).key()).isNull();
+        assertThat(response.connections().get(1).key()).isEqualTo("github");
+        assertThat(response.routing()).isNull();
+        assertThat(response.routingText()).isNull();
+
+        OpenRouterInternConnectionsResponse nested = request.createResponse("""
+                {
+                  "data": [],
+                  "routing": {
+                    "agent_id": 5,
+                    "read_at": [],
+                    "github": {"apps": ["nope", {"app_id": 7, "scope": true,
+                                 "installations": [{"credential_id": 1,
+                                  "coverage": {"selection": 9, "repository_count": "many"},
+                                  "shadowed_by": 8}],
+                                 "member_links": []}],
+                               "tokens": []},
+                    "google": {"accounts": [{"email": 3, "delegated_capabilities": ["ok", 4],
+                                 "holds_grant": "yes"}]},
+                    "slack": {"member_links": [{"slack_user_id": null, "holds_token": 1}]},
+                    "mcp_origins": [{"host": 4, "account_key": 5, "is_personal": "no",
+                                    "routes": [{"host": 6, "path_prefix": 7}],
+                                    "status": {"state": 8, "failure": 9}}],
+                    "host_rules": [{"host": 1, "secret_name": 2, "holds_secret": 3}],
+                    "custom_origins": [{"host": 1, "path_prefix": 2, "status": "usable"}],
+                    "secrets": [{"name": 1, "hosts": "x", "scope": 2, "created_at": 3},
+                                {"name": "ok", "hosts": ["a", 2], "scope": "intern",
+                                 "created_at": "t"}]
+                  },
+                  "routing_text": "ok"
+                }
+                """);
+
+        OpenRouterVaultRoutingTable routing = nested.routing();
+        assertThat(routing).isNotNull();
+        assertThat(routing.agentId()).isNull();
+        assertThat(routing.readAt()).isNull();
+        // non-object rows are dropped while good rows survive
+        assertThat(routing.githubApps()).hasSize(1);
+        OpenRouterVaultGithubApp app = routing.githubApps().get(0);
+        assertThat(app.appId()).isNull();
+        assertThat(app.scope()).isNull();
+        assertThat(app.memberLinks()).isEmpty();
+        assertThat(app.installations()).hasSize(1);
+        assertThat(app.installations().get(0).credentialId()).isNull();
+        assertThat(app.installations().get(0).coverage()).isNotNull();
+        assertThat(app.installations().get(0).coverage().selection()).isNull();
+        assertThat(app.installations().get(0).coverage().repositoryCount()).isNull();
+        assertThat(app.installations().get(0).shadowedBy()).isNull();
+        assertThat(routing.githubTokens()).isEmpty();
+        assertThat(routing.googleAccounts()).hasSize(1);
+        assertThat(routing.googleAccounts().get(0).email()).isNull();
+        assertThat(routing.googleAccounts().get(0).delegatedCapabilities()).containsExactly("ok");
+        assertThat(routing.googleAccounts().get(0).holdsGrant()).isNull();
+        assertThat(routing.slackMemberLinks()).hasSize(1);
+        assertThat(routing.slackMemberLinks().get(0).slackUserId()).isNull();
+        assertThat(routing.slackMemberLinks().get(0).holdsToken()).isNull();
+        assertThat(routing.mcpOrigins()).hasSize(1);
+        assertThat(routing.mcpOrigins().get(0).host()).isNull();
+        assertThat(routing.mcpOrigins().get(0).routes()).hasSize(1);
+        assertThat(routing.mcpOrigins().get(0).routes().get(0).host()).isNull();
+        assertThat(routing.mcpOrigins().get(0).status()).isNotNull();
+        assertThat(routing.mcpOrigins().get(0).status().state()).isNull();
+        assertThat(routing.mcpOrigins().get(0).status().failure()).isNull();
+        assertThat(routing.hostRules()).hasSize(1);
+        assertThat(routing.hostRules().get(0).host()).isNull();
+        assertThat(routing.hostRules().get(0).holdsSecret()).isNull();
+        assertThat(routing.customOrigins()).hasSize(1);
+        assertThat(routing.customOrigins().get(0).status()).isNull();
+        assertThat(routing.secrets()).hasSize(2);
+        assertThat(routing.secrets().get(0).name()).isNull();
+        assertThat(routing.secrets().get(0).hosts()).isNull();
+        assertThat(routing.secrets().get(1).hosts()).containsExactly("a");
+        assertThat(nested.routingText()).isEqualTo("ok");
+
+        OpenRouterInternConnectionsResponse absent = request.createResponse("{}");
+        assertThat(absent.connections()).isEmpty();
+        assertThat(absent.routing()).isNull();
+        assertThat(absent.routingText()).isNull();
     }
 }

@@ -3,6 +3,8 @@ package de.entwicklertraining.openrouter4j.examples;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterIntern;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternChatAccumulator;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternConnection;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternConnectionsResponse;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternDaemonAccessResponse;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternInvokeResponse;
 import java.util.List;
@@ -106,6 +108,23 @@ public class OpenRouterInternsExample {
         } else if (turn.isFailed()) {
             System.out.println("Streamed failure: " + turn.errorCode() + " "
                     + turn.errorReason() + " (retryable: " + turn.errorRetryable() + ")");
+        }
+
+        // The connections in scope for the intern - the key of each card on
+        // the dashboard's Connections tab (github, slack, google, a catalog
+        // MCP server, or mcp:<host> for a custom one) - plus the vault's
+        // routing table: what would be injected where. Routing is readable
+        // with the intern's own API key only (null for any other caller),
+        // and never carries credentials, only metadata about them.
+        OpenRouterInternConnectionsResponse connections =
+                client.interns().connections(created.id()).execute();
+        System.out.println("Connections: " + connections.connections().stream()
+                .map(OpenRouterInternConnection::key).toList());
+        if (connections.routing() != null) {
+            System.out.println("Routing read at " + connections.routing().readAt()
+                    + ": " + connections.routing().githubApps().size() + " GitHub app(s), "
+                    + connections.routing().mcpOrigins().size() + " MCP origin(s), "
+                    + connections.routing().secrets().size() + " secret(s)");
         }
 
         // Update settings (omitted fields stay unchanged) and read back.

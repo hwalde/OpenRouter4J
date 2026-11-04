@@ -100,6 +100,7 @@ import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobCreateReques
 import de.entwicklertraining.openrouter4j.scim.OpenRouterScimSyncJobGetRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternChatRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternCreateRequest;
+import de.entwicklertraining.openrouter4j.interns.OpenRouterInternConnectionsRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternDaemonAccessRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternDeleteRequest;
 import de.entwicklertraining.openrouter4j.interns.OpenRouterInternGetRequest;
@@ -2064,6 +2065,22 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterInternDaemonAccessRequest.Builder daemonAccess(String internId) {
             return new OpenRouterInternDaemonAccessRequest.Builder(client, internId);
+        }
+
+        /**
+         * Lists the connections in scope for the intern plus the vault's
+         * routing table for it:
+         * GET /vault/interns/{internId}/connections. The connection keys
+         * list for every caller; {@code routing} / {@code routing_text} are
+         * readable with the intern's own API key only and never carry
+         * credentials. Traps: 404 outside the Intern API programme or for
+         * an intern the key cannot see; regional hostnames are refused.
+         *
+         * @param internId the id (UUID) of the intern
+         * @return the starting point for the request
+         */
+        public OpenRouterInternConnectionsRequest.Builder connections(String internId) {
+            return new OpenRouterInternConnectionsRequest.Builder(client, internId);
         }
     }
 
