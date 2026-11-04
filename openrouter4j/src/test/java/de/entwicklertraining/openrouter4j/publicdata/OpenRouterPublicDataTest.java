@@ -77,6 +77,7 @@ class OpenRouterPublicDataTest {
     void benchmarksResponseReturnsEmptyAndNullWhenAbsent() {
         OpenRouterBenchmarksResponse response = benchmarksResponseOf("{}");
         assertThat(response.items()).isEmpty();
+        assertThat(response.benchmarkItems()).isEmpty();
         assertThat(response.asOf()).isNull();
         assertThat(response.version()).isNull();
         assertThat(response.modelCount()).isNull();
@@ -376,6 +377,204 @@ class OpenRouterPublicDataTest {
         assertThat(response.macroCategories()).isEmpty();
         assertThat(response.asOf()).isNull();
         assertThat(response.windowDays()).isNull();
+    }
+
+    @Test
+    void benchmarkItemsDiscriminateTheFourVariants() {
+        OpenRouterBenchmarksResponse response = benchmarksResponseOf("""
+                {
+                  "data": [
+                    {
+                      "source": "artificial-analysis",
+                      "display_name": "GPT-4o",
+                      "model_permaslug": "openai/gpt-4o",
+                      "pricing": {"prompt": "0.0000025", "completion": "0.00001"},
+                      "intelligence_index": 71.2,
+                      "coding_index": 65.8,
+                      "agentic_index": 58.3
+                    },
+                    {
+                      "source": "design-arena",
+                      "display_name": "Claude Sonnet 4",
+                      "model_permaslug": "anthropic/claude-sonnet-4",
+                      "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+                      "arena": "models",
+                      "category": "codecategories",
+                      "elo": 1423.5,
+                      "win_rate": 72.0,
+                      "avg_generation_time_ms": 3200,
+                      "tournament_stats": {"total": 27, "first_place": 12, "second_place": 8,
+                                           "third_place": 5, "fourth_place": 2}
+                    },
+                    {
+                      "source": "openrouter",
+                      "display_name": "GPT-4o",
+                      "model_permaslug": "openai/gpt-4o",
+                      "benchmark_type": "gpqa_diamond",
+                      "accuracy": 0.72,
+                      "accuracy_stddev": 0.03,
+                      "avg_cost_per_task": 0.002,
+                      "last_run_timestamp": "2026-06-03T12:00:00Z",
+                      "total_tasks": 300
+                    },
+                    {
+                      "source": "openrouter",
+                      "display_name": "GPT-4o",
+                      "model_permaslug": "openai/gpt-4o",
+                      "benchmark_type": "search_browsecomp",
+                      "primary_metric": "accuracy",
+                      "primary_score": 0.72,
+                      "total_tasks": 100,
+                      "avg_cost_per_task": 0.031,
+                      "avg_latency_per_task_ms": 45210,
+                      "search_engine": "exa",
+                      "search_surface": "server-tool",
+                      "last_run_timestamp": "2026-07-28T13:38:18Z",
+                      "run_config": {"max_agent_turns": 25, "reasoning_effort": "high", "temperature": 0.2}
+                    }
+                  ]
+                }
+                """);
+
+        List<OpenRouterBenchmarkItem> items = response.benchmarkItems();
+        assertThat(items).hasSize(4);
+        // the raw items() surface is untouched alongside the typed one
+        assertThat(response.items()).hasSize(4);
+
+        OpenRouterBenchmarkItem aa = items.get(0);
+        assertThat(aa.isArtificialAnalysis()).isTrue();
+        assertThat(aa.isDesignArena()).isFalse();
+        assertThat(aa.isOpenrouter()).isFalse();
+        assertThat(aa.isSearch()).isFalse();
+        assertThat(aa.source()).isEqualTo("artificial-analysis");
+        assertThat(aa.displayName()).isEqualTo("GPT-4o");
+        assertThat(aa.modelPermaslug()).isEqualTo("openai/gpt-4o");
+        assertThat(aa.benchmarkType()).isNull();
+        assertThat(aa.pricingPrompt()).isEqualTo("0.0000025");
+        assertThat(aa.pricingCompletion()).isEqualTo("0.00001");
+        assertThat(aa.intelligenceIndex()).isEqualTo(71.2);
+        assertThat(aa.codingIndex()).isEqualTo(65.8);
+        assertThat(aa.agenticIndex()).isEqualTo(58.3);
+        // variant fields of the other rows answer null
+        assertThat(aa.elo()).isNull();
+        assertThat(aa.accuracy()).isNull();
+        assertThat(aa.primaryScore()).isNull();
+
+        OpenRouterBenchmarkItem da = items.get(1);
+        assertThat(da.isDesignArena()).isTrue();
+        assertThat(da.arena()).isEqualTo("models");
+        assertThat(da.category()).isEqualTo("codecategories");
+        assertThat(da.elo()).isEqualTo(1423.5);
+        assertThat(da.winRate()).isEqualTo(72.0);
+        assertThat(da.avgGenerationTimeMs()).isEqualTo(3200.0);
+        OpenRouterBenchmarkTournamentStats stats = da.tournamentStats();
+        assertThat(stats.total()).isEqualTo(27);
+        assertThat(stats.firstPlace()).isEqualTo(12);
+        assertThat(stats.secondPlace()).isEqualTo(8);
+        assertThat(stats.thirdPlace()).isEqualTo(5);
+        assertThat(stats.fourthPlace()).isEqualTo(2);
+        assertThat(stats.json().getInt("total")).isEqualTo(27);
+
+        OpenRouterBenchmarkItem or = items.get(2);
+        assertThat(or.isOpenrouter()).isTrue();
+        assertThat(or.isSearch()).isFalse();
+        assertThat(or.benchmarkType()).isEqualTo("gpqa_diamond");
+        assertThat(or.accuracy()).isEqualTo(0.72);
+        assertThat(or.accuracyStddev()).isEqualTo(0.03);
+        assertThat(or.avgCostPerTask()).isEqualTo(0.002);
+        assertThat(or.totalTasks()).isEqualTo(300L);
+        assertThat(or.lastRunTimestamp()).isEqualTo("2026-06-03T12:00:00Z");
+        assertThat(or.runConfig()).isNull();
+
+        OpenRouterBenchmarkItem search = items.get(3);
+        assertThat(search.isOpenrouter()).isTrue();
+        assertThat(search.isSearch()).isTrue();
+        assertThat(search.benchmarkType()).isEqualTo("search_browsecomp");
+        assertThat(search.primaryMetric()).isEqualTo("accuracy");
+        assertThat(search.primaryScore()).isEqualTo(0.72);
+        assertThat(search.totalTasks()).isEqualTo(100L);
+        assertThat(search.avgCostPerTask()).isEqualTo(0.031);
+        assertThat(search.avgLatencyPerTaskMs()).isEqualTo(45210.0);
+        assertThat(search.searchEngine()).isEqualTo("exa");
+        assertThat(search.searchSurface()).isEqualTo("server-tool");
+        assertThat(search.lastRunTimestamp()).isEqualTo("2026-07-28T13:38:18Z");
+        OpenRouterBenchmarkSearchRunConfig config = search.runConfig();
+        assertThat(config.maxAgentTurns()).isEqualTo(25);
+        assertThat(config.reasoningEffort()).isEqualTo("high");
+        assertThat(config.temperature()).isEqualTo(0.2);
+        assertThat(config.json().getInt("max_agent_turns")).isEqualTo(25);
+    }
+
+    @Test
+    void benchmarkItemsDiscriminateSearchFromOpenrouterEvalByBenchmarkType() {
+        OpenRouterBenchmarksResponse response = benchmarksResponseOf("""
+                {
+                  "data": [
+                    {"source": "openrouter", "benchmark_type": "gpqa_diamond"},
+                    {"source": "openrouter", "benchmark_type": "search_hle"},
+                    {"source": "openrouter", "benchmark_type": "search_unknown_future"},
+                    {"source": "openrouter", "benchmark_type": "not_a_search_type"},
+                    {"source": "artificial-analysis", "benchmark_type": "search_hle"},
+                    {"source": "openrouter"}
+                  ]
+                }
+                """);
+
+        List<OpenRouterBenchmarkItem> items = response.benchmarkItems();
+        // the search-vs-OR discrimination is by the search_* benchmark_type,
+        // not by the shared "openrouter" source alone
+        assertThat(items.get(0).isOpenrouter()).isTrue();
+        assertThat(items.get(0).isSearch()).isFalse();
+        assertThat(items.get(1).isSearch()).isTrue();
+        // unknown search_* spellings count as search verbatim (unknown values allowed)
+        assertThat(items.get(2).isSearch()).isTrue();
+        assertThat(items.get(2).benchmarkType()).isEqualTo("search_unknown_future");
+        assertThat(items.get(3).isSearch()).isFalse();
+        // a search_* type on a non-openrouter source is no search row
+        assertThat(items.get(4).isArtificialAnalysis()).isTrue();
+        assertThat(items.get(4).isSearch()).isFalse();
+        assertThat(items.get(5).isOpenrouter()).isTrue();
+        assertThat(items.get(5).isSearch()).isFalse();
+    }
+
+    @Test
+    void benchmarkItemsSwallowAbsentAndMalformedFields() {
+        OpenRouterBenchmarksResponse response = benchmarksResponseOf("""
+                {
+                  "data": [
+                    {"source": 42, "display_name": "GPT-4o", "intelligence_index": "high",
+                     "pricing": {"prompt": 5, "completion": null}, "elo": "1423",
+                     "tournament_stats": "none", "run_config": 7, "total_tasks": "300"},
+                    "not an object",
+                    {"source": "design-arena", "tournament_stats": {"total": "many"}}
+                  ]
+                }
+                """);
+
+        // non-object entries are dropped, like in items()
+        List<OpenRouterBenchmarkItem> items = response.benchmarkItems();
+        assertThat(items).hasSize(2);
+
+        OpenRouterBenchmarkItem malformed = items.get(0);
+        assertThat(malformed.source()).isNull();
+        assertThat(malformed.isArtificialAnalysis()).isFalse();
+        assertThat(malformed.isOpenrouter()).isFalse();
+        assertThat(malformed.isSearch()).isFalse();
+        // non-string strings and non-number numbers are swallowed to null
+        assertThat(malformed.displayName()).isEqualTo("GPT-4o");
+        assertThat(malformed.intelligenceIndex()).isNull();
+        assertThat(malformed.pricingPrompt()).isNull();
+        assertThat(malformed.pricingCompletion()).isNull();
+        assertThat(malformed.elo()).isNull();
+        assertThat(malformed.tournamentStats()).isNull();
+        assertThat(malformed.runConfig()).isNull();
+        assertThat(malformed.totalTasks()).isNull();
+
+        // malformed fields inside present sub-objects are swallowed too
+        OpenRouterBenchmarkItem partial = items.get(1);
+        assertThat(partial.tournamentStats()).isNotNull();
+        assertThat(partial.tournamentStats().total()).isNull();
+        assertThat(partial.tournamentStats().firstPlace()).isNull();
     }
 
     private OpenRouterBenchmarksResponse benchmarksResponseOf(String json) {

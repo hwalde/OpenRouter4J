@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.examples;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterAppRanking;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterAppRankingsResponse;
+import de.entwicklertraining.openrouter4j.publicdata.OpenRouterBenchmarkItem;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterBenchmarksResponse;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterMacroCategory;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterRankingsDailyResponse;
@@ -29,7 +30,8 @@ public class OpenRouterPublicDataExample {
         OpenRouterClient client = new OpenRouterClient();
 
         // 1. Benchmarks: rows differ per source; the typed surface covers the
-        //    meta, the rows stay raw JSON objects.
+        //    meta, the rows are reachable both as raw JSON objects (items())
+        //    and as the typed, discriminated views (benchmarkItems()).
         OpenRouterBenchmarksResponse benchmarks = client.benchmarks()
                 .source("openrouter")
                 .benchmarkType("gpqa_diamond")
@@ -40,6 +42,28 @@ public class OpenRouterPublicDataExample {
         benchmarks.items().forEach(row ->
                 System.out.println("  " + row.optString("display_name")
                         + " accuracy " + row.opt("accuracy")));
+
+        // 1b. The typed, discriminated view: one accessor set for all four row
+        //     variants (artificial-analysis, design-arena, openrouter evals and
+        //     the openrouter search benchmarks - the search rows are separated
+        //     by their search_* benchmark_type, not by the source).
+        for (OpenRouterBenchmarkItem item : benchmarks.benchmarkItems()) {
+            if (item.isSearch()) {
+                System.out.printf("  %s: %s score %s (%s), %s tasks, run config %s%n",
+                        item.modelPermaslug(), item.primaryMetric(), item.primaryScore(),
+                        item.benchmarkType(), item.totalTasks(),
+                        item.runConfig() != null ? item.runConfig().reasoningEffort() : null);
+            } else if (item.isOpenrouter()) {
+                System.out.printf("  %s: accuracy %s over %s tasks%n",
+                        item.modelPermaslug(), item.accuracy(), item.totalTasks());
+            } else if (item.isArtificialAnalysis()) {
+                System.out.printf("  %s: intelligence index %s%n",
+                        item.modelPermaslug(), item.intelligenceIndex());
+            } else if (item.isDesignArena()) {
+                System.out.printf("  %s: ELO %s, win rate %s%%%n",
+                        item.modelPermaslug(), item.elo(), item.winRate());
+            }
+        }
 
         // 2. Top apps by token usage in a date window.
         OpenRouterAppRankingsResponse apps = client.datasets().appRankings()

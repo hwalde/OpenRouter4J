@@ -12,9 +12,11 @@ import java.util.List;
  * metadata.
  *
  * <p>The rows are heterogeneous - their shape depends on the requested
- * {@code source} - so {@link #items()} returns raw JSON objects; use
- * {@link #asOf()} and the other {@code meta} accessors for the typed
- * request-level view. Follows the swallow-and-return-null convention.
+ * {@code source} - so {@link #items()} returns raw JSON objects and
+ * {@link #benchmarkItems()} a typed, discriminated view per row
+ * ({@link OpenRouterBenchmarkItem}); use {@link #asOf()} and the other
+ * {@code meta} accessors for the typed request-level view. Follows the
+ * swallow-and-return-null convention.
  */
 public final class OpenRouterBenchmarksResponse extends OpenRouterResponse<OpenRouterBenchmarksRequest> {
 
@@ -41,6 +43,32 @@ public final class OpenRouterBenchmarksResponse extends OpenRouterResponse<OpenR
                     JSONObject entry = data.optJSONObject(i);
                     if (entry != null) {
                         result.add(entry);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // swallow: keep whatever was parsed before the failure
+        }
+        return result;
+    }
+
+    /**
+     * JSON path: {@code data[]} - the benchmark rows as typed, discriminated
+     * views ({@link OpenRouterBenchmarkItem} carries one accessor set for all
+     * four row variants). {@link #items()} stays available for the raw rows.
+     *
+     * @return the rows as typed views, empty when absent (non-object entries
+     *         are dropped, like in {@link #items()})
+     */
+    public List<OpenRouterBenchmarkItem> benchmarkItems() {
+        List<OpenRouterBenchmarkItem> result = new ArrayList<>();
+        try {
+            JSONArray data = json.optJSONArray("data");
+            if (data != null) {
+                for (int i = 0; i < data.length(); i++) {
+                    JSONObject entry = data.optJSONObject(i);
+                    if (entry != null) {
+                        result.add(new OpenRouterBenchmarkItem(entry));
                     }
                 }
             }
