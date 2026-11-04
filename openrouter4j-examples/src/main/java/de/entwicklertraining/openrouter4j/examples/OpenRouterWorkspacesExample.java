@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterOrganizationMember;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterOrganizationSettings;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspace;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceBudget;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceCreateResponse;
@@ -70,5 +71,15 @@ public class OpenRouterWorkspacesExample {
         // 6. The organization members (management key required).
         List<OpenRouterOrganizationMember> orgMembers = client.organization().members().limit(10).execute().items();
         System.out.println("Organization members: " + orgMembers.size());
+
+        // 7. The organization settings (management key required): read them
+        //    and update the single required boolean. The setting controls the
+        //    model list of the signed-in dashboard only - GET /api/v1/models
+        //    with an API key always answers just the models that key can use.
+        OpenRouterOrganizationSettings orgSettings =
+                client.organization().settings().get().execute().data();
+        System.out.println("Filtered model catalog enabled: "
+                + orgSettings.isFilteredModelCatalogEnabled());
+        client.organization().settings().update(true).execute();
     }
 }

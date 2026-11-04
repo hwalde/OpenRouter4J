@@ -120,6 +120,8 @@ import de.entwicklertraining.openrouter4j.video.OpenRouterVideoGenerationRequest
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoJobRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoModelsRequest;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterOrganizationMembersListRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterOrganizationSettingsGetRequest;
+import de.entwicklertraining.openrouter4j.workspace.OpenRouterOrganizationSettingsUpdateRequest;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspacesListRequest;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceBudgetDeleteRequest;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceBudgetGetRequest;
@@ -1326,6 +1328,56 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterOrganizationMembersListRequest.Builder members() {
             return new OpenRouterOrganizationMembersListRequest.Builder(client);
+        }
+
+        /**
+         * The organization settings routes:
+         * GET and PATCH /organization/settings (management key required).
+         *
+         * @return the starting point for the organization settings requests
+         */
+        public Settings settings() {
+            return new Settings(client);
+        }
+
+        /**
+         * Facade for the organization settings endpoints (management key
+         * required): read and update {@code is_filtered_model_catalog_enabled}.
+         */
+        public static class Settings {
+            private final OpenRouterClient client;
+
+            /**
+             * @param client the client used to send the requests
+             */
+            public Settings(OpenRouterClient client) {
+                this.client = client;
+            }
+
+            /**
+             * Reads the organization settings:
+             * GET /organization/settings (management key required).
+             *
+             * @return the starting point for the request
+             */
+            public OpenRouterOrganizationSettingsGetRequest.Builder get() {
+                return new OpenRouterOrganizationSettingsGetRequest.Builder(client);
+            }
+
+            /**
+             * Updates the organization settings:
+             * PATCH /organization/settings (management key required). The body
+             * is the single required boolean {@code is_filtered_model_catalog_enabled}
+             * - both {@code true} and {@code false} are set options and are
+             * emitted; the setting controls the model list of the signed-in
+             * dashboard, not what {@code GET /api/v1/models} answers for a key.
+             *
+             * @param isFilteredModelCatalogEnabled the required body field
+             * @return the starting point for the request
+             */
+            public OpenRouterOrganizationSettingsUpdateRequest.Builder update(boolean isFilteredModelCatalogEnabled) {
+                return new OpenRouterOrganizationSettingsUpdateRequest.Builder(client, isFilteredModelCatalogEnabled);
+            }
         }
     }
 
