@@ -109,7 +109,6 @@ public final class OpenRouterGuardrailCreateRequest extends OpenRouterRequest<Op
         return enforceFirstPartyHarnessModels;
     }
 
-
     @Override
     public String getRelativeUrl() {
         return "/guardrails";
@@ -447,13 +446,16 @@ public final class OpenRouterGuardrailCreateRequest extends OpenRouterRequest<Op
     }
     /**
  * Sets the body field {@code allow_safety_retention_other} (optional) - whether
- * ZDR-only requests to models outside the named providers (for example
- * open-weight models on Vertex) may also use Safety Retention endpoints, which
- * may retain prompts and responses from any request, only to prevent abuse, and
- * do not use them for training. {@code false} is a set option and is emitted; it
- * allows only ZDR endpoints. A guardrail can only be more restrictive than the
- * account setting. Left unset (or {@code null}), the field is omitted from the
- * body and the guardrail inherits the account setting.
+ * ZDR-only requests to models outside Google may also use Safety Retention
+ * endpoints. Safety Retention endpoints exist today in exactly two groups -
+ * Google models ({@code google/*}, covered by
+ * {@code allowSafetyRetentionGoogle}) and all other models, which is what this
+ * field covers (for example open-weight models on Vertex). Safety Retention
+ * endpoints may retain prompts and responses from any request, only to prevent
+ * abuse, and do not use them for training. {@code false} is a set option and is
+ * emitted; it allows only ZDR endpoints. A guardrail can only be more
+ * restrictive than the account setting. Left unset (or {@code null}), the field
+ * is omitted from the body and the guardrail inherits the account setting.
  */
     public Builder allowSafetyRetentionOther(Boolean allowSafetyRetentionOther) {
         this.allowSafetyRetentionOther = allowSafetyRetentionOther;

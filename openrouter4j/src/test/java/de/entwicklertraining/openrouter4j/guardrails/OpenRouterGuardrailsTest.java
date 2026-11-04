@@ -305,10 +305,10 @@ class OpenRouterGuardrailsTest {
         assertThat(body.keySet()).containsExactlyInAnyOrder(
                 "name", "allow_safety_retention_google", "allow_safety_retention_other",
                 "enforce_first_party_harness_models");
-        // false is a set option and is emitted
-        assertThat(body.getBoolean("allow_safety_retention_google")).isFalse();
-        assertThat(body.getBoolean("allow_safety_retention_other")).isTrue();
-        assertThat(body.getBoolean("enforce_first_party_harness_models")).isFalse();
+        // false is a set option and is emitted; the wire values are JSON booleans
+        assertThat(body.get("allow_safety_retention_google")).isEqualTo(false);
+        assertThat(body.get("allow_safety_retention_other")).isEqualTo(true);
+        assertThat(body.get("enforce_first_party_harness_models")).isEqualTo(false);
 
         // read-back accessors carry the values, not just presence
         assertThat(request.allowSafetyRetentionGoogle()).isFalse();
@@ -319,6 +319,8 @@ class OpenRouterGuardrailsTest {
         OpenRouterGuardrailCreateRequest bare = new OpenRouterGuardrailCreateRequest.Builder(client())
                 .name("G")
                 .allowSafetyRetentionGoogle(null)
+                .allowSafetyRetentionOther(null)
+                .enforceFirstPartyHarnessModels(null)
                 .build();
         assertThat(new JSONObject(bare.getBody()).keySet()).containsExactly("name");
         assertThat(bare.allowSafetyRetentionGoogle()).isNull();
@@ -336,20 +338,41 @@ class OpenRouterGuardrailsTest {
         JSONObject body = new JSONObject(request.getBody());
         assertThat(body.keySet()).containsExactlyInAnyOrder(
                 "allow_safety_retention_google", "enforce_first_party_harness_models");
-        assertThat(body.getBoolean("allow_safety_retention_google")).isTrue();
-        assertThat(body.getBoolean("enforce_first_party_harness_models")).isTrue();
+        assertThat(body.get("allow_safety_retention_google")).isEqualTo(true);
+        assertThat(body.get("enforce_first_party_harness_models")).isEqualTo(true);
         assertThat(body.has("allow_safety_retention_other")).isFalse();
 
         assertThat(request.allowSafetyRetentionGoogle()).isTrue();
         assertThat(request.allowSafetyRetentionOther()).isNull();
         assertThat(request.enforceFirstPartyHarnessModels()).isTrue();
 
+        // false is a set option on the update path too, and stays a JSON boolean
+        OpenRouterGuardrailUpdateRequest restricted = new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .allowSafetyRetentionGoogle(false)
+                .allowSafetyRetentionOther(false)
+                .enforceFirstPartyHarnessModels(false)
+                .build();
+        JSONObject restrictedBody = new JSONObject(restricted.getBody());
+        assertThat(restrictedBody.keySet()).containsExactlyInAnyOrder(
+                "allow_safety_retention_google", "allow_safety_retention_other",
+                "enforce_first_party_harness_models");
+        assertThat(restrictedBody.get("allow_safety_retention_google")).isEqualTo(false);
+        assertThat(restrictedBody.get("allow_safety_retention_other")).isEqualTo(false);
+        assertThat(restrictedBody.get("enforce_first_party_harness_models")).isEqualTo(false);
+        assertThat(restricted.allowSafetyRetentionGoogle()).isFalse();
+        assertThat(restricted.allowSafetyRetentionOther()).isFalse();
+        assertThat(restricted.enforceFirstPartyHarnessModels()).isFalse();
+
         // explicit null is the unset state: omitted from the body, stored value unchanged
         OpenRouterGuardrailUpdateRequest unset = new OpenRouterGuardrailUpdateRequest.Builder(client(), "g-1")
+                .allowSafetyRetentionGoogle(null)
                 .allowSafetyRetentionOther(null)
+                .enforceFirstPartyHarnessModels(null)
                 .build();
         assertThat(new JSONObject(unset.getBody()).keySet()).isEmpty();
+        assertThat(unset.allowSafetyRetentionGoogle()).isNull();
         assertThat(unset.allowSafetyRetentionOther()).isNull();
+        assertThat(unset.enforceFirstPartyHarnessModels()).isNull();
     }
 
     @Test

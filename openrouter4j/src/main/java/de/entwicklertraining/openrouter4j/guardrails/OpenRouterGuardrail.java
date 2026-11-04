@@ -304,12 +304,15 @@ public final class OpenRouterGuardrail {
     }
     /**
  * JSON path: {@code allow_safety_retention_other} - whether ZDR-only requests to
- * models outside the named providers (for example open-weight models on Vertex)
- * may also use Safety Retention endpoints, which may retain prompts and
- * responses from any request, only to prevent abuse, and do not use them for
- * training ({@code false} allows only ZDR endpoints). A guardrail can only be
- * more restrictive than the account setting; {@code null} means the account
- * setting is inherited (or the response value was malformed).
+ * models outside Google may also use Safety Retention endpoints. Safety
+ * Retention endpoints exist today in exactly two groups - Google models
+ * ({@code google/*}, covered by {@link #allowSafetyRetentionGoogle()}) and all
+ * other models, which is what this field covers (for example open-weight models
+ * on Vertex). Safety Retention endpoints may retain prompts and responses from
+ * any request, only to prevent abuse, and do not use them for training
+ * ({@code false} allows only ZDR endpoints). A guardrail can only be more
+ * restrictive than the account setting; {@code null} means the account setting
+ * is inherited (or the response value was malformed).
  */
     public Boolean allowSafetyRetentionOther() {
         Object value = json.opt("allow_safety_retention_other");
