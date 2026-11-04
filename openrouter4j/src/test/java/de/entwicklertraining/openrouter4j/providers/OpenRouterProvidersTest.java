@@ -250,6 +250,98 @@ class OpenRouterProvidersTest {
         assertThat(textGeneration.requestCount()).isNull();
     }
 
+    @Test
+    void zdrEndpointLegacyAccessorsSwallowMalformedShapes() {
+        OpenRouterZdrEndpointsResponse response = zdrResponseOf("""
+                {
+                  "data": [
+                    {
+                      "name": 7,
+                      "model_id": [],
+                      "model_name": 1.5,
+                      "provider_name": 9,
+                      "tag": true,
+                      "quantization": 8,
+                      "context_length": "8192",
+                      "max_prompt_tokens": "x",
+                      "max_completion_tokens": false,
+                      "status": "up",
+                      "uptime_last_5m": "100",
+                      "uptime_last_30m": [],
+                      "uptime_last_1d": "99.8",
+                      "latency_last_30m": {"p50": "0.25", "p75": 0.35},
+                      "throughput_last_30m": "fast",
+                      "pricing": "cheap",
+                      "supported_parameters": ["temperature", 7, {"x": 1}, "top_p"],
+                      "supports_implicit_caching": "true",
+                      "supports_voice_cloning": 0,
+                      "perf_last_30m_by_workload": []
+                    }
+                  ]
+                }
+                """);
+
+        OpenRouterZdrEndpoint endpoint = response.items().get(0);
+        assertThat(endpoint.name()).isNull();
+        assertThat(endpoint.modelId()).isNull();
+        assertThat(endpoint.modelName()).isNull();
+        assertThat(endpoint.providerName()).isNull();
+        assertThat(endpoint.tag()).isNull();
+        assertThat(endpoint.quantization()).isNull();
+        assertThat(endpoint.contextLength()).isNull();
+        assertThat(endpoint.maxPromptTokens()).isNull();
+        assertThat(endpoint.maxCompletionTokens()).isNull();
+        assertThat(endpoint.status()).isNull();
+        assertThat(endpoint.uptimeLast5m()).isNull();
+        assertThat(endpoint.uptimeLast30m()).isNull();
+        assertThat(endpoint.uptimeLast1d()).isNull();
+        // the good p75 survives inside a present object while the malformed
+        // p50 is swallowed; a non-object throughput object reads null
+        assertThat(endpoint.latencyP50()).isNull();
+        assertThat(endpoint.latencyP75()).isEqualTo(0.35);
+        assertThat(endpoint.throughputP50()).isNull();
+        assertThat(endpoint.pricing()).isNull();
+        assertThat(endpoint.supportedParameters()).containsExactly("temperature", "top_p");
+        assertThat(endpoint.supportsImplicitCaching()).isNull();
+        assertThat(endpoint.supportsVoiceCloning()).isNull();
+        assertThat(endpoint.perfLast30mByWorkload()).isEmpty();
+    }
+
+    @Test
+    void zdrEndpointNewAccessorsReturnNullWhenAbsentOrJsonNull() {
+        OpenRouterZdrEndpoint absent = new OpenRouterZdrEndpoint(new JSONObject());
+        assertZdrNewViewEmpty(absent);
+
+        OpenRouterZdrEndpoint jsonNull = zdrResponseOf("""
+                {
+                  "data": [
+                    {
+                      "safety_retention": null,
+                      "service_tier": null,
+                      "supports_diarization": null,
+                      "supports_image_reference": null,
+                      "supports_multiple_audio_references": null,
+                      "supports_tool_choice": null,
+                      "native_tools": null,
+                      "perf_last_30m_by_workload": null
+                    }
+                  ]
+                }
+                """).items().get(0);
+        assertZdrNewViewEmpty(jsonNull);
+    }
+
+    private void assertZdrNewViewEmpty(OpenRouterZdrEndpoint endpoint) {
+        assertThat(endpoint.safetyRetention()).isNull();
+        assertThat(endpoint.serviceTier()).isNull();
+        assertThat(endpoint.supportsDiarization()).isNull();
+        assertThat(endpoint.supportsImageReference()).isNull();
+        assertThat(endpoint.supportsMultipleAudioReferences()).isNull();
+        assertThat(endpoint.supportsToolChoice()).isNull();
+        assertThat(endpoint.nativeTools()).isEmpty();
+        assertThat(endpoint.perfLast30mByWorkload()).isEmpty();
+    }
+
     private OpenRouterProvidersResponse providersResponseOf(String json) {
         OpenRouterProvidersRequest request = new OpenRouterProvidersRequest.Builder(client()).build();
         return request.createResponse(json);

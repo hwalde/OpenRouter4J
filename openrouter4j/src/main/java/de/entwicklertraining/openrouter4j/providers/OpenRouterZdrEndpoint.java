@@ -1,6 +1,5 @@
 package de.entwicklertraining.openrouter4j.providers;
 
-import de.entwicklertraining.openrouter4j.OpenRouterPercentileStats;
 import de.entwicklertraining.openrouter4j.OpenRouterToolChoiceSupport;
 import de.entwicklertraining.openrouter4j.OpenRouterWorkloadPerf;
 import org.json.JSONArray;

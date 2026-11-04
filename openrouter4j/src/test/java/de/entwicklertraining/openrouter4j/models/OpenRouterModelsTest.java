@@ -917,6 +917,33 @@ class OpenRouterModelsTest {
         assertThat(textGeneration.requestCount()).isNull();
     }
 
+    @Test
+    void malformedToolChoiceFlagsAndParameterEntriesAreSwallowed() {
+        OpenRouterModelEndpointsRequest request =
+                new OpenRouterModelEndpointsRequest.Builder(client(), "openai", "gpt-4o-mini").build();
+        OpenRouterModelEndpoint endpoint = request.createResponse("""
+                {
+                  "data": {
+                    "endpoints": [
+                      {
+                        "supports_tool_choice": {"auto": "yes", "function": 1, "none": [], "required": null},
+                        "supported_parameters": ["temperature", 7, {"x": 1}, "top_p"]
+                      }
+                    ]
+                  }
+                }
+                """).endpoints().get(0);
+
+        // the object survives while every wrong-typed flag is swallowed
+        assertThat(endpoint.supportsToolChoice()).isNotNull();
+        assertThat(endpoint.supportsToolChoice().auto()).isNull();
+        assertThat(endpoint.supportsToolChoice().function()).isNull();
+        assertThat(endpoint.supportsToolChoice().none()).isNull();
+        assertThat(endpoint.supportsToolChoice().required()).isNull();
+        // non-string entries of the parameter list are dropped
+        assertThat(endpoint.supportedParameters()).containsExactly("temperature", "top_p");
+    }
+
     private void assertEndpointViewEmpty(OpenRouterModelEndpoint endpoint) {
         assertThat(endpoint.provider()).isNull();
         assertThat(endpoint.model()).isNull();

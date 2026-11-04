@@ -43,7 +43,11 @@ public final class OpenRouterModelEndpoint {
     }
 
     /**
-     * JSON path: {@code provider} - name of the hosting provider.
+     * JSON path: {@code provider} - legacy field name. Today's
+     * {@code PublicEndpoint} rows carry no {@code provider} field, so this
+     * accessor answers {@code null} on current responses; the provider name
+     * arrives as {@link #providerName()} (display name) or {@link #tag()}
+     * (the provider slug). Kept for source compatibility.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -52,7 +56,10 @@ public final class OpenRouterModelEndpoint {
     }
 
     /**
-     * JSON path: {@code model} - the model id served by this endpoint.
+     * JSON path: {@code model} - legacy field name. Today's
+     * {@code PublicEndpoint} rows carry no {@code model} field, so this
+     * accessor answers {@code null} on current responses; the served model
+     * id arrives as {@link #modelId()}. Kept for source compatibility.
      *
      * @return the value, or {@code null} when absent or not a string
      */
@@ -61,8 +68,10 @@ public final class OpenRouterModelEndpoint {
     }
 
     /**
-     * JSON path: {@code selected} - whether this endpoint is currently the
-     * selected default for the model.
+     * JSON path: {@code selected} - legacy field name. Today's
+     * {@code PublicEndpoint} rows carry no {@code selected} field, so this
+     * accessor answers {@code null} on current responses. Kept for source
+     * compatibility.
      *
      * @return the value, or {@code null} when absent or not a boolean
      */
