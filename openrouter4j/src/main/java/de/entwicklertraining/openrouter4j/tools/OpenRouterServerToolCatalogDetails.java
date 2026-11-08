@@ -6,8 +6,9 @@ import org.json.JSONObject;
 
 /**
  * A typed view of the {@code data} row of GET /tools/{name} (schema
- * {@code ServerToolDetails}): one server tool by canonical name or any
- * accepted alias, with the models that run it natively.
+ * {@code ServerToolDetails}): one server tool - read by canonical name (an
+ * alias lookup answers HTTP 308 and fails, see
+ * {@link OpenRouterToolGetRequest}) - with the models that run it natively.
  *
  * <p>Carries every accessor of {@link OpenRouterServerToolCatalogEntry};
  * the details shape additionally requires {@code native_support.models} -

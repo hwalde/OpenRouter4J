@@ -72,8 +72,9 @@ public final class OpenRouterToolsListResponse<T extends OpenRouterRequest<?>>
     /**
      * JSON path: {@code links.next} - the URL of the next page of results,
      * or {@code null} on the last page. The API returns it as a relative
-     * path (e.g. {@code /api/v1/tools?offset=50&limit=50}); page by raising
-     * {@code offset} on the next request.
+     * path (e.g. {@code /api/v1/tools?offset=50&limit=50}) that cannot be
+     * fed back into the client as-is - page by raising {@code offset} on
+     * the next request.
      *
      * @return the next-page URL, or {@code null} when absent, JSON
      *         {@code null} or not a string

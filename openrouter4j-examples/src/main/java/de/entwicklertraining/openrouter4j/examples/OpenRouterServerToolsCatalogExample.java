@@ -21,8 +21,8 @@ import de.entwicklertraining.openrouter4j.tools.OpenRouterToolsListResponse;
  * spelling against the aliases and reason about tool billing against the
  * engines' pricing sources. Trap: a get by an <em>alias</em> answers HTTP
  * 308 (the canonical URL is only in the {@code Location} header, which the
- * transport does not surface), so resolve the canonical id first and get
- * by that.
+ * transport does not surface), so resolve the canonical id first (step 2)
+ * and get by that.
  */
 public class OpenRouterServerToolsCatalogExample {
 
@@ -56,11 +56,27 @@ public class OpenRouterServerToolsCatalogExample {
             }
         }
 
-        // 2. One tool in detail - by its CANONICAL name. A get by an alias
-        //    fails with HTTP 308 (see the class javadoc), so resolve the
-        //    canonical id from the aliases above first.
+        // 2. An alias lookup: you hold a non-canonical spelling (e.g. a
+        //    model's tools[].type) and want the tool behind it. A get() by
+        //    the alias itself FAILS with HTTP 308 (the canonical URL is
+        //    only in the Location header, which the transport does not
+        //    surface - see the class javadoc), so resolve the canonical id
+        //    from the catalog's aliases() and get by that.
+        String heldSpelling = "web_search_preview";
+        OpenRouterServerToolCatalogEntry resolved = page.items().stream()
+                .filter(tool -> tool.aliases().stream()
+                        .anyMatch(alias -> heldSpelling.equals(alias.type())))
+                .findFirst()
+                .orElse(null);
+        if (resolved == null) {
+            System.out.println("No server tool accepts the spelling " + heldSpelling);
+            return;
+        }
+        System.out.println("Spelling " + heldSpelling + " resolves to " + resolved.id());
+
+        // One tool in detail - by its CANONICAL name.
         OpenRouterServerToolCatalogDetails tool = client.serverTools()
-                .get("openrouter:web_search")
+                .get(resolved.id())
                 .execute()
                 .data();
         if (tool != null) {

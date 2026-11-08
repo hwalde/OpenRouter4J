@@ -411,7 +411,8 @@ public final class OpenRouterClient extends ApiClient {
 
     /**
      * Reads the server-tool catalog: GET /tools (list) and GET /tools/{name}
-     * (one tool by canonical name or accepted alias) - the accepted
+     * (one tool - by canonical name; an alias lookup answers HTTP 308 and
+     * fails, see {@link OpenRouterToolGetRequest}) - the accepted
      * {@code tools[].type} spellings per API format, the engines behind a
      * tool with their pricing, and the models that run it natively.
      *
@@ -2363,18 +2364,21 @@ public final class OpenRouterClient extends ApiClient {
         }
 
         /**
-         * Reads one server tool by canonical name or accepted alias:
-         * GET /tools/{name}. The name is URL-encoded into the path.
-         * Alias trap: a lookup by an alias answers HTTP 308 with the
-         * canonical tool URL in the {@code Location} header instead of a
-         * body, and the transport neither follows redirects nor surfaces
+         * Reads one server tool: GET /tools/{name}. The name is
+         * URL-encoded into the path (form encoding: a space renders as
+         * {@code +}, which a path-decoding server reads as a literal plus);
+         * null, blank and {@code "."} / {@code ".."} names are rejected
+         * loudly. Alias trap: a lookup by an alias answers HTTP 308 with
+         * the canonical tool URL in the {@code Location} header instead of
+         * a body, and the transport neither follows redirects nor surfaces
          * response headers - the call fails with a generic
          * {@code ApiClientException} rather than returning the tool. So
          * resolve the canonical {@code id} from the list response's
          * {@code aliases()} and call {@code get(id)} with it.
          *
          * @param name the canonical {@code openrouter:*} name or an accepted
-         *        alias (validated loudly: non-null, non-blank)
+         *        alias (validated loudly: non-null, non-blank, no
+         *        {@code "."} / {@code ".."})
          * @return the starting point for the request
          */
         public OpenRouterToolGetRequest.Builder get(String name) {

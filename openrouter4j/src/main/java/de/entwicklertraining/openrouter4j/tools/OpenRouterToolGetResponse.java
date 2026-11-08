@@ -6,7 +6,9 @@ import org.json.JSONObject;
 
 /**
  * Response of GET /tools/{name} (schema {@code GetToolResponse}): one
- * server tool by canonical name or any accepted alias.
+ * server tool - read by canonical name (an alias lookup answers HTTP 308
+ * and fails, see {@link OpenRouterToolGetRequest}) - with the models that
+ * run it natively.
  *
  * <p>All accessors follow the swallow-and-return-{@code null} convention.
  *

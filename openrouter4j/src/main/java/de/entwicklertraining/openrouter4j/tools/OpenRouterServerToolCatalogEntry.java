@@ -17,7 +17,10 @@ import org.json.JSONObject;
  * format in {@link #supportedApiFormats()}; {@link #aliases()} lists every
  * other spelling each format accepts (including the canonical one) and what
  * the call surfaces as under it. {@code GET /tools/{name}} accepts any of
- * those spellings.
+ * those spellings, but a lookup by a non-canonical one answers HTTP 308
+ * with the canonical URL only in the {@code Location} header, which this
+ * client cannot follow (see {@link OpenRouterToolGetRequest}) - match the
+ * spelling here and look the tool up by the enclosing {@link #id()}.
  *
  * <p><b>Engines and billing:</b> {@link #defaultEngine()} applies where the
  * endpoint runs the tool itself, otherwise {@link #fallbackEngine()}; a

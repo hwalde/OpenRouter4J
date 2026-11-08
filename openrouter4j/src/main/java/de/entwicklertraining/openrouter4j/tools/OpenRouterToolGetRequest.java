@@ -3,8 +3,6 @@ package de.entwicklertraining.openrouter4j.tools;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import org.json.JSONObject;
 
 /**
@@ -12,8 +10,11 @@ import org.json.JSONObject;
  * GET https://openrouter.ai/api/v1/tools/{name}
  *
  * <p>Accepts the canonical {@code openrouter:*} name or any accepted
- * {@code tools[].type} alias. The {@code name} path segment is URL-encoded;
- * blank names are rejected loudly.
+ * {@code tools[].type} alias. The {@code name} path segment is URL-encoded
+ * (form encoding: a space renders as {@code +}, which a path-decoding
+ * server reads as a literal plus); null, blank and {@code "."} / {@code ".."}
+ * names are rejected loudly - a normalizing hop would resolve those against
+ * the {@code /tools/} prefix instead of addressing a tool.
  *
  * <p><b>Alias trap (live-verified):</b> a lookup by an alias answers HTTP
  * 308 with the canonical tool URL in the {@code Location} header instead of
@@ -48,7 +49,7 @@ public final class OpenRouterToolGetRequest
 
     @Override
     public String getRelativeUrl() {
-        return "/tools/" + URLEncoder.encode(name, StandardCharsets.UTF_8);
+        return "/tools/" + OpenRouterToolPath.encode(name);
     }
 
     @Override
@@ -89,13 +90,12 @@ public final class OpenRouterToolGetRequest
          *
          * @param client the client used to send the request
          * @param name the canonical {@code openrouter:*} name or an accepted
-         *        alias (validated loudly: non-null, non-blank)
+         *        alias (validated loudly: non-null, non-blank, no
+         *        {@code "."} / {@code ".."})
          */
         public Builder(OpenRouterClient client, String name) {
             super(client);
-            if (name == null || name.isBlank()) {
-                throw new IllegalArgumentException("name must not be null or blank");
-            }
+            OpenRouterToolPath.requireValid(name);
             this.client = client;
             this.name = name;
         }

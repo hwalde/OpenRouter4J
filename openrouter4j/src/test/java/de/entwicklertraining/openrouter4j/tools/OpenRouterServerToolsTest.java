@@ -111,6 +111,10 @@ class OpenRouterServerToolsTest {
         assertThat(new OpenRouterToolGetRequest.Builder(client(), "web_search_preview_2025_03_11")
                 .build().getRelativeUrl())
                 .isEqualTo("/tools/web_search_preview_2025_03_11");
+        // the form-encoding contract of the segment: space renders as '+',
+        // a slash is percent-encoded (no way out of the /tools/ prefix)
+        assertThat(new OpenRouterToolGetRequest.Builder(client(), "a b/c").build().getRelativeUrl())
+                .isEqualTo("/tools/a+b%2Fc");
     }
 
     @Test
@@ -121,6 +125,22 @@ class OpenRouterServerToolsTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new OpenRouterToolGetRequest.Builder(client(), "  "))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void getRequestRejectsDotSegmentsThatEscapeTheToolsPrefix() {
+        // "." and ".." survive URLEncoder and would be normalized by any
+        // hop in between into /tools/ and /api/v1/ - rejected loudly
+        assertThatThrownBy(() -> new OpenRouterToolGetRequest.Builder(client(), "."))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("list response");
+        assertThatThrownBy(() -> new OpenRouterToolGetRequest.Builder(client(), ".."))
+                .isInstanceOf(IllegalArgumentException.class);
+        // neighbouring spellings stay addressable
+        assertThat(new OpenRouterToolGetRequest.Builder(client(), "...").build().getRelativeUrl())
+                .isEqualTo("/tools/...");
+        assertThat(new OpenRouterToolGetRequest.Builder(client(), "a..b").build().getRelativeUrl())
+                .isEqualTo("/tools/a..b");
     }
 
     // ------------------------------------------------------------------
@@ -187,12 +207,12 @@ class OpenRouterServerToolsTest {
                     }
                   ],
                   "total_count": 12,
-                  "links": {"next": "https://openrouter.ai/api/v1/tools?offset=50"}
+                  "links": {"next": "/api/v1/tools?offset=50&limit=50"}
                 }
                 """);
 
         assertThat(response.totalCount()).isEqualTo(12L);
-        assertThat(response.nextPageUrl()).isEqualTo("https://openrouter.ai/api/v1/tools?offset=50");
+        assertThat(response.nextPageUrl()).isEqualTo("/api/v1/tools?offset=50&limit=50");
         assertThat(response.items()).hasSize(1);
 
         OpenRouterServerToolCatalogEntry tool = response.items().get(0);
@@ -407,6 +427,7 @@ class OpenRouterServerToolsTest {
                       "model_count": 2,
                       "models": [
                         {"slug": "anthropic/claude-4.5-sonnet", "providers": ["Anthropic", "Google"]},
+                        "junk",
                         {"slug": 5, "providers": ["OpenAI", 7]}
                       ]
                     }
@@ -420,6 +441,7 @@ class OpenRouterServerToolsTest {
         assertThat(tool.status()).isEqualTo("deprecated");
         assertThat(tool.outputSchema()).isNotNull();
 
+        // the non-object row is dropped - two views, not three
         assertThat(tool.nativeModels()).hasSize(2);
         assertThat(tool.nativeModels().get(0).slug()).isEqualTo("anthropic/claude-4.5-sonnet");
         assertThat(tool.nativeModels().get(0).providers()).containsExactly("Anthropic", "Google");
@@ -445,10 +467,24 @@ class OpenRouterServerToolsTest {
         assertThat(empty.nativeModels()).isEmpty();
 
         OpenRouterServerToolCatalogDetails malformed = getResponseOf("""
-                {"data": {"native_support": {"endpoint_count": "x", "models": "not-an-array"}}}
+                {"data": {"native_support": {"endpoint_count": "x", "model_count": "x", "models": "not-an-array"}}}
                 """).data();
         assertThat(malformed.nativeSupport().endpointCount()).isNull();
+        assertThat(malformed.nativeSupport().modelCount()).isNull();
         assertThat(malformed.nativeModels()).isEmpty();
+    }
+
+    @Test
+    void bothResponsesTolerateEmptyAndNullBodies() {
+        OpenRouterToolsListRequest listRequest = new OpenRouterToolsListRequest.Builder(client()).build();
+        assertThat(listRequest.createResponse("").items()).isEmpty();
+        assertThat(listRequest.createResponse((String) null).items()).isEmpty();
+        assertThat(listRequest.createResponse((String) null).totalCount()).isNull();
+
+        OpenRouterToolGetRequest getRequest =
+                new OpenRouterToolGetRequest.Builder(client(), "openrouter:web_search").build();
+        assertThat(getRequest.createResponse("").data()).isNull();
+        assertThat(getRequest.createResponse((String) null).data()).isNull();
     }
 
     // ------------------------------------------------------------------
