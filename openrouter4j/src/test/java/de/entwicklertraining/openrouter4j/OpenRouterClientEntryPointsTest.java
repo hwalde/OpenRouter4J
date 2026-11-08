@@ -257,6 +257,14 @@ class OpenRouterClientEntryPointsTest {
     }
 
     @Test
+    void serverToolsEntryPointsProduceTheServerToolCatalogRequests() {
+        assertThat(client().serverTools().list().build().getHttpMethod()).isEqualTo("GET");
+        assertThat(client().serverTools().list().build().getRelativeUrl()).isEqualTo("/tools");
+        assertThat(client().serverTools().get("openrouter:web_search").build().getHttpMethod()).isEqualTo("GET");
+        assertThat(client().serverTools().get("openrouter:web_search").build().getRelativeUrl()).isEqualTo("/tools/openrouter%3Aweb_search");
+    }
+
+    @Test
     void internsEntryPointsProduceTheInternRequests() {
         assertThat(client().interns().list().build().getRelativeUrl()).isEqualTo("/interns");
         assertThat(client().interns().create("ok-name").build().getHttpMethod()).isEqualTo("POST");

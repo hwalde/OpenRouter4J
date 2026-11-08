@@ -122,6 +122,8 @@ import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecretCopyRequest
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecretDeleteRequest;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecretStoreRequest;
 import de.entwicklertraining.openrouter4j.vault.OpenRouterVaultSecretsListRequest;
+import de.entwicklertraining.openrouter4j.tools.OpenRouterToolGetRequest;
+import de.entwicklertraining.openrouter4j.tools.OpenRouterToolsListRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoContentRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoGenerationRequest;
 import de.entwicklertraining.openrouter4j.video.OpenRouterVideoJobRequest;
@@ -405,6 +407,18 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterZdrEndpointsRequest.Builder zdrEndpoints() {
         return new OpenRouterZdrEndpointsRequest.Builder(this);
+    }
+
+    /**
+     * Reads the server-tool catalog: GET /tools (list) and GET /tools/{name}
+     * (one tool by canonical name or accepted alias) - the accepted
+     * {@code tools[].type} spellings per API format, the engines behind a
+     * tool with their pricing, and the models that run it natively.
+     *
+     * @return the starting point for the catalog requests
+     */
+    public OpenRouterServerTools serverTools() {
+        return new OpenRouterServerTools(this);
     }
 
     /**
@@ -2316,6 +2330,55 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterExternalUserDeactivateRequest.Builder deactivate(String user) {
             return new OpenRouterExternalUserDeactivateRequest.Builder(client, user);
+        }
+    }
+
+    /**
+     * Entry point for the server-tool catalog routes (GET /tools,
+     * GET /tools/{name}). Read-only; the catalog is the discovery
+     * counterpart of the request-side {@code OpenRouterServerTool} family.
+     */
+    public static class OpenRouterServerTools {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterServerTools(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists every server tool OpenRouter can run on behalf of a model:
+         * GET /tools. Returns the accepted {@code tools[].type} spellings
+         * per API format, the engines behind each tool with their pricing,
+         * and how many endpoints run it natively. When both {@code offset}
+         * and {@code limit} are omitted the API returns the full list in
+         * one page.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterToolsListRequest.Builder list() {
+            return new OpenRouterToolsListRequest.Builder(client);
+        }
+
+        /**
+         * Reads one server tool by canonical name or accepted alias:
+         * GET /tools/{name}. The name is URL-encoded into the path.
+         * Alias trap: a lookup by an alias answers HTTP 308 with the
+         * canonical tool URL in the {@code Location} header instead of a
+         * body, and the transport neither follows redirects nor surfaces
+         * response headers - the call fails with a generic
+         * {@code ApiClientException} rather than returning the tool. So
+         * resolve the canonical {@code id} from the list response's
+         * {@code aliases()} and call {@code get(id)} with it.
+         *
+         * @param name the canonical {@code openrouter:*} name or an accepted
+         *        alias (validated loudly: non-null, non-blank)
+         * @return the starting point for the request
+         */
+        public OpenRouterToolGetRequest.Builder get(String name) {
+            return new OpenRouterToolGetRequest.Builder(client, name);
         }
     }
 
