@@ -49,4 +49,15 @@ class OpenRouterDecisionsRoutingTest {
         assertThat(first).isNotSameAs(client);
         assertThat(first.alphaBaseUrl()).isEqualTo("https://openrouter.ai/api/alpha");
     }
+
+    @Test
+    void extractionsBuilderBindsToTheAlphaClientNotThePlainOne() throws Exception {
+        OpenRouterClient client = new OpenRouterClient();
+        var builder = client.extractions();
+        java.lang.reflect.Field field =
+                de.entwicklertraining.api.base.ApiRequestBuilderBase.class.getDeclaredField("apiClient");
+        field.setAccessible(true);
+        assertThat(field.get(builder)).isSameAs(client.alphaClient());
+        assertThat(field.get(builder)).isNotSameAs(client);
+    }
 }

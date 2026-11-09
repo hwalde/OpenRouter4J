@@ -39,6 +39,7 @@ import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUserDe
 import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUserGetRequest;
 import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUserUpdateRequest;
 import de.entwicklertraining.openrouter4j.externalusers.OpenRouterExternalUsersListRequest;
+import de.entwicklertraining.openrouter4j.extractions.OpenRouterExtractionsRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest;
@@ -79,6 +80,20 @@ import de.entwicklertraining.openrouter4j.oauth.OpenRouterAuthorizationCodeExcha
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterCreateAuthorizationCodeRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterJwksRequest;
 import de.entwicklertraining.openrouter4j.oauth.OpenRouterWorkloadIdentityExchangeRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointActivateRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointCreateRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointDeleteRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointDisableRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointEnableRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointGetRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointUpdateRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointValidateRequest;
+import de.entwicklertraining.openrouter4j.privateendpoints.OpenRouterPrivateEndpointsListRequest;
+import de.entwicklertraining.openrouter4j.privateproviders.OpenRouterPrivateProviderCreateRequest;
+import de.entwicklertraining.openrouter4j.privateproviders.OpenRouterPrivateProviderDeleteRequest;
+import de.entwicklertraining.openrouter4j.privateproviders.OpenRouterPrivateProviderGetRequest;
+import de.entwicklertraining.openrouter4j.privateproviders.OpenRouterPrivateProviderUpdateRequest;
+import de.entwicklertraining.openrouter4j.privateproviders.OpenRouterPrivateProvidersListRequest;
 import de.entwicklertraining.openrouter4j.providers.OpenRouterProvidersRequest;
 import de.entwicklertraining.openrouter4j.providers.OpenRouterZdrEndpointsRequest;
 import de.entwicklertraining.openrouter4j.publicdata.OpenRouterAppRankingsRequest;
@@ -531,6 +546,49 @@ public final class OpenRouterClient extends ApiClient {
     }
 
     /**
+     * Manages the organization's private, bring-your-own-key inference
+     * endpoints: GET/POST /private-endpoints, GET/PATCH/DELETE
+     * /private-endpoints/{id} and the lifecycle routes
+     * POST /private-endpoints/{id}/activate, /disable, /enable and /validate
+     * (management key and the private endpoints entitlement required).
+     *
+     * <p>Draft lifecycle: a created endpoint is a non-routable draft -
+     * validate it, then activate it, or pass {@code activate(workspaceId)}
+     * on create to do all three in one call. Traps: a create response does
+     * not echo {@code declared_parameters} or {@code tested_parameters}
+     * (read them with GET); {@code base_url}/{@code upstream_model_id} are
+     * draft-only on PATCH (409 {@code already_active}); the deprecated
+     * {@code PUT /private-endpoints/{id}/parameters} and
+     * {@code /pricing} routes are deliberately not typed - they behave like
+     * PATCH /private-endpoints/{id}. Not yet live-verified (management
+     * route; probing mutates account state).
+     *
+     * @return the starting point for the private endpoint requests
+     */
+    public OpenRouterPrivateEndpoints privateEndpoints() {
+        return new OpenRouterPrivateEndpoints(this);
+    }
+
+    /**
+     * Manages the private providers of the account - the bring-your-own-key
+     * containers under which private endpoints are created:
+     * GET/POST /private-providers, GET/PATCH/DELETE /private-providers/{slug}
+     * (management key required, plus the private endpoints entitlement).
+     *
+     * <p>Traps: the {@code name} and {@code slug} are fixed at creation and
+     * cannot be changed later; neither may match a public provider name or
+     * slug (case-insensitive); the data policy is fixed by OpenRouter (a
+     * private provider's endpoints are recorded as retaining no prompts,
+     * training on none and publishing none); and DELETE refuses with 409
+     * while any private endpoint still runs under the provider.
+     *
+     * @return the starting point for the private-provider requests
+     */
+    public OpenRouterPrivateProviders privateProviders() {
+        return new OpenRouterPrivateProviders(this);
+    }
+
+    /**
      * Manages the observability destinations the traces are broadcast to:
      * GET/POST /observability/destinations, GET/PATCH/DELETE
      * /observability/destinations/{id} (management key required). Requests
@@ -789,6 +847,25 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterDecisionsRequest.Builder decisions() {
         return new OpenRouterDecisionsRequest.Builder(alphaClient());
+    }
+
+    /**
+     * Submits an Extractions request to the extraction router (alpha):
+     * POST /api/alpha/extractions - extract, compute, estimate or forecast
+     * typed fields from a state string and image assets using an
+     * extraction-style System One model (ScaleDown Extract family).
+     *
+     * <p>Trap: the endpoint lives in OpenRouter's alpha namespace, outside
+     * the {@code /api/v1} base of every other endpoint. This builder routes
+     * through an internal client whose base URL is the API host's
+     * {@code /api/alpha} namespace (derived from this client's base URL), and
+     * the route's own description is "Alpha: the shape is not stable" - the
+     * surface may change or disappear without a major version of the API.
+     *
+     * @return the starting point for the request
+     */
+    public OpenRouterExtractionsRequest.Builder extractions() {
+        return new OpenRouterExtractionsRequest.Builder(alphaClient());
     }
 
     /**
@@ -1639,6 +1716,230 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterByokDeleteRequest.Builder delete(String id) {
             return new OpenRouterByokDeleteRequest.Builder(client, id);
+        }
+    }
+
+    /**
+     * Facade for the private endpoint endpoints (management key and the
+     * private endpoints entitlement required): the organization's private,
+     * bring-your-own-key inference endpoints and their draft lifecycle.
+     *
+     * <p>Not yet live-verified (management route; probing mutates account
+     * state).
+     */
+    public static class OpenRouterPrivateEndpoints {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterPrivateEndpoints(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the organization's private endpoints, drafts included:
+         * GET /private-endpoints (management key required). One array of
+         * summary rows, no pagination - the full fields need
+         * {@link #get(String)}.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointsListRequest.Builder list() {
+            return new OpenRouterPrivateEndpointsListRequest.Builder(client);
+        }
+
+        /**
+         * Creates a private endpoint as a draft:
+         * POST /private-endpoints (management key required). Drafts are not
+         * routable - validate with {@link #validate(String, String)}, then
+         * activate with {@link #activate(String)}, or pass
+         * {@code activate(workspaceId)} on the builder to do all three in
+         * one call (on a failed validation the draft is kept and returned
+         * with the failed checks). Trap: the response does not echo
+         * {@code declared_parameters} or {@code tested_parameters} - read
+         * them with {@link #get(String)}. Use
+         * {@code idempotencyKey(...)} to make retries safe.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointCreateRequest.Builder create() {
+            return new OpenRouterPrivateEndpointCreateRequest.Builder(client);
+        }
+
+        /**
+         * Reads one private endpoint with its upstream configuration and
+         * current pricing: GET /private-endpoints/{id} (management key
+         * required). This is the read-back for {@code declared_parameters}
+         * and {@code tested_parameters}.
+         *
+         * @param id the id (UUID) of the private endpoint
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointGetRequest.Builder get(String id) {
+            return new OpenRouterPrivateEndpointGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Changes a private endpoint: PATCH /private-endpoints/{id}
+         * (management key required). Only the fields present change.
+         * Traps: {@code base_url}/{@code upstream_model_id} are draft-only
+         * (409 {@code already_active} on an active endpoint, writing
+         * nothing); {@code pricing}/{@code declared_parameters} replace
+         * their stored value; {@code settings} is a partial update where an
+         * explicit JSON {@code null} clears a limit or restores the provider
+         * default. The deprecated PUT /private-endpoints/{id}/parameters and
+         * /pricing routes behave exactly like this PATCH and are
+         * deliberately not typed here.
+         *
+         * @param id the id (UUID) of the private endpoint
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointUpdateRequest.Builder update(String id) {
+            return new OpenRouterPrivateEndpointUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes a private endpoint and stops routing to it:
+         * DELETE /private-endpoints/{id} (management key required). With
+         * {@code draftOnly(true)} the route refuses (409) when the endpoint
+         * has been activated.
+         *
+         * @param id the id (UUID) of the private endpoint
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointDeleteRequest.Builder delete(String id) {
+            return new OpenRouterPrivateEndpointDeleteRequest.Builder(client, id);
+        }
+
+        /**
+         * Makes a validated draft routable:
+         * POST /private-endpoints/{id}/activate (management key required).
+         * 409 when the endpoint was never validated, the validation is
+         * stale, or it is already active.
+         *
+         * @param id the id (UUID) of the private endpoint
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointActivateRequest.Builder activate(String id) {
+            return new OpenRouterPrivateEndpointActivateRequest.Builder(client, id);
+        }
+
+        /**
+         * Stops routing to an active endpoint without deleting it:
+         * POST /private-endpoints/{id}/disable (management key required).
+         *
+         * @param id the id (UUID) of the private endpoint
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointDisableRequest.Builder disable(String id) {
+            return new OpenRouterPrivateEndpointDisableRequest.Builder(client, id);
+        }
+
+        /**
+         * Resumes routing to a disabled endpoint:
+         * POST /private-endpoints/{id}/enable (management key required).
+         *
+         * @param id the id (UUID) of the private endpoint
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointEnableRequest.Builder enable(String id) {
+            return new OpenRouterPrivateEndpointEnableRequest.Builder(client, id);
+        }
+
+        /**
+         * Runs a live validation of a draft endpoint:
+         * POST /private-endpoints/{id}/validate (management key required).
+         * A passing validation is required before activation; failed checks
+         * answer HTTP 200 with {@code passed: false} - the verdict is in the
+         * body, not the status code.
+         *
+         * @param id the id (UUID) of the private endpoint
+         * @param workspaceId the workspace id (UUID) whose BYOK credential
+         *        performs the live test call (must belong to your account)
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateEndpointValidateRequest.Builder validate(String id, String workspaceId) {
+            return new OpenRouterPrivateEndpointValidateRequest.Builder(client, id, workspaceId);
+        }
+    }
+
+    /**
+     * Facade for the private-provider endpoints (management key required,
+     * plus the private endpoints entitlement).
+     */
+    public static class OpenRouterPrivateProviders {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterPrivateProviders(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the organization's private providers:
+         * GET /private-providers (management key required). The route
+         * carries no query parameters and the answer is one page without
+         * pagination or total count.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateProvidersListRequest.Builder list() {
+            return new OpenRouterPrivateProvidersListRequest.Builder(client);
+        }
+
+        /**
+         * Creates a private, bring-your-own-key provider visible only to
+         * your organization: POST /private-providers (management key
+         * required). Use its slug as {@code provider_slug} when creating
+         * private endpoints ({@code POST /private-endpoints}) and BYOK keys,
+         * and in {@code provider.order}, {@code only} and {@code ignore}.
+         * Traps: the name and slug cannot be changed later; neither may
+         * match a public provider name or slug (case-insensitive, server
+         * rejected); the data policy is fixed by OpenRouter.
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateProviderCreateRequest.Builder create() {
+            return new OpenRouterPrivateProviderCreateRequest.Builder(client);
+        }
+
+        /**
+         * Gets one private provider by slug:
+         * GET /private-providers/{slug} (management key required).
+         *
+         * @param slug the provider slug (URL-encoded into the path)
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateProviderGetRequest.Builder get(String slug) {
+            return new OpenRouterPrivateProviderGetRequest.Builder(client, slug);
+        }
+
+        /**
+         * Updates a private provider's display name or base URL:
+         * PATCH /private-providers/{slug} (management key required). The
+         * name and slug cannot change, and the data policy is fixed by
+         * OpenRouter, so a body with no editable field is rejected (400).
+         *
+         * @param slug the provider slug (URL-encoded into the path)
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateProviderUpdateRequest.Builder update(String slug) {
+            return new OpenRouterPrivateProviderUpdateRequest.Builder(client, slug);
+        }
+
+        /**
+         * Deletes a private provider: DELETE /private-providers/{slug}
+         * (management key required). Trap: refuses with 409 while any
+         * private endpoint still runs under the provider.
+         *
+         * @param slug the provider slug (URL-encoded into the path)
+         * @return the starting point for the request
+         */
+        public OpenRouterPrivateProviderDeleteRequest.Builder delete(String slug) {
+            return new OpenRouterPrivateProviderDeleteRequest.Builder(client, slug);
         }
     }
 

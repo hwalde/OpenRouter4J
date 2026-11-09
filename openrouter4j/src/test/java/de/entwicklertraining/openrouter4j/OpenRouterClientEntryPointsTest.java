@@ -3,6 +3,8 @@ package de.entwicklertraining.openrouter4j;
 import de.entwicklertraining.openrouter4j.batches.OpenRouterBatchEndpoint;
 import de.entwicklertraining.openrouter4j.batches.OpenRouterBatchItem;
 import de.entwicklertraining.openrouter4j.credits.OpenRouterCreditsRequest;
+import de.entwicklertraining.openrouter4j.extractions.OpenRouterExtractionField;
+import de.entwicklertraining.openrouter4j.extractions.OpenRouterExtractionsRequest;
 import de.entwicklertraining.openrouter4j.models.OpenRouterModelRequest;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
@@ -233,6 +235,18 @@ class OpenRouterClientEntryPointsTest {
     }
 
     @Test
+    void privateProvidersEntryPointsProduceTheManagementRequests() {
+        assertThat(client().privateProviders().list().build().getRelativeUrl()).isEqualTo("/private-providers");
+        assertThat(client().privateProviders().list().build().getHttpMethod()).isEqualTo("GET");
+        assertThat(client().privateProviders().create().name("Acme").build().getRelativeUrl()).isEqualTo("/private-providers");
+        assertThat(client().privateProviders().create().name("Acme").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().privateProviders().get("acme").build().getRelativeUrl()).isEqualTo("/private-providers/acme");
+        assertThat(client().privateProviders().get("acme").build().getHttpMethod()).isEqualTo("GET");
+        assertThat(client().privateProviders().update("acme").displayName("Acme").build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().privateProviders().delete("acme").build().getHttpMethod()).isEqualTo("DELETE");
+    }
+
+    @Test
     void vaultEntryPointsProduceTheVaultRequests() {
         assertThat(client().vault().list().build().getRelativeUrl()).isEqualTo("/vault/secrets");
         assertThat(client().vault().store("token").value("v").hosts("h.com").build().getHttpMethod()).isEqualTo("PUT");
@@ -286,6 +300,28 @@ class OpenRouterClientEntryPointsTest {
     }
 
     @Test
+    void privateEndpointsEntryPointsProduceThePrivateEndpointRequests() {
+        assertThat(client().privateEndpoints().list().build().getRelativeUrl()).isEqualTo("/private-endpoints");
+        assertThat(client().privateEndpoints().list().build().getHttpMethod()).isEqualTo("GET");
+        assertThat(client().privateEndpoints().create()
+                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().privateEndpoints().get("ep1").build().getRelativeUrl())
+                .isEqualTo("/private-endpoints/ep1");
+        assertThat(client().privateEndpoints().update("ep1").build().getHttpMethod()).isEqualTo("PATCH");
+        assertThat(client().privateEndpoints().delete("ep1").draftOnly(true).build().getRelativeUrl())
+                .isEqualTo("/private-endpoints/ep1?draft_only=true");
+        assertThat(client().privateEndpoints().activate("ep1").build().getRelativeUrl())
+                .isEqualTo("/private-endpoints/ep1/activate");
+        assertThat(client().privateEndpoints().disable("ep1").build().getRelativeUrl())
+                .isEqualTo("/private-endpoints/ep1/disable");
+        assertThat(client().privateEndpoints().enable("ep1").build().getRelativeUrl())
+                .isEqualTo("/private-endpoints/ep1/enable");
+        assertThat(client().privateEndpoints().validate("ep1", "ws1").build().getRelativeUrl())
+                .isEqualTo("/private-endpoints/ep1/validate");
+    }
+
+    @Test
     void observabilityEntryPointsProduceTheManagementRequests() {
         assertThat(client().observability().destinations().list().build().getRelativeUrl()).isEqualTo("/observability/destinations");
         assertThat(client().observability().destinations().create().type("langfuse").name("D").config(new JSONObject().put("baseUrl", "https://example.invalid")).build().getHttpMethod()).isEqualTo("POST");
@@ -305,5 +341,16 @@ class OpenRouterClientEntryPointsTest {
         assertThat(client().containers().file("sess_a", "cfile_b").build().getRelativeUrl()).isEqualTo("/containers/sess_a/files/cfile_b");
         assertThat(client().containers().fileContent("sess_a", "cfile_b").build().isBinaryResponse()).isTrue();
         assertThat(client().containers().promoteFile("sess_a", "cfile_b").build().getHttpMethod()).isEqualTo("POST");
+    }
+
+    @Test
+    void extractionsEntryPointProducesTheExtractionsRequest() {
+        OpenRouterExtractionsRequest request = client().extractions()
+                .model("cloudflare/clairic")
+                .state("Invoice INV-2291")
+                .field("invoice_number", OpenRouterExtractionField.text().build())
+                .build();
+        assertThat(request.getRelativeUrl()).isEqualTo("/extractions");
+        assertThat(request.getHttpMethod()).isEqualTo("POST");
     }
 }
