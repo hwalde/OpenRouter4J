@@ -38,10 +38,12 @@ public final class OpenRouterPrivateEndpointPricing {
     }
 
     /**
-     * @return the raw pricing object behind this view
+     * @return the raw pricing object behind this view; a detached copy, so
+     *         mutating it cannot change this value (neither the response
+     *         view nor a request value built from it)
      */
     public JSONObject json() {
-        return json;
+        return new JSONObject(json.toString());
     }
 
     /**

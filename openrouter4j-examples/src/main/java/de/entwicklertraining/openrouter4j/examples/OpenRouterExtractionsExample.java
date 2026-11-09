@@ -39,7 +39,11 @@ public class OpenRouterExtractionsExample {
                 .field("invoice_number", OpenRouterExtractionField.text().build())
                 .field("due_date", OpenRouterExtractionField.date()
                         .instructions("Issue date plus the net payment days").build())
+                .field("issued_at", OpenRouterExtractionField.datetime().build())
+                .field("office_hours", OpenRouterExtractionField.time().build())
                 .field("total", OpenRouterExtractionField.number().decimals(2).unit("USD").build())
+                .field("project_duration", OpenRouterExtractionField.duration()
+                        .unit("weeks").build())
                 .field("contacts", OpenRouterExtractionField.list().items("text").build())
                 .field("days_to_pay", OpenRouterExtractionField.estimate()
                         .min(0).max(120).step(1).unit("days").build())
@@ -66,11 +70,20 @@ public class OpenRouterExtractionsExample {
         }
 
         // estimate answers carry the distribution, list answers per-item
-        // confidences, forecast answers the per-step series.
+        // confidences, forecast answers the per-step series; spans index
+        // Unicode code points into the state text and source() names where
+        // the value was read from (state/image/document).
         OpenRouterExtractionAnswer estimate = response.answer("days_to_pay");
         System.out.println("days_to_pay mean=" + estimate.mean()
                 + " median=" + estimate.median()
-                + " p10=" + estimate.p10() + " p90=" + estimate.p90());
+                + " p10=" + estimate.p10() + " p90=" + estimate.p90()
+                + " p_above=" + estimate.pAbove() + " p_below=" + estimate.pBelow());
+        OpenRouterExtractionAnswer contacts = response.answer("contacts");
+        System.out.println("contacts confidences=" + contacts.confidences()
+                + " spans=" + contacts.spans() + " source=" + contacts.source());
+        OpenRouterExtractionAnswer forecast = response.answer("cash_flow");
+        System.out.println("cash_flow steps=" + forecast.forecast().size()
+                + " meanSeries=" + forecast.meanSeries());
         OpenRouterExtractionsUsage usage = response.usage();
         System.out.println("Usage: " + usage.inputTokens() + " in / "
                 + usage.outputTokens() + " out, cost " + usage.cost()

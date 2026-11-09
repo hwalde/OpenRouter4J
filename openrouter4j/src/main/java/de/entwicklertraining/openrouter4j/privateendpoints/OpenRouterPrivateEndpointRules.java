@@ -28,6 +28,30 @@ final class OpenRouterPrivateEndpointRules {
     }
 
     /**
+     * Validates a required path-segment string: non-blank and no dot
+     * segment. {@link java.net.URLEncoder} does not encode {@code "."}, so
+     * an id of {@code "."} or {@code ".."} would build a request target like
+     * {@code /private-endpoints/..} that any normalizing hop resolves
+     * against the namespace root instead of the named resource (the
+     * tools/external-users convention). A dot-segment id cannot address a
+     * private endpoint, so it is rejected loudly here.
+     *
+     * @param value the value to check
+     * @param name the field name for the error message
+     * @return the value
+     * @throws IllegalArgumentException when the value is null or empty or a
+     *         dot segment
+     */
+    static String requirePathSegment(String value, String name) {
+        requireNonBlank(value, name);
+        if (value.equals(".") || value.equals("..")) {
+            throw new IllegalArgumentException(
+                    name + " of \".\" or \"..\" cannot be addressed by path");
+        }
+        return value;
+    }
+
+    /**
      * Validates the documented parameter rule: {@code tool_choice} may only
      * be declared when {@code tools} is tested or declared as well (otherwise
      * the API answers 400 {@code parameters_invalid}). On create nothing is

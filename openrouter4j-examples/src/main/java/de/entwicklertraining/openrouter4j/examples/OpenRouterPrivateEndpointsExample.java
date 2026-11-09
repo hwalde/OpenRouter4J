@@ -37,7 +37,7 @@ public class OpenRouterPrivateEndpointsExample {
         // get(). The Idempotency-Key header makes retries safe (a repeated
         // key with the same request replays the first endpoint).
         OpenRouterManagedPrivateEndpoint draft = client.privateEndpoints().create()
-                .modelPermalslug("openai/gpt-4o-2024-08-06")
+                .modelPermaslug("openai/gpt-4o-2024-08-06")
                 .providerSlug("azure")
                 .upstreamModelId("gpt-4o-prod")
                 .baseUrl("https://contoso.openai.azure.com")
@@ -92,7 +92,7 @@ public class OpenRouterPrivateEndpointsExample {
                 .execute();
         System.out.println("Endpoints: " + all.items().size());
         all.items().forEach(row -> System.out.println("  " + row.id()
-                + " " + row.status() + " " + row.modelPermalslug()));
+                + " " + row.status() + " " + row.modelPermaslug()));
 
         // PATCH: only the fields present change. The settings object is a
         // partial update itself - here an explicit null clears the prompt cap

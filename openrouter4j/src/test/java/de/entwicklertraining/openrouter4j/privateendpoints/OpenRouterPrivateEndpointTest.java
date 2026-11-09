@@ -31,10 +31,10 @@ class OpenRouterPrivateEndpointTest {
         assertThat(client().privateEndpoints().list().build().getHttpMethod()).isEqualTo("GET");
 
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .build().getRelativeUrl()).isEqualTo("/private-endpoints");
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .build().getHttpMethod()).isEqualTo("POST");
 
         assertThat(client().privateEndpoints().get("ep-1").build().getRelativeUrl())
@@ -112,7 +112,7 @@ class OpenRouterPrivateEndpointTest {
     @Test
     void createEmitsRequiredFieldsOnly() {
         JSONObject body = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("openai/gpt-4o-2024-08-06")
+                .modelPermaslug("openai/gpt-4o-2024-08-06")
                 .providerSlug("azure")
                 .upstreamModelId("gpt-4o-prod")
                 .build().getBody());
@@ -131,26 +131,26 @@ class OpenRouterPrivateEndpointTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("model_permaslug");
         assertThatThrownBy(() -> client().privateEndpoints().create()
-                .modelPermalslug("openai/gpt-4o").upstreamModelId("m").build())
+                .modelPermaslug("openai/gpt-4o").upstreamModelId("m").build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("provider_slug");
         assertThatThrownBy(() -> client().privateEndpoints().create()
-                .modelPermalslug("openai/gpt-4o").providerSlug("azure").build())
+                .modelPermaslug("openai/gpt-4o").providerSlug("azure").build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("upstream_model_id");
         assertThatThrownBy(() -> client().privateEndpoints().create()
-                .modelPermalslug("").providerSlug("azure").upstreamModelId("m").build())
+                .modelPermaslug("").providerSlug("azure").upstreamModelId("m").build())
                 .isInstanceOf(IllegalStateException.class);
         // the minimal body passes
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("a").providerSlug("b").upstreamModelId("c")
+                .modelPermaslug("a").providerSlug("b").upstreamModelId("c")
                 .build().getBody()).contains("\"model_permaslug\":\"a\"");
     }
 
     @Test
     void createEmitsEveryOptionalField() {
         JSONObject body = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("openai/gpt-4o-2024-08-06")
+                .modelPermaslug("openai/gpt-4o-2024-08-06")
                 .providerSlug("azure")
                 .upstreamModelId("gpt-4o-prod")
                 .baseUrl("https://contoso.openai.azure.com")
@@ -216,14 +216,14 @@ class OpenRouterPrivateEndpointTest {
     void createTriStateLegsForDataPolicyDeclarations() {
         // unset: no key at all
         JSONObject unset = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .build().getBody());
         assertThat(unset.has("declared_region")).isFalse();
         assertThat(unset.has("declared_zdr")).isFalse();
 
         // value: emitted verbatim, false included
         JSONObject value = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .declaredRegion("europe").declaredZdr(false)
                 .build().getBody());
         assertThat(value.get("declared_region")).isEqualTo("europe");
@@ -232,13 +232,13 @@ class OpenRouterPrivateEndpointTest {
         // explicit null: emitted as JSON null - and on create the three small
         // bodies are exactly these key sets
         JSONObject explicitNull = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .declaredRegion(null).declaredZdr(null)
                 .build().getBody());
         assertThat(explicitNull.isNull("declared_region")).isTrue();
         assertThat(explicitNull.isNull("declared_zdr")).isTrue();
         assertThat(new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .declaredRegion(null).declaredZdr(null)
                 .build().getBody()).toString()).isEqualTo(explicitNull.toString());
     }
@@ -251,7 +251,7 @@ class OpenRouterPrivateEndpointTest {
                 .hasMessageContaining("25");
         // the 25-entry boundary passes
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .declaredParameters(Collections.nCopies(25, "temperature")).build().getBody())
                 .contains("temperature");
 
@@ -261,17 +261,17 @@ class OpenRouterPrivateEndpointTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("tool_choice");
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .declaredParameters(List.of("tools", "tool_choice")).build().getBody())
                 .contains("tool_choice");
         // unknown spellings pass through verbatim
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .declaredParameters(List.of("my_future_parameter")).build().getBody())
                 .contains("my_future_parameter");
         // null unsets the list
         JSONObject body = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .declaredParameters(List.of("seed")).declaredParameters(null)
                 .build().getBody());
         assertThat(body.has("declared_parameters")).isFalse();
@@ -312,14 +312,14 @@ class OpenRouterPrivateEndpointTest {
     @Test
     void createCarriesTheIdempotencyKeyHeader() {
         OpenRouterPrivateEndpointCreateRequest request = client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .idempotencyKey("wayfair-gpt-4o-eastus-2026-09")
                 .build();
         assertThat(request.getAdditionalHeaders())
                 .containsEntry("Idempotency-Key", "wayfair-gpt-4o-eastus-2026-09");
         // without the setter no header is sent
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .build().getAdditionalHeaders()).doesNotContainKey("Idempotency-Key");
 
         assertThatThrownBy(() -> client().privateEndpoints().create().idempotencyKey(""))
@@ -333,7 +333,7 @@ class OpenRouterPrivateEndpointTest {
                 .hasMessageContaining("CR or LF");
         // the 255-character boundary passes
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .idempotencyKey("k".repeat(255)).build())
                 .isNotNull();
     }
@@ -341,7 +341,7 @@ class OpenRouterPrivateEndpointTest {
     @Test
     void createMaxCompletionTokensShorthandLandsInSettings() {
         JSONObject body = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .maxCompletionTokens(131072)
                 .build().getBody());
         assertThat(body.keySet()).containsExactlyInAnyOrder(
@@ -352,14 +352,14 @@ class OpenRouterPrivateEndpointTest {
 
         // tri-state: explicit null clears to the model default
         JSONObject cleared = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .maxCompletionTokens(null)
                 .build().getBody());
         assertThat(cleared.getJSONObject("settings").isNull("max_completion_tokens")).isTrue();
 
         // a value named inside settings(...) wins over the shorthand
         JSONObject merged = new JSONObject(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .maxCompletionTokens(5)
                 .settings(OpenRouterPrivateEndpointSettingsUpdate.builder()
                         .maxCompletionTokens(10).build())
@@ -391,7 +391,7 @@ class OpenRouterPrivateEndpointTest {
     }
 
     @Test
-    void updateRejectsEmptyDraftOnlyFieldsLoudly() {
+    void updateRejectsEmptyBaseUrlLoudly() {
         assertThatThrownBy(() -> client().privateEndpoints().update("ep-1").baseUrl(""))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("base_url");
@@ -549,7 +549,7 @@ class OpenRouterPrivateEndpointTest {
         OpenRouterPrivateEndpointSummary row = response.items().get(0);
         assertThat(row.id()).isEqualTo("5b1c4c4e-7d0a-4a8e-9f3a-2d6c1b0e8a11");
         assertThat(row.status()).isEqualTo("draft");
-        assertThat(row.modelPermalslug()).isEqualTo("openai/gpt-4o-2024-08-06");
+        assertThat(row.modelPermaslug()).isEqualTo("openai/gpt-4o-2024-08-06");
         assertThat(row.modelSlug()).isEqualTo("openai/gpt-4o");
         assertThat(row.modelName()).isEqualTo("OpenAI: GPT-4o");
         assertThat(row.providerName()).isEqualTo("Azure");
@@ -564,7 +564,7 @@ class OpenRouterPrivateEndpointTest {
     @Test
     void managedResponseAccessors() {
         OpenRouterPrivateEndpointCreateRequest request = client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u").build();
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u").build();
         OpenRouterManagedPrivateEndpointResponse<OpenRouterPrivateEndpointCreateRequest> response =
                 new OpenRouterManagedPrivateEndpointResponse<>(new JSONObject("""
                         {"data": {
@@ -643,7 +643,7 @@ class OpenRouterPrivateEndpointTest {
         OpenRouterPrivateEndpoint endpoint = response.data();
         assertThat(endpoint.id()).isEqualTo("5b1c4c4e-7d0a-4a8e-9f3a-2d6c1b0e8a11");
         assertThat(endpoint.status()).isEqualTo("active");
-        assertThat(endpoint.modelPermalslug()).isEqualTo("openai/gpt-4o-2024-08-06");
+        assertThat(endpoint.modelPermaslug()).isEqualTo("openai/gpt-4o-2024-08-06");
         assertThat(endpoint.modelSlug()).isEqualTo("openai/gpt-4o");
         assertThat(endpoint.modelName()).isEqualTo("OpenAI: GPT-4o");
         assertThat(endpoint.providerName()).isEqualTo("Azure");
@@ -659,10 +659,6 @@ class OpenRouterPrivateEndpointTest {
         assertThat(endpoint.pricing().prompt()).isEqualTo("0.0000025");
         assertThat(endpoint.settings().contextLength()).isEqualTo(128000);
         assertThat(endpoint.json().getString("upstream_model_id")).isEqualTo("gpt-4o-prod");
-
-        // the full view carries no created_at - the accessor lives on the
-        // summary shape only
-        assertThat(endpoint.json().has("created_at")).isFalse();
     }
 
     @Test
@@ -845,7 +841,7 @@ class OpenRouterPrivateEndpointTest {
         OpenRouterPrivateEndpoint endpoint = malformed.data();
         assertThat(endpoint.id()).isNull();
         assertThat(endpoint.status()).isNull();
-        assertThat(endpoint.modelPermalslug()).isNull();
+        assertThat(endpoint.modelPermaslug()).isNull();
         assertThat(endpoint.modelSlug()).isNull();
         assertThat(endpoint.modelName()).isNull();
         assertThat(endpoint.providerName()).isNull();
@@ -903,7 +899,7 @@ class OpenRouterPrivateEndpointTest {
         assertThat(client().privateEndpoints().list().build()
                 .createResponse((String) null).items()).isEmpty();
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u").build()
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u").build()
                 .createResponse((String) null).data()).isNull();
         assertThat(client().privateEndpoints().get("ep-1").build().createResponse("").data()).isNull();
         assertThat(client().privateEndpoints().update("ep-1").build()
@@ -922,7 +918,7 @@ class OpenRouterPrivateEndpointTest {
     @Test
     void readBackAccessorsOnRequests() {
         OpenRouterPrivateEndpointCreateRequest create = client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .baseUrl("https://x.example")
                 .declaredParameters(List.of("seed"))
                 .declaredRegion("us").declaredZdr(true)
@@ -931,7 +927,7 @@ class OpenRouterPrivateEndpointTest {
                         .contextLength(128000).build())
                 .activate("ws-1")
                 .build();
-        assertThat(create.modelPermalslug()).isEqualTo("m");
+        assertThat(create.modelPermaslug()).isEqualTo("m");
         assertThat(create.providerSlug()).isEqualTo("p");
         assertThat(create.upstreamModelId()).isEqualTo("u");
         assertThat(create.baseUrl()).isEqualTo("https://x.example");
@@ -945,7 +941,7 @@ class OpenRouterPrivateEndpointTest {
         assertThat(create.pricing()).isNull();
 
         OpenRouterPrivateEndpointCreateRequest bare = client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u").build();
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u").build();
         assertThat(bare.baseUrl()).isNull();
         assertThat(bare.declaredParameters()).isNull();
         assertThat(bare.declaredRegion()).isNull();
@@ -969,5 +965,96 @@ class OpenRouterPrivateEndpointTest {
                 .isTrue();
         assertThat(client().privateEndpoints().delete("ep-1").build().draftOnly()).isNull();
         assertThat(client().privateEndpoints().get("a b").build().id()).isEqualTo("a+b");
+    }
+
+    @Test
+    void bodylessRoutesSendNoBody() {
+        // the six routes without a documented request body must send none -
+        // an accidental body on one of them would go red here
+        assertThat(client().privateEndpoints().list().build().getBody()).isNull();
+        assertThat(client().privateEndpoints().get("ep-1").build().getBody()).isNull();
+        assertThat(client().privateEndpoints().delete("ep-1").draftOnly(true).build().getBody())
+                .isNull();
+        assertThat(client().privateEndpoints().activate("ep-1").build().getBody()).isNull();
+        assertThat(client().privateEndpoints().disable("ep-1").build().getBody()).isNull();
+        assertThat(client().privateEndpoints().enable("ep-1").build().getBody()).isNull();
+    }
+
+    @Test
+    void byIdRoutesRejectDotSegmentsLoudly() {
+        // URLEncoder does not encode "." - "/private-endpoints/.." would be
+        // resolved against the namespace root by any normalizing hop
+        for (String id : List.of(".", "..")) {
+            assertThatThrownBy(() -> client().privateEndpoints().get(id))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("cannot be addressed by path");
+            assertThatThrownBy(() -> client().privateEndpoints().update(id))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().privateEndpoints().delete(id))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().privateEndpoints().activate(id))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().privateEndpoints().disable(id))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().privateEndpoints().enable(id))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().privateEndpoints().validate(id, "ws-1"))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    void updateValidatesItsCopiedRulesLoudly() {
+        // the update builder carries its own copies of the create-side rules
+        // and must reject the same values
+        assertThatThrownBy(() -> client().privateEndpoints().update("ep-1")
+                .declaredParameters(Collections.nCopies(26, "temperature")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("25");
+        assertThatThrownBy(() -> client().privateEndpoints().update("ep-1").maxCompletionTokens(0))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void createRejectsAnEmptyActivateWorkspaceIdLoudly() {
+        assertThatThrownBy(() -> client().privateEndpoints().create()
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u").activate(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspace_id");
+        // null is the "unset" leg, not a rejection
+        OpenRouterPrivateEndpointCreateRequest unsets = client().privateEndpoints().create()
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
+                .activate("ws-1").activate(null)
+                .build();
+        assertThat(unsets.activateWorkspaceId()).isNull();
+        assertThat(new JSONObject(unsets.getBody()).has("activate")).isFalse();
+    }
+
+    @Test
+    void fullViewExposesAnUnexpectedCreatedAtOnlyThroughTheRawHatch() {
+        // the schema's full PrivateEndpoint carries no created_at (that
+        // field is part of the summary shape and the full view has no typed
+        // accessor for it) - a server sending one anyway leaves it readable
+        // in the raw json() hatch, not typed
+        OpenRouterPrivateEndpoint endpoint = new OpenRouterPrivateEndpointResponse<>(
+                new JSONObject("{\"data\": {\"created_at\": \"2026-09-16T12:00:00Z\"}}"),
+                client().privateEndpoints().get("ep-1").build()).data();
+        assertThat(endpoint.json().has("created_at")).isTrue();
+    }
+
+    @Test
+    void jsonHatchesHandOutDetachedCopies() {
+        // mutating the raw object must not change the value it came from -
+        // pricing and settings serve as both response view and request value
+        OpenRouterPrivateEndpointPricing pricing = OpenRouterPrivateEndpointPricing.builder()
+                .prompt("0.0000025").completion("0.00001").build();
+        pricing.json().put("prompt", "9");
+        assertThat(pricing.json().getString("prompt")).isEqualTo("0.0000025");
+        assertThat(pricing.prompt()).isEqualTo("0.0000025");
+
+        OpenRouterPrivateEndpointSettingsUpdate settings = OpenRouterPrivateEndpointSettingsUpdate
+                .builder().contextLength(128000).build();
+        settings.json().put("context_length", 1);
+        assertThat(settings.json().getInt("context_length")).isEqualTo(128000);
     }
 }

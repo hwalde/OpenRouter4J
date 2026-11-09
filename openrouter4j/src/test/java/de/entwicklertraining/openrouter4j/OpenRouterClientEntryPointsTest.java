@@ -304,7 +304,7 @@ class OpenRouterClientEntryPointsTest {
         assertThat(client().privateEndpoints().list().build().getRelativeUrl()).isEqualTo("/private-endpoints");
         assertThat(client().privateEndpoints().list().build().getHttpMethod()).isEqualTo("GET");
         assertThat(client().privateEndpoints().create()
-                .modelPermalslug("m").providerSlug("p").upstreamModelId("u")
+                .modelPermaslug("m").providerSlug("p").upstreamModelId("u")
                 .build().getHttpMethod()).isEqualTo("POST");
         assertThat(client().privateEndpoints().get("ep1").build().getRelativeUrl())
                 .isEqualTo("/private-endpoints/ep1");

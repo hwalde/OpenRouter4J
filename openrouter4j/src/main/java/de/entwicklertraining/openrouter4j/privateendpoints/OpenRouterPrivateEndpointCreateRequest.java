@@ -57,7 +57,7 @@ public final class OpenRouterPrivateEndpointCreateRequest
         extends OpenRouterRequest<OpenRouterManagedPrivateEndpointResponse<OpenRouterPrivateEndpointCreateRequest>> {
 
     private final OpenRouterClient client;
-    private final String modelPermalslug;
+    private final String modelPermaslug;
     private final String providerSlug;
     private final String upstreamModelId;
     private final String baseUrl;
@@ -75,7 +75,7 @@ public final class OpenRouterPrivateEndpointCreateRequest
     private OpenRouterPrivateEndpointCreateRequest(Builder builder) {
         super(builder);
         this.client = builder.client;
-        this.modelPermalslug = builder.modelPermalslug;
+        this.modelPermaslug = builder.modelPermaslug;
         this.providerSlug = builder.providerSlug;
         this.upstreamModelId = builder.upstreamModelId;
         this.baseUrl = builder.baseUrl;
@@ -97,8 +97,8 @@ public final class OpenRouterPrivateEndpointCreateRequest
     /**
      * @return the permanent slug of the model this endpoint serves
      */
-    public String modelPermalslug() {
-        return modelPermalslug;
+    public String modelPermaslug() {
+        return modelPermaslug;
     }
 
     /**
@@ -201,7 +201,7 @@ public final class OpenRouterPrivateEndpointCreateRequest
     @Override
     public String getBody() {
         JSONObject body = new JSONObject();
-        body.put("model_permaslug", modelPermalslug);
+        body.put("model_permaslug", modelPermaslug);
         body.put("provider_slug", providerSlug);
         body.put("upstream_model_id", upstreamModelId);
         if (baseUrl != null) {
@@ -256,7 +256,7 @@ public final class OpenRouterPrivateEndpointCreateRequest
             extends ApiRequestBuilderBase<Builder, OpenRouterPrivateEndpointCreateRequest> {
 
         private final OpenRouterClient client;
-        private String modelPermalslug;
+        private String modelPermaslug;
         private String providerSlug;
         private String upstreamModelId;
         private String baseUrl;
@@ -287,11 +287,11 @@ public final class OpenRouterPrivateEndpointCreateRequest
          * slug of the model this endpoint serves (for example
          * {@code openai/gpt-4o-2024-08-06}).
          *
-         * @param modelPermalslug the model permaslug
+         * @param modelPermaslug the model permaslug
          * @return this builder
          */
-        public Builder modelPermalslug(String modelPermalslug) {
-            this.modelPermalslug = modelPermalslug;
+        public Builder modelPermaslug(String modelPermaslug) {
+            this.modelPermaslug = modelPermaslug;
             return this;
         }
 
@@ -531,7 +531,7 @@ public final class OpenRouterPrivateEndpointCreateRequest
 
         @Override
         public OpenRouterPrivateEndpointCreateRequest build() {
-            if (modelPermalslug == null || modelPermalslug.isEmpty()) {
+            if (modelPermaslug == null || modelPermaslug.isEmpty()) {
                 throw new IllegalStateException(
                         "model_permaslug is required for private endpoint creation");
             }

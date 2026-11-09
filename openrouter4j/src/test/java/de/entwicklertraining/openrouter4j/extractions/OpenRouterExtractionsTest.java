@@ -554,6 +554,8 @@ class OpenRouterExtractionsTest {
         assertThat(request.fields()).containsOnlyKeys("invoice_number", "total");
         assertThat(request.fields().get("invoice_number").type()).isEqualTo("text");
         assertThat(request.fields().get("total").type()).isEqualTo("number");
+        assertThat(new JSONObject(request.getBody()).getJSONObject("fields").keySet())
+                .containsExactlyInAnyOrder("invoice_number", "total");
         assertThat(request.assets()).containsOnlyKeys("scan");
         assertThat(request.provider().zdr()).isTrue();
         assertThat(request.referenceDate()).isNull();
@@ -883,5 +885,17 @@ class OpenRouterExtractionsTest {
                 new JSONObject("{\"answers\": \"oops\", \"usage\": 3}"), null).answers()).isEmpty();
         assertThat(new OpenRouterExtractionsResponse(
                 new JSONObject("{\"answers\": \"oops\", \"usage\": 3}"), null).usage()).isNull();
+    }
+
+    @Test
+    void listConfidencesKeepPositionalNullPlaceholders() {
+        // one entry per item of value(), same order: a malformed entry stays
+        // as a positional null so the alignment survives (unlike spans(),
+        // which drops malformed pairs because it has no alignment to keep)
+        OpenRouterExtractionAnswer list = new OpenRouterExtractionAnswer("contacts", new JSONObject("""
+                {"type": "list", "value": ["Dana Ruiz", "Priya R."], "confidences": [0.99, "bad"]}
+                """));
+        assertThat(list.valueList()).containsExactly("Dana Ruiz", "Priya R.");
+        assertThat(list.confidences()).containsExactly(0.99, null);
     }
 }

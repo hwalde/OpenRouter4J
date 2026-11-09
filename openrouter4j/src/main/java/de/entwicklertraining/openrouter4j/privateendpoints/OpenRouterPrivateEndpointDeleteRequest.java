@@ -105,7 +105,7 @@ public final class OpenRouterPrivateEndpointDeleteRequest
         public Builder(OpenRouterClient client, String id) {
             super(client);
             this.client = client;
-            OpenRouterPrivateEndpointRules.requireNonBlank(id, "id");
+            OpenRouterPrivateEndpointRules.requirePathSegment(id, "id");
             this.id = id;
         }
 

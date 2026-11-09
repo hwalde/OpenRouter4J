@@ -65,7 +65,7 @@ public class OpenRouterPrivateEndpointSummary {
      *
      * @return the permaslug, or {@code null} when absent or not a string
      */
-    public String modelPermalslug() {
+    public String modelPermaslug() {
         Object value = json.opt("model_permaslug");
         return value instanceof String text ? text : null;
     }

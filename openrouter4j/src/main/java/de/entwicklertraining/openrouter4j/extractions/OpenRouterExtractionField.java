@@ -630,7 +630,9 @@ public final class OpenRouterExtractionField {
         /**
          * Sets the JSON field {@code min} - the lower bound (number form).
          * Required for {@code estimate} and {@code forecast}, checked in
-         * {@link #build()}.
+         * {@link #build()}. A bare {@code min(null)} does not compile - the
+         * two {@code min} overloads make it ambiguous; pass a typed
+         * {@code null} like {@code min((Number) null)} to unset.
          *
          * @param min the lower bound
          * @return this builder
@@ -656,7 +658,9 @@ public final class OpenRouterExtractionField {
         /**
          * Sets the JSON field {@code max} - the upper bound (number form).
          * Required for {@code estimate} and {@code forecast}, checked in
-         * {@link #build()}.
+         * {@link #build()}. A bare {@code max(null)} does not compile - the
+         * two {@code max} overloads make it ambiguous; pass a typed
+         * {@code null} like {@code max((Number) null)} to unset.
          *
          * @param max the upper bound
          * @return this builder
@@ -695,7 +699,9 @@ public final class OpenRouterExtractionField {
         /**
          * Sets the JSON field {@code step} - the step size as a positive
          * number. Validated loudly: must be greater than 0. Omitted when
-         * unset ({@code null}).
+         * unset ({@code null}). A bare {@code step(null)} does not compile -
+         * the two {@code step} overloads make it ambiguous; pass a typed
+         * {@code null} like {@code step((Number) null)} to unset.
          *
          * @param step the positive step size
          * @return this builder

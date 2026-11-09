@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.privateproviders;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import java.util.List;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -462,5 +463,20 @@ class OpenRouterPrivateProvidersTest {
                 .build().getBody())).isNotNull();
         assertThat(new JSONObject(client().privateProviders().update("acme").displayName("A")
                 .build().getBody())).isNotNull();
+    }
+
+    @Test
+    void bySlugRoutesRejectDotSegmentsLoudly() {
+        // URLEncoder does not encode "." - "/private-providers/.." would be
+        // resolved against the namespace root by any normalizing hop
+        for (String slug : List.of(".", "..")) {
+            assertThatThrownBy(() -> client().privateProviders().get(slug))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("cannot be addressed by path");
+            assertThatThrownBy(() -> client().privateProviders().update(slug))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> client().privateProviders().delete(slug))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
     }
 }

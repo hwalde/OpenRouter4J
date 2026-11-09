@@ -528,7 +528,10 @@ public final class OpenRouterExtractionProviderPreferences {
          * seconds (applies to p50). Endpoints above the threshold may still
          * be used but are deprioritized. The plain number wins over the
          * {@link #preferredMaxLatency(OpenRouterPercentileCutoffs)} form
-         * when both are set.
+         * when both are set. A bare {@code preferredMaxLatency(null)} does
+         * not compile - the two overloads make it ambiguous; pass a typed
+         * {@code null} like {@code preferredMaxLatency((Double) null)} to
+         * unset.
          *
          * @param seconds the preferred maximum latency in seconds
          * @return this builder
@@ -556,7 +559,10 @@ public final class OpenRouterExtractionProviderPreferences {
          * threshold may still be used but are deprioritized. The plain
          * number wins over the
          * {@link #preferredMinThroughput(OpenRouterPercentileCutoffs)} form
-         * when both are set.
+         * when both are set. A bare {@code preferredMinThroughput(null)}
+         * does not compile - the two overloads make it ambiguous; pass a
+         * typed {@code null} like
+         * {@code preferredMinThroughput((Double) null)} to unset.
          *
          * @param tokensPerSecond the preferred minimum throughput
          * @return this builder

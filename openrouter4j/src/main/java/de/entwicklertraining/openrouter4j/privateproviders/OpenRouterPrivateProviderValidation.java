@@ -113,14 +113,23 @@ final class OpenRouterPrivateProviderValidation {
      * parameter is a plain string in the API schema (no pattern, no length
      * range), so only the presence of a value is enforced loudly - a slug that
      * does not exist is the API's 404 to give, not the library's to invent.
+     * A dot segment ({@code "."} / {@code ".."}) is rejected regardless: the
+     * form encoding does not encode it and a normalizing hop would resolve
+     * {@code /private-providers/..} against the namespace root instead of the
+     * named provider (the tools/external-users convention).
      *
      * @param slug the provider slug
      * @return the unchanged slug
-     * @throws IllegalArgumentException when the slug is null or empty
+     * @throws IllegalArgumentException when the slug is null or empty or a
+     *         dot segment
      */
     static String requireSlugSegment(String slug) {
         if (slug == null || slug.isEmpty()) {
             throw new IllegalArgumentException("slug is required");
+        }
+        if (slug.equals(".") || slug.equals("..")) {
+            throw new IllegalArgumentException(
+                    "slug of \".\" or \"..\" cannot be addressed by path");
         }
         return slug;
     }

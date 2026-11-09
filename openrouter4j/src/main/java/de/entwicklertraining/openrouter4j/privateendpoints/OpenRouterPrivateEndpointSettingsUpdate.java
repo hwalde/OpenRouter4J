@@ -54,10 +54,11 @@ public final class OpenRouterPrivateEndpointSettingsUpdate {
 
     /**
      * @return the settings object as it will be sent (fields in the
-     *         "explicit JSON {@code null}" state appear as {@code null})
+     *         "explicit JSON {@code null}" state appear as {@code null});
+     *         a detached copy, so mutating it cannot change this value
      */
     public JSONObject json() {
-        return json;
+        return new JSONObject(json.toString());
     }
 
     /**

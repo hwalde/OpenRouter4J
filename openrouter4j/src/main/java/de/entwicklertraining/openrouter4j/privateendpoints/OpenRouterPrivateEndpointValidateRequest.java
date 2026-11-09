@@ -110,7 +110,7 @@ public final class OpenRouterPrivateEndpointValidateRequest
         public Builder(OpenRouterClient client, String id, String workspaceId) {
             super(client);
             this.client = client;
-            OpenRouterPrivateEndpointRules.requireNonBlank(id, "id");
+            OpenRouterPrivateEndpointRules.requirePathSegment(id, "id");
             OpenRouterPrivateEndpointRules.requireNonBlank(workspaceId, "workspace_id");
             this.id = id;
             this.workspaceId = workspaceId;
