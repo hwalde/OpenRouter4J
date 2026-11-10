@@ -35,6 +35,7 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
     private final List<String> apiKeyHashes;
     private final String workspaceId;
     private final Boolean broadcastGenerationCost;
+    private final Boolean broadcastGenerationCostAllocation;
     private final Boolean broadcastGenerationIdentity;
     private final Boolean broadcastGenerationRequestContext;
 
@@ -52,8 +53,20 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
         this.apiKeyHashes = builder.apiKeyHashes;
         this.workspaceId = builder.workspaceId;
         this.broadcastGenerationCost = builder.broadcastGenerationCost;
+        this.broadcastGenerationCostAllocation = builder.broadcastGenerationCostAllocation;
         this.broadcastGenerationIdentity = builder.broadcastGenerationIdentity;
         this.broadcastGenerationRequestContext = builder.broadcastGenerationRequestContext;
+    }
+
+    /**
+     * Returns the body field {@code broadcast_generation_cost_allocation} as
+     * set on the builder, or {@code null} when unset (the field is then not
+     * sent and the API default {@code false} applies).
+     *
+     * @return the configured flag, or {@code null} when unset
+     */
+    public Boolean broadcastGenerationCostAllocation() {
+        return broadcastGenerationCostAllocation;
     }
 
 
@@ -103,6 +116,9 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
         if (broadcastGenerationCost != null) {
             body.put("broadcast_generation_cost", broadcastGenerationCost);
         }
+        if (broadcastGenerationCostAllocation != null) {
+            body.put("broadcast_generation_cost_allocation", broadcastGenerationCostAllocation);
+        }
         if (broadcastGenerationIdentity != null) {
             body.put("broadcast_generation_identity", broadcastGenerationIdentity);
         }
@@ -134,6 +150,7 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
     private List<String> apiKeyHashes;
     private String workspaceId;
     private Boolean broadcastGenerationCost;
+    private Boolean broadcastGenerationCostAllocation;
     private Boolean broadcastGenerationIdentity;
     private Boolean broadcastGenerationRequestContext;
 
@@ -263,6 +280,18 @@ public final class OpenRouterObservabilityDestinationCreateRequest extends OpenR
  */
     public Builder broadcastGenerationCost(Boolean broadcastGenerationCost) {
         this.broadcastGenerationCost = broadcastGenerationCost;
+        return this;
+    }
+    /**
+ * Sets the body field {@code broadcast_generation_cost_allocation} (optional,
+ * Beta) - when {@code true}, the destination receives
+ * {@code openrouter_cost_allocation}: per-token-kind usage and cost, sent only
+ * when they reconcile with the billed cost, so its absence in a broadcast is
+ * normal and not an error. The API default is {@code false}. {@code false} is
+ * a set option and is sent; unset omits the field and the API default applies.
+ */
+    public Builder broadcastGenerationCostAllocation(Boolean broadcastGenerationCostAllocation) {
+        this.broadcastGenerationCostAllocation = broadcastGenerationCostAllocation;
         return this;
     }
     /**

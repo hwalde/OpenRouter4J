@@ -44,6 +44,9 @@ public class OpenRouterObservabilityExample {
                         .configOption("secretKey", "sk-lf-example-do-not-log")
                         .privacyMode(true)
                         .samplingRate(1.0)
+                        // Beta: per-token-kind usage and cost in the broadcast
+                        // (only sent when it reconciles with the billed cost).
+                        .broadcastGenerationCostAllocation(true)
                         .execute();
         String id = created.data() != null ? created.data().id() : null;
         System.out.println("Created destination " + id);

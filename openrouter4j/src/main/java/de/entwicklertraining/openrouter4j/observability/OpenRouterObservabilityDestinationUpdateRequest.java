@@ -36,6 +36,7 @@ public final class OpenRouterObservabilityDestinationUpdateRequest extends OpenR
     private final JSONObject filterRules;
     private final List<String> apiKeyHashes;
     private final Boolean broadcastGenerationCost;
+    private final Boolean broadcastGenerationCostAllocation;
     private final Boolean broadcastGenerationIdentity;
     private final Boolean broadcastGenerationRequestContext;
 
@@ -53,8 +54,20 @@ public final class OpenRouterObservabilityDestinationUpdateRequest extends OpenR
         this.filterRules = builder.filterRules;
         this.apiKeyHashes = builder.apiKeyHashes;
         this.broadcastGenerationCost = builder.broadcastGenerationCost;
+        this.broadcastGenerationCostAllocation = builder.broadcastGenerationCostAllocation;
         this.broadcastGenerationIdentity = builder.broadcastGenerationIdentity;
         this.broadcastGenerationRequestContext = builder.broadcastGenerationRequestContext;
+    }
+
+    /**
+     * Returns the body field {@code broadcast_generation_cost_allocation} as
+     * set on the builder, or {@code null} when unset (the field is then not
+     * sent and the stored value is unchanged).
+     *
+     * @return the configured flag, or {@code null} when unset
+     */
+    public Boolean broadcastGenerationCostAllocation() {
+        return broadcastGenerationCostAllocation;
     }
 
     /**
@@ -113,6 +126,9 @@ public final class OpenRouterObservabilityDestinationUpdateRequest extends OpenR
         if (broadcastGenerationCost != null) {
             body.put("broadcast_generation_cost", broadcastGenerationCost);
         }
+        if (broadcastGenerationCostAllocation != null) {
+            body.put("broadcast_generation_cost_allocation", broadcastGenerationCostAllocation);
+        }
         if (broadcastGenerationIdentity != null) {
             body.put("broadcast_generation_identity", broadcastGenerationIdentity);
         }
@@ -144,6 +160,7 @@ public final class OpenRouterObservabilityDestinationUpdateRequest extends OpenR
     private JSONObject filterRules;
     private List<String> apiKeyHashes;
     private Boolean broadcastGenerationCost;
+    private Boolean broadcastGenerationCostAllocation;
     private Boolean broadcastGenerationIdentity;
     private Boolean broadcastGenerationRequestContext;
 
@@ -259,6 +276,18 @@ public final class OpenRouterObservabilityDestinationUpdateRequest extends OpenR
  */
     public Builder broadcastGenerationCost(Boolean broadcastGenerationCost) {
         this.broadcastGenerationCost = broadcastGenerationCost;
+        return this;
+    }
+    /**
+ * Sets the body field {@code broadcast_generation_cost_allocation} (optional,
+ * Beta) - when {@code true}, the destination receives
+ * {@code openrouter_cost_allocation}: per-token-kind usage and cost, sent only
+ * when they reconcile with the billed cost, so its absence in a broadcast is
+ * normal and not an error. {@code false} is a set option and is sent; unset
+ * omits the field and the stored value is unchanged.
+ */
+    public Builder broadcastGenerationCostAllocation(Boolean broadcastGenerationCostAllocation) {
+        this.broadcastGenerationCostAllocation = broadcastGenerationCostAllocation;
         return this;
     }
     /**

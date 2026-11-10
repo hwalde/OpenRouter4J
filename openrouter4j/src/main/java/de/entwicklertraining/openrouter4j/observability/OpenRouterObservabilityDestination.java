@@ -114,6 +114,18 @@ public final class OpenRouterObservabilityDestination {
         return json.optBoolean("broadcast_generation_cost");
     }
     /**
+ * JSON path: {@code broadcast_generation_cost_allocation} - Beta: whether the
+ * destination receives {@code openrouter_cost_allocation} (per-token-kind
+ * usage and cost, sent only when they reconcile with the billed cost - its
+ * absence in a broadcast is normal, not an error). Absent, JSON-{@code null}
+ * and malformed values answer {@code null} so a malformed response looks
+ * empty.
+ */
+    public Boolean broadcastGenerationCostAllocation() {
+        Object value = json.opt("broadcast_generation_cost_allocation");
+        return value instanceof Boolean flag ? flag : null;
+    }
+    /**
  * JSON path: {@code broadcast_generation_identity} - whether identity
  * generation metadata is included.
  */

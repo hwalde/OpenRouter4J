@@ -74,6 +74,100 @@ class OpenRouterObservabilityTest {
     }
 
     @Test
+    void broadcastGenerationCostAllocationIsEmittedOnlyWhenSet() {
+        OpenRouterObservabilityDestinationCreateRequest created =
+                new OpenRouterObservabilityDestinationCreateRequest.Builder(client())
+                        .type("langfuse")
+                        .name("Production Langfuse")
+                        .config(new JSONObject())
+                        .broadcastGenerationCostAllocation(false)
+                        .build();
+        JSONObject createBody = new JSONObject(created.getBody());
+        assertThat(createBody.getBoolean("broadcast_generation_cost_allocation")).isFalse();
+        assertThat(created.broadcastGenerationCostAllocation()).isFalse();
+
+        OpenRouterObservabilityDestinationCreateRequest createdAbsent =
+                new OpenRouterObservabilityDestinationCreateRequest.Builder(client())
+                        .type("langfuse")
+                        .name("Production Langfuse")
+                        .config(new JSONObject())
+                        .build();
+        assertThat(new JSONObject(createdAbsent.getBody()).has("broadcast_generation_cost_allocation")).isFalse();
+        assertThat(createdAbsent.broadcastGenerationCostAllocation()).isNull();
+
+        OpenRouterObservabilityDestinationCreateRequest createdUnset =
+                new OpenRouterObservabilityDestinationCreateRequest.Builder(client())
+                        .type("langfuse")
+                        .name("Production Langfuse")
+                        .config(new JSONObject())
+                        .broadcastGenerationCostAllocation(true)
+                        .broadcastGenerationCostAllocation(null)
+                        .build();
+        assertThat(new JSONObject(createdUnset.getBody()).has("broadcast_generation_cost_allocation")).isFalse();
+        assertThat(createdUnset.broadcastGenerationCostAllocation()).isNull();
+
+        OpenRouterObservabilityDestinationUpdateRequest updatedFalse =
+                new OpenRouterObservabilityDestinationUpdateRequest.Builder(client(), "d-1")
+                        .broadcastGenerationCostAllocation(false)
+                        .build();
+        JSONObject updateFalseBody = new JSONObject(updatedFalse.getBody());
+        assertThat(updateFalseBody.getBoolean("broadcast_generation_cost_allocation")).isFalse();
+        assertThat(updatedFalse.broadcastGenerationCostAllocation()).isFalse();
+
+        OpenRouterObservabilityDestinationUpdateRequest updated =
+                new OpenRouterObservabilityDestinationUpdateRequest.Builder(client(), "d-1")
+                        .broadcastGenerationCostAllocation(true)
+                        .build();
+        JSONObject updateBody = new JSONObject(updated.getBody());
+        assertThat(updateBody.getBoolean("broadcast_generation_cost_allocation")).isTrue();
+        assertThat(updated.broadcastGenerationCostAllocation()).isTrue();
+
+        OpenRouterObservabilityDestinationUpdateRequest updatedUnset =
+                new OpenRouterObservabilityDestinationUpdateRequest.Builder(client(), "d-1")
+                        .broadcastGenerationCostAllocation(true)
+                        .broadcastGenerationCostAllocation(null)
+                        .build();
+        assertThat(new JSONObject(updatedUnset.getBody()).has("broadcast_generation_cost_allocation")).isFalse();
+        assertThat(updatedUnset.broadcastGenerationCostAllocation()).isNull();
+
+        OpenRouterObservabilityDestinationUpdateRequest updatedAbsent =
+                new OpenRouterObservabilityDestinationUpdateRequest.Builder(client(), "d-1").build();
+        assertThat(new JSONObject(updatedAbsent.getBody()).has("broadcast_generation_cost_allocation")).isFalse();
+        assertThat(updatedAbsent.broadcastGenerationCostAllocation()).isNull();
+    }
+
+    @Test
+    void destinationViewExposesBroadcastGenerationCostAllocation() {
+        OpenRouterObservabilityDestination present =
+                new OpenRouterObservabilityDestination(new JSONObject("""
+                        {"broadcast_generation_cost_allocation": true}
+                        """));
+        assertThat(present.broadcastGenerationCostAllocation()).isTrue();
+
+        OpenRouterObservabilityDestination presentFalse =
+                new OpenRouterObservabilityDestination(new JSONObject("""
+                        {"broadcast_generation_cost_allocation": false}
+                        """));
+        assertThat(presentFalse.broadcastGenerationCostAllocation()).isFalse();
+
+        OpenRouterObservabilityDestination absent =
+                new OpenRouterObservabilityDestination(new JSONObject("{}"));
+        assertThat(absent.broadcastGenerationCostAllocation()).isNull();
+
+        OpenRouterObservabilityDestination explicitNull =
+                new OpenRouterObservabilityDestination(new JSONObject("""
+                        {"broadcast_generation_cost_allocation": null}
+                        """));
+        assertThat(explicitNull.broadcastGenerationCostAllocation()).isNull();
+
+        OpenRouterObservabilityDestination malformed =
+                new OpenRouterObservabilityDestination(new JSONObject("""
+                        {"broadcast_generation_cost_allocation": "true"}
+                        """));
+        assertThat(malformed.broadcastGenerationCostAllocation()).isNull();
+    }
+
+    @Test
     void createRequestAcceptsAWholeConfigObject() {
         OpenRouterObservabilityDestinationCreateRequest request =
                 new OpenRouterObservabilityDestinationCreateRequest.Builder(client())
