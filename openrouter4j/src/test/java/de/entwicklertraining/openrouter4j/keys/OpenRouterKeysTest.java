@@ -187,12 +187,14 @@ class OpenRouterKeysTest {
     void listRequestEmitsTypedQueryParameters() {
         OpenRouterKeysListRequest request = new OpenRouterKeysListRequest.Builder(client())
                 .includeDisabled(true)
+                .includeExpired(true)
                 .offset(10)
                 .workspaceId("0df9e665-d932-5740-b2c7-b52af166bc11")
                 .build();
 
         assertThat(request.getRelativeUrl()).isEqualTo("/keys"
                 + "?include_disabled=true"
+                + "&include_expired=true"
                 + "&offset=10"
                 + "&workspace_id=0df9e665-d932-5740-b2c7-b52af166bc11");
         assertThat(request.getHttpMethod()).isEqualTo("GET");
@@ -200,6 +202,38 @@ class OpenRouterKeysTest {
 
         OpenRouterKeysListRequest plain = new OpenRouterKeysListRequest.Builder(client()).build();
         assertThat(plain.getRelativeUrl()).isEqualTo("/keys");
+    }
+
+    @Test
+    void listRequestEmitsIncludeExpiredOnlyWhenSet() {
+        OpenRouterKeysListRequest enabled = new OpenRouterKeysListRequest.Builder(client())
+                .includeExpired(true)
+                .build();
+        assertThat(enabled.getRelativeUrl()).isEqualTo("/keys?include_expired=true");
+        assertThat(enabled.includeExpired()).isTrue();
+
+        OpenRouterKeysListRequest disabled = new OpenRouterKeysListRequest.Builder(client())
+                .includeExpired(false)
+                .build();
+        assertThat(disabled.getRelativeUrl()).isEqualTo("/keys?include_expired=false");
+        assertThat(disabled.includeExpired()).isFalse();
+
+        OpenRouterKeysListRequest leading = new OpenRouterKeysListRequest.Builder(client())
+                .includeExpired(true)
+                .offset(5)
+                .build();
+        assertThat(leading.getRelativeUrl()).isEqualTo("/keys?include_expired=true&offset=5");
+
+        OpenRouterKeysListRequest unset = new OpenRouterKeysListRequest.Builder(client())
+                .includeExpired(true)
+                .includeExpired(null)
+                .build();
+        assertThat(unset.getRelativeUrl()).isEqualTo("/keys");
+        assertThat(unset.includeExpired()).isNull();
+
+        OpenRouterKeysListRequest absent = new OpenRouterKeysListRequest.Builder(client()).build();
+        assertThat(absent.getRelativeUrl()).isEqualTo("/keys");
+        assertThat(absent.includeExpired()).isNull();
     }
 
     @Test

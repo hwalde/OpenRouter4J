@@ -48,7 +48,12 @@ public class OpenRouterKeysManagementExample {
         }
 
         // 2. List the keys of the account (management key required).
-        OpenRouterKeysListResponse list = client.keys().list().execute();
+        // Expired keys are excluded by default and only returned with
+        // includeExpired(true); includeDisabled and includeExpired are
+        // independent filters and compose.
+        OpenRouterKeysListResponse list = client.keys().list()
+                .includeExpired(true)
+                .execute();
         List<OpenRouterApiKey> keys = list.items();
         System.out.println("Keys: " + keys.size());
         for (OpenRouterApiKey key : keys) {
