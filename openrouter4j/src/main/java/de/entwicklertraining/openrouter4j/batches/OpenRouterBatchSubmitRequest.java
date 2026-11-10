@@ -24,14 +24,17 @@ import java.util.List;
  * and {@code requests} (a non-empty array of {@code {custom_id, body}} items,
  * {@link OpenRouterBatchItem}). Optional: {@code provider.only} (pinning - the
  * only provider preference the Batch API accepts; {@code order},
- * {@code sort}, {@code allow_fallbacks} and friends are rejected) and
+ * {@code sort}, {@code allow_fallbacks} and friends are rejected),
  * {@code completion_window} (defaults to {@code 24h}, the only accepted
- * value).
+ * value) and {@code callback_url} (an HTTPS webhook URL that is notified
+ * when the batch reaches a terminal status - best-effort delivery, so it
+ * does not replace polling {@code GET /batches/{id}}).
  *
  * <p><b>Wire-order trap:</b> the API stream-parses the body so it can accept
  * very large {@code requests} arrays without buffering - {@code endpoint},
- * {@code model} and any {@code provider}/{@code completion_window} must be
- * serialized BEFORE {@code requests}, or the API answers {@code 400}. This
+ * {@code model} and any {@code provider}/{@code completion_window}/
+ * {@code callback_url} must be serialized BEFORE {@code requests}, or the
+ * API answers {@code 400}. This
  * class emits the keys in that order on purpose; do not replace
  * {@link #getBody()} with a plain {@link JSONObject}, whose key order is a
  * hash detail.
@@ -75,6 +78,7 @@ public final class OpenRouterBatchSubmitRequest
     private final List<OpenRouterBatchItem> requests;
     private final List<String> providerOnly;
     private final String completionWindow;
+    private final String callbackUrl;
 
     private OpenRouterBatchSubmitRequest(Builder builder) {
         super(builder);
@@ -86,6 +90,7 @@ public final class OpenRouterBatchSubmitRequest
                 ? null
                 : List.copyOf(builder.providerOnly);
         this.completionWindow = builder.completionWindow;
+        this.callbackUrl = builder.callbackUrl;
     }
 
     /**
@@ -125,6 +130,15 @@ public final class OpenRouterBatchSubmitRequest
         return completionWindow;
     }
 
+    /**
+     * @return the HTTPS webhook URL notified on the terminal batch status,
+     *         or {@code null} when unset - the workspace-level default batch
+     *         webhook URL applies then, if one is configured
+     */
+    public String callbackUrl() {
+        return callbackUrl;
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/batches";
@@ -137,9 +151,9 @@ public final class OpenRouterBatchSubmitRequest
 
     /**
      * JSON path: the request body - {@code endpoint}, {@code model}, the
-     * optional {@code provider} object and {@code completion_window}, then
-     * {@code requests} - in exactly that order (see the wire-order trap on
-     * this class).
+     * optional {@code provider} object, {@code completion_window} and
+     * {@code callback_url}, then {@code requests} - in exactly that order
+     * (see the wire-order trap on this class).
      *
      * @return the JSON body of this request
      */
@@ -160,6 +174,9 @@ public final class OpenRouterBatchSubmitRequest
         }
         if (completionWindow != null) {
             body.key("completion_window").value(completionWindow);
+        }
+        if (callbackUrl != null) {
+            body.key("callback_url").value(callbackUrl);
         }
         body.key("requests");
         body.array();
@@ -191,6 +208,7 @@ public final class OpenRouterBatchSubmitRequest
         private final List<OpenRouterBatchItem> requests = new ArrayList<>();
         private List<String> providerOnly;
         private String completionWindow;
+        private String callbackUrl;
 
         /**
          * Creates a builder bound to the given client.
@@ -350,6 +368,35 @@ public final class OpenRouterBatchSubmitRequest
                         "completion_window only accepts \"24h\", was: " + completionWindow);
             }
             this.completionWindow = completionWindow;
+            return this;
+        }
+
+        /**
+         * Sets {@code callback_url} - the HTTPS URL that receives a
+         * {@code batch.completed}, {@code batch.failed},
+         * {@code batch.cancelled} or {@code batch.expired} webhook event when
+         * the batch reaches a terminal status. A batch-level URL overrides the
+         * workspace-level default batch webhook URL, which applies when this
+         * field is unset. Like the other optional submit fields it is
+         * serialized before {@code requests} ({@link #getBody()} honors that
+         * order - see the wire-order trap on the request class). Webhook
+         * delivery is best-effort: a callback does not replace polling
+         * {@code GET /batches/{id}}, which stays the fallback the docs
+         * recommend. The hostname must resolve to public DNS (the submit
+         * answers 400 otherwise), delivery is IPv4-only, and the events are
+         * signed with an {@code X-OpenRouter-Signature} header.
+         * {@code null} unsets the field and omits it.
+         *
+         * @param callbackUrl the HTTPS webhook URL
+         * @return this builder
+         * @throws IllegalArgumentException when a non-null value does not
+         *         start with {@code https://}
+         */
+        public Builder callbackUrl(String callbackUrl) {
+            if (callbackUrl != null && !callbackUrl.startsWith("https://")) {
+                throw new IllegalArgumentException("callback_url must be HTTPS, got: " + callbackUrl);
+            }
+            this.callbackUrl = callbackUrl;
             return this;
         }
 

@@ -42,6 +42,10 @@ public class OpenRouterBatchExample {
                 .endpoint(OpenRouterBatchEndpoint.CHAT_COMPLETIONS)
                 .model("openai/gpt-4o")
                 .providerOnly("openai")
+                // Optional webhook on the terminal batch status
+                // (batch.completed/failed/cancelled/expired) - best-effort
+                // delivery, so the polling below stays the fallback.
+                .callbackUrl("https://example.com/openrouter-batch-webhook")
                 .addRequest(OpenRouterBatchItem.of("req-0001", new JSONObject()
                         .put("messages", new org.json.JSONArray()
                                 .put(new JSONObject()

@@ -48,10 +48,11 @@ class OpenRouterBatchesTest {
     }
 
     @Test
-    void submitBodySerializesEndpointModelProviderAndCompletionWindowBeforeRequests() {
+    void submitBodySerializesEndpointModelProviderCompletionWindowAndCallbackUrlBeforeRequests() {
         OpenRouterBatchSubmitRequest request = submitBuilder()
                 .providerOnly("google-vertex")
                 .completionWindow("24h")
+                .callbackUrl("https://example.com/webhook")
                 .build();
 
         String body = request.getBody();
@@ -59,13 +60,15 @@ class OpenRouterBatchesTest {
         int model = body.indexOf("\"model\"");
         int provider = body.indexOf("\"provider\"");
         int completionWindow = body.indexOf("\"completion_window\"");
+        int callbackUrl = body.indexOf("\"callback_url\"");
         int requests = body.indexOf("\"requests\"");
 
         assertThat(endpoint).isNotNegative();
         assertThat(model).isGreaterThan(endpoint);
         assertThat(provider).isGreaterThan(model);
         assertThat(completionWindow).isGreaterThan(provider);
-        assertThat(requests).isGreaterThan(completionWindow);
+        assertThat(callbackUrl).isGreaterThan(completionWindow);
+        assertThat(requests).isGreaterThan(callbackUrl);
     }
 
     @Test
@@ -78,6 +81,35 @@ class OpenRouterBatchesTest {
                 .isLessThan(body.indexOf("\"requests\""));
         assertThat(body).doesNotContain("\"provider\"");
         assertThat(body).doesNotContain("\"completion_window\"");
+        assertThat(body).doesNotContain("\"callback_url\"");
+    }
+
+    @Test
+    void submitBodyEmitsCallbackUrlOnlyWhenSetAndRequiresHttps() {
+        OpenRouterBatchSubmitRequest with = submitBuilder()
+                .callbackUrl("https://example.com/webhook")
+                .build();
+        assertThat(with.getBody()).contains("\"callback_url\":\"https://example.com/webhook\"");
+        assertThat(with.getBody().indexOf("\"callback_url\""))
+                .isLessThan(with.getBody().indexOf("\"requests\""));
+        assertThat(with.callbackUrl()).isEqualTo("https://example.com/webhook");
+
+        OpenRouterBatchSubmitRequest unset = submitBuilder()
+                .callbackUrl("https://example.com/webhook")
+                .callbackUrl(null)
+                .build();
+        assertThat(unset.getBody()).doesNotContain("\"callback_url\"");
+        assertThat(unset.callbackUrl()).isNull();
+
+        assertThatThrownBy(() -> submitBuilder().callbackUrl("http://example.com/webhook"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("callback_url must be HTTPS");
+        assertThatThrownBy(() -> submitBuilder().callbackUrl("ftp://example.com/webhook"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("callback_url must be HTTPS");
+        assertThatThrownBy(() -> submitBuilder().callbackUrl(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("callback_url must be HTTPS");
     }
 
     @Test
@@ -141,6 +173,7 @@ class OpenRouterBatchesTest {
         OpenRouterBatchSubmitRequest request = submitBuilder()
                 .providerOnly("google-vertex")
                 .completionWindow("24h")
+                .callbackUrl("https://example.com/webhook")
                 .build();
 
         assertThat(request.endpoint()).isEqualTo(OpenRouterBatchEndpoint.CHAT_COMPLETIONS);
@@ -149,10 +182,12 @@ class OpenRouterBatchesTest {
         assertThat(request.requests().get(0).customId()).isEqualTo("req-0001");
         assertThat(request.providerOnly()).containsExactly("google-vertex");
         assertThat(request.completionWindow()).isEqualTo("24h");
+        assertThat(request.callbackUrl()).isEqualTo("https://example.com/webhook");
 
         OpenRouterBatchSubmitRequest plain = submitBuilder().build();
         assertThat(plain.providerOnly()).isNull();
         assertThat(plain.completionWindow()).isNull();
+        assertThat(plain.callbackUrl()).isNull();
     }
 
     @Test
