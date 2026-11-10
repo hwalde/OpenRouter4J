@@ -41,6 +41,9 @@ public final class OpenRouterImageGenerationRequest
     private final Integer n;
     private final String outputFormat;
     private final Integer outputCompression;
+    private final Integer frameCount;
+    private final Integer frameDurationMs;
+    private final JSONObject markup;
     private final Long seed;
     private final String user;
     private final String sessionId;
@@ -66,6 +69,9 @@ public final class OpenRouterImageGenerationRequest
         this.n = builder.n;
         this.outputFormat = builder.outputFormat;
         this.outputCompression = builder.outputCompression;
+        this.frameCount = builder.frameCount;
+        this.frameDurationMs = builder.frameDurationMs;
+        this.markup = builder.markup == null ? null : new JSONObject(builder.markup.toString());
         this.seed = builder.seed;
         this.user = builder.user;
         this.sessionId = builder.sessionId;
@@ -121,6 +127,36 @@ public final class OpenRouterImageGenerationRequest
         return trace;
     }
 
+    /**
+     * The {@code frame_count} animation frame count, or {@code null} when
+     * unset (the key is not sent).
+     *
+     * @return the animation frame count, or {@code null}
+     */
+    public Integer frameCount() {
+        return frameCount;
+    }
+
+    /**
+     * The {@code frame_duration_ms} display time per animation frame, or
+     * {@code null} when unset (the key is not sent).
+     *
+     * @return the frame display time in milliseconds, or {@code null}
+     */
+    public Integer frameDurationMs() {
+        return frameDurationMs;
+    }
+
+    /**
+     * The {@code markup} content part as a detached JSON copy, or
+     * {@code null} when unset (the key is not sent).
+     *
+     * @return a detached copy of the markup part, or {@code null}
+     */
+    public JSONObject markup() {
+        return markup == null ? null : new JSONObject(markup.toString());
+    }
+
     @Override
     public String getRelativeUrl() {
         return "/images";
@@ -135,10 +171,11 @@ public final class OpenRouterImageGenerationRequest
      * JSON path: the request body - {@code model} and {@code prompt}
      * (required), {@code aspect_ratio}, {@code background}, {@code quality},
      * {@code resolution}, {@code size}, {@code n}, {@code output_format},
-     * {@code output_compression}, {@code seed}, {@code user},
+     * {@code output_compression}, {@code frame_count},
+     * {@code frame_duration_ms}, {@code seed}, {@code user},
      * {@code session_id}, {@code stream},
-     * {@code input_references} (all omitted when unset) and the
-     * {@code provider} object (omitted unless any provider option is set).
+     * {@code input_references}, {@code markup} (all omitted when unset) and
+     * the {@code provider} object (omitted unless any provider option is set).
      *
      * @return the JSON body of this request
      */
@@ -171,6 +208,12 @@ public final class OpenRouterImageGenerationRequest
         if (outputCompression != null) {
             root.put("output_compression", outputCompression);
         }
+        if (frameCount != null) {
+            root.put("frame_count", frameCount);
+        }
+        if (frameDurationMs != null) {
+            root.put("frame_duration_ms", frameDurationMs);
+        }
         if (seed != null) {
             root.put("seed", seed);
         }
@@ -192,6 +235,9 @@ public final class OpenRouterImageGenerationRequest
                 refs.put(new JSONObject(ref.toString()));
             }
             root.put("input_references", refs);
+        }
+        if (markup != null) {
+            root.put("markup", new JSONObject(markup.toString()));
         }
 
         // The provider object is emitted whenever any provider option is set,
@@ -258,6 +304,9 @@ public final class OpenRouterImageGenerationRequest
         private Integer n;
         private String outputFormat;
         private Integer outputCompression;
+        private Integer frameCount;
+        private Integer frameDurationMs;
+        private JSONObject markup;
         private Long seed;
         private String user;
         private String sessionId;
@@ -396,9 +445,11 @@ public final class OpenRouterImageGenerationRequest
 
         /**
          * Sets the JSON field {@code output_format} - the encoding of the
-         * returned image bytes: {@code png}, {@code jpeg}, {@code webp} or
-         * {@code svg} (SVG comes from vectorization models and is UTF-8
-         * base64-encoded in {@code b64_json}).
+         * returned image bytes: {@code png}, {@code jpeg}, {@code webp},
+         * {@code gif} or {@code svg} (SVG comes from vectorization models and
+         * is UTF-8 base64-encoded in {@code b64_json}; {@code gif} produces
+         * an animation on models that support it - see
+         * {@link #frameCount(Integer)}).
          *
          * @param outputFormat the output format
          * @return this builder
@@ -418,6 +469,52 @@ public final class OpenRouterImageGenerationRequest
          */
         public Builder outputCompression(Integer outputCompression) {
             this.outputCompression = outputCompression;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code frame_count} - the number of animation
+         * frames (2-64, validated loudly against these outer bounds) when
+         * {@code output_format} is {@code gif}. Trap: only honored by models
+         * that produce animations - each accepts its own sub-range and rejects
+         * values outside it server-side - and ignored otherwise (a non-gif
+         * request silently produces a still image); the capability is not yet
+         * listed in the per-endpoint {@code supported_parameters}, so
+         * discovery cannot tell which models honor it. Unset omits the field.
+         *
+         * @param frameCount the animation frame count (2-64)
+         * @return this builder
+         * @throws IllegalArgumentException when a non-null value is outside
+         *         the spec's outer bounds 2-64
+         */
+        public Builder frameCount(Integer frameCount) {
+            if (frameCount != null && (frameCount < 2 || frameCount > 64)) {
+                throw new IllegalArgumentException(
+                        "frame_count must be between 2 and 64, got: " + frameCount);
+            }
+            this.frameCount = frameCount;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code frame_duration_ms} - the display time of
+         * each animation frame in milliseconds (20-2000, validated loudly
+         * against these outer bounds) when {@code output_format} is
+         * {@code gif}. Same gif coupling as {@link #frameCount(Integer)}:
+         * honored only by models that produce animations (per-model sub-ranges
+         * are enforced server-side), ignored otherwise. Unset omits the field.
+         *
+         * @param frameDurationMs the frame display time in milliseconds
+         * @return this builder
+         * @throws IllegalArgumentException when a non-null value is outside
+         *         the spec's outer bounds 20-2000
+         */
+        public Builder frameDurationMs(Integer frameDurationMs) {
+            if (frameDurationMs != null && (frameDurationMs < 20 || frameDurationMs > 2000)) {
+                throw new IllegalArgumentException(
+                        "frame_duration_ms must be between 20 and 2000, got: " + frameDurationMs);
+            }
+            this.frameDurationMs = frameDurationMs;
             return this;
         }
 
@@ -539,6 +636,65 @@ public final class OpenRouterImageGenerationRequest
                 throw new IllegalArgumentException("input reference data URL must not be null or empty");
             }
             return addInputReferenceByUrl(dataUrl);
+        }
+
+        /**
+         * Sets the JSON field {@code markup} - a transparent PNG overlay
+         * (arrows, circles, annotations) with the same dimensions as the
+         * first reference image, as a base64 data URL or HTTP(S) URL, guiding
+         * where an edit applies. Builds the {@code image_url} content part
+         * {@code {"type": "image_url", "image_url": {"url": ...}}} from the
+         * URL. Traps: image-to-image requests only (pair it with
+         * {@link #addInputReferenceByUrl(String)} /
+         * {@link #addInputReferenceByBase64(String)}), honored only by models
+         * with markup-guided editing (the OpenAI {@code gpt-image-2.6}
+         * family, e.g. {@code openai/gpt-image-2.6-sunburst}) and ignored
+         * otherwise - the capability is not yet listed in the per-endpoint
+         * {@code supported_parameters}, so discovery cannot tell which models
+         * honor it. {@code null} unsets the field and omits it. The
+         * verbatim escape hatch for content-part shapes beyond the URL
+         * convenience is {@link #markupRaw(JSONObject)} - deliberately a
+         * distinct name, so a bare {@code markup(null)} stays unambiguous at
+         * compile time (the {@code addInput}/{@code addInputItem} precedent).
+         *
+         * @param url the markup overlay URL (base64 data URL or HTTP(S))
+         * @return this builder
+         * @throws IllegalArgumentException when a non-null value is empty
+         */
+        public Builder markup(String url) {
+            if (url == null) {
+                this.markup = null;
+                return this;
+            }
+            if (url.isEmpty()) {
+                throw new IllegalArgumentException("markup url must not be empty");
+            }
+            JSONObject part = new JSONObject();
+            part.put("type", "image_url");
+            part.put("image_url", new JSONObject().put("url", url));
+            this.markup = part;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code markup} verbatim from a raw JSON object
+         * (a {@code ContentPartImage} shape) - the escape hatch for part
+         * shapes beyond the URL convenience of {@link #markup(String)}. Same
+         * traps as {@link #markup(String)}: image-to-image only (pair it with
+         * {@link #addInputReferenceByUrl(String)}), honored only by models
+         * with markup-guided editing (the OpenAI {@code gpt-image-2.6}
+         * family, e.g. {@code openai/gpt-image-2.6-sunburst}) - silently
+         * ignored otherwise, and not discoverable via
+         * {@code supported_parameters}. The object is stored as a detached
+         * copy, so later mutations of the caller's instance cannot change the
+         * request. {@code null} unsets the field and omits it.
+         *
+         * @param markup the raw markup content part
+         * @return this builder
+         */
+        public Builder markupRaw(JSONObject markup) {
+            this.markup = markup == null ? null : new JSONObject(markup.toString());
+            return this;
         }
 
         /**

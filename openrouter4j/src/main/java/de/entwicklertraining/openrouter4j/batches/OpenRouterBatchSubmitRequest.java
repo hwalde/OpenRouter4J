@@ -383,8 +383,9 @@ public final class OpenRouterBatchSubmitRequest
          * delivery is best-effort: a callback does not replace polling
          * {@code GET /batches/{id}}, which stays the fallback the docs
          * recommend. The hostname must resolve to public DNS (the submit
-         * answers 400 otherwise), delivery is IPv4-only, and the events are
-         * signed with an {@code X-OpenRouter-Signature} header.
+         * answers 400 otherwise), delivery is IPv4-only, and the events
+         * carry an {@code X-OpenRouter-Signature} header when a webhook
+         * signing secret is configured.
          * {@code null} unsets the field and omits it.
          *
          * @param callbackUrl the HTTPS webhook URL

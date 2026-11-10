@@ -50,6 +50,9 @@ class OpenRouterImageGenerationTest {
         assertThat(body.has("user")).isFalse();
         assertThat(body.has("stream")).isFalse();
         assertThat(body.has("input_references")).isFalse();
+        assertThat(body.has("frame_count")).isFalse();
+        assertThat(body.has("frame_duration_ms")).isFalse();
+        assertThat(body.has("markup")).isFalse();
         assertThat(body.has("provider")).isFalse();
     }
 
@@ -82,6 +85,134 @@ class OpenRouterImageGenerationTest {
         assertThat(body.getLong("seed")).isEqualTo(42L);
         assertThat(body.getString("user")).isEqualTo("user-123");
         assertThat(body.has("stream")).isFalse();
+    }
+
+    @Test
+    void frameCountAndFrameDurationMsAreEmittedOnlyWhenSetWithLoudBounds() {
+        OpenRouterImageGenerationRequest request = new OpenRouterImageGenerationRequest.Builder(client())
+                .model("bytedance-seed/seedream-4.5")
+                .prompt("a red panda astronaut")
+                .outputFormat("gif")
+                .frameCount(8)
+                .frameDurationMs(100)
+                .build();
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getInt("frame_count")).isEqualTo(8);
+        assertThat(body.getInt("frame_duration_ms")).isEqualTo(100);
+        assertThat(request.frameCount()).isEqualTo(8);
+        assertThat(request.frameDurationMs()).isEqualTo(100);
+
+        OpenRouterImageGenerationRequest absent = new OpenRouterImageGenerationRequest.Builder(client())
+                .model("bytedance-seed/seedream-4.5")
+                .prompt("a red panda astronaut")
+                .build();
+        assertThat(absent.frameCount()).isNull();
+        assertThat(absent.frameDurationMs()).isNull();
+
+        OpenRouterImageGenerationRequest unset = new OpenRouterImageGenerationRequest.Builder(client())
+                .model("bytedance-seed/seedream-4.5")
+                .prompt("a red panda astronaut")
+                .frameCount(8)
+                .frameCount(null)
+                .frameDurationMs(100)
+                .frameDurationMs(null)
+                .build();
+        JSONObject unsetBody = new JSONObject(unset.getBody());
+        assertThat(unsetBody.has("frame_count")).isFalse();
+        assertThat(unsetBody.has("frame_duration_ms")).isFalse();
+        assertThat(unset.frameCount()).isNull();
+        assertThat(unset.frameDurationMs()).isNull();
+
+        // The spec's outer bounds are validated loudly; the exact boundaries pass.
+        new OpenRouterImageGenerationRequest.Builder(client())
+                .model("m").prompt("p").frameCount(2).frameDurationMs(20).build();
+        new OpenRouterImageGenerationRequest.Builder(client())
+                .model("m").prompt("p").frameCount(64).frameDurationMs(2000).build();
+        assertThatThrownBy(() -> new OpenRouterImageGenerationRequest.Builder(client()).frameCount(1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("frame_count must be between 2 and 64");
+        assertThatThrownBy(() -> new OpenRouterImageGenerationRequest.Builder(client()).frameCount(65))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("frame_count must be between 2 and 64");
+        assertThatThrownBy(() -> new OpenRouterImageGenerationRequest.Builder(client()).frameDurationMs(19))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("frame_duration_ms must be between 20 and 2000");
+        assertThatThrownBy(() -> new OpenRouterImageGenerationRequest.Builder(client()).frameDurationMs(2001))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("frame_duration_ms must be between 20 and 2000");
+    }
+
+    @Test
+    void markupBuildsTheContentPartShapeAndAcceptsTheRawHatch() {
+        OpenRouterImageGenerationRequest request = new OpenRouterImageGenerationRequest.Builder(client())
+                .model("openai/gpt-image-2.6-sunburst")
+                .prompt("draw an arrow here")
+                .addInputReferenceByUrl("https://example.com/diagram.png")
+                .markup("https://example.com/markup.png")
+                .build();
+        JSONObject body = new JSONObject(request.getBody());
+        JSONObject markup = body.getJSONObject("markup");
+        assertThat(markup.keySet()).containsExactlyInAnyOrder("type", "image_url");
+        assertThat(markup.getString("type")).isEqualTo("image_url");
+        JSONObject imageUrl = markup.getJSONObject("image_url");
+        assertThat(imageUrl.keySet()).containsExactlyInAnyOrder("url");
+        assertThat(imageUrl.getString("url")).isEqualTo("https://example.com/markup.png");
+        // The read-back accessor hands out a detached copy.
+        JSONObject readBack = request.markup();
+        assertThat(readBack.toString()).isEqualTo(markup.toString());
+        readBack.getJSONObject("image_url").put("url", "https://example.com/changed.png");
+        assertThat(new JSONObject(request.getBody()).getJSONObject("markup")
+                .getJSONObject("image_url").getString("url"))
+                .isEqualTo("https://example.com/markup.png");
+        assertThat(request.markup().getJSONObject("image_url").getString("url"))
+                .isEqualTo("https://example.com/markup.png");
+
+        // The hatch is verbatim: a key the URL convenience cannot produce.
+        JSONObject rawPart = new JSONObject()
+                .put("type", "image_url")
+                .put("image_url", new JSONObject().put("url", "data:image/png;base64,AAAA"))
+                .put("detail", "high");
+        OpenRouterImageGenerationRequest.Builder rawBuilder = new OpenRouterImageGenerationRequest.Builder(client())
+                .model("openai/gpt-image-2.6-sunburst")
+                .prompt("draw an arrow here")
+                .markupRaw(rawPart);
+        // The hatch stores a detached copy at set time: a mutation before
+        // build() cannot change the request (the pre-build snapshot window).
+        rawPart.getJSONObject("image_url").put("url", "https://example.com/pre-build.png");
+        OpenRouterImageGenerationRequest raw = rawBuilder.build();
+        JSONObject emittedRaw = new JSONObject(raw.getBody()).getJSONObject("markup");
+        assertThat(emittedRaw.getJSONObject("image_url").getString("url"))
+                .isEqualTo("data:image/png;base64,AAAA");
+        assertThat(emittedRaw.getString("detail")).isEqualTo("high");
+        // ... and neither can a mutation after build().
+        rawPart.getJSONObject("image_url").put("url", "https://example.com/mutated.png");
+        assertThat(new JSONObject(raw.getBody()).getJSONObject("markup")
+                .getJSONObject("image_url").getString("url"))
+                .isEqualTo("data:image/png;base64,AAAA");
+        assertThat(raw.markup().getJSONObject("image_url").getString("url"))
+                .isEqualTo("data:image/png;base64,AAAA");
+
+        OpenRouterImageGenerationRequest unset = new OpenRouterImageGenerationRequest.Builder(client())
+                .model("openai/gpt-image-2.6-sunburst")
+                .prompt("draw an arrow here")
+                .markup("https://example.com/markup.png")
+                .markup(null)
+                .build();
+        assertThat(new JSONObject(unset.getBody()).has("markup")).isFalse();
+        assertThat(unset.markup()).isNull();
+
+        OpenRouterImageGenerationRequest rawUnset = new OpenRouterImageGenerationRequest.Builder(client())
+                .model("openai/gpt-image-2.6-sunburst")
+                .prompt("draw an arrow here")
+                .markupRaw(rawPart)
+                .markupRaw(null)
+                .build();
+        assertThat(new JSONObject(rawUnset.getBody()).has("markup")).isFalse();
+        assertThat(rawUnset.markup()).isNull();
+
+        assertThatThrownBy(() -> new OpenRouterImageGenerationRequest.Builder(client()).markup(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("markup url must not be empty");
     }
 
     @Test
