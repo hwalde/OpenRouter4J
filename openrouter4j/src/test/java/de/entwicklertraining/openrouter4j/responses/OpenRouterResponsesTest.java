@@ -1,5 +1,6 @@
 package de.entwicklertraining.openrouter4j.responses;
 
+import de.entwicklertraining.openrouter4j.OpenRouterAccessPrograms;
 import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import org.json.JSONArray;
@@ -7,6 +8,7 @@ import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,6 +37,234 @@ class OpenRouterResponsesTest {
         assertThat(body.keySet()).containsExactlyInAnyOrder("model", "input");
         assertThat(body.getString("model")).isEqualTo("openai/gpt-4o");
         assertThat(body.getString("input")).isEqualTo("Tell me a joke");
+    }
+
+    @Test
+    void stopWireStatesAndTransitions() {
+        // state 1: never set - the key is omitted
+        JSONObject omitted = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x").build().getBody());
+        assertThat(omitted.has("stop")).isFalse();
+        assertThat(omitted.keySet()).containsExactlyInAnyOrder("model", "input");
+
+        // state 2a: the single-string form
+        OpenRouterResponsesRequest single = client().responses()
+                .model("openai/gpt-4o").input("x").stop("###").build();
+        assertThat(single.stop()).isEqualTo("###");
+        assertThat(single.stopSequences()).isNull();
+        assertThat(single.isStopExplicitNull()).isFalse();
+        JSONObject singleBody = new JSONObject(single.getBody());
+        assertThat(singleBody.getString("stop")).isEqualTo("###");
+
+        // state 2b: the array form (setter replaces, add accumulates)
+        OpenRouterResponsesRequest array = client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stopSequences(List.of("\n", "END"))
+                .addStopSequence("STOP")
+                .build();
+        assertThat(array.stopSequences()).containsExactly("\n", "END", "STOP");
+        assertThat(array.stop()).isNull();
+        JSONObject arrayBody = new JSONObject(array.getBody());
+        assertThat(arrayBody.getJSONArray("stop").toList()).containsExactly("\n", "END", "STOP");
+
+        // state 3: explicit JSON null - a different wire state than unset
+        OpenRouterResponsesRequest explicitNull = client().responses()
+                .model("openai/gpt-4o").input("x").stop("###").stop(null).build();
+        assertThat(explicitNull.isStopExplicitNull()).isTrue();
+        assertThat(explicitNull.stop()).isNull();
+        assertThat(explicitNull.stopSequences()).isNull();
+        JSONObject nullBody = new JSONObject(explicitNull.getBody());
+        assertThat(nullBody.has("stop")).isTrue();
+        assertThat(nullBody.isNull("stop")).isTrue();
+        assertThat(nullBody.keySet()).containsExactlyInAnyOrder("model", "input", "stop");
+
+        // transitions: last form set wins in every direction
+        JSONObject replaced = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stop("###").stopSequences(List.of("END")).build().getBody());
+        assertThat(replaced.get("stop")).isInstanceOf(JSONArray.class);
+        assertThat(replaced.getJSONArray("stop").toList()).containsExactly("END");
+
+        JSONObject backToStringBody = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stopSequences(List.of("END")).stop("###").build().getBody());
+        assertThat(backToStringBody.getString("stop")).isEqualTo("###");
+
+        OpenRouterResponsesRequest backToStringState = client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stopSequences(List.of("END")).stop("###").build();
+        assertThat(backToStringState.stop()).isEqualTo("###");
+        assertThat(backToStringState.stopSequences()).isNull();
+        assertThat(backToStringState.isStopExplicitNull()).isFalse();
+
+        JSONObject cleared = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stop("###").stopSequences(null).build().getBody());
+        assertThat(cleared.has("stop")).isFalse();
+
+        JSONObject clearedEmpty = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .addStopSequence("END").stopSequences(List.of()).build().getBody());
+        assertThat(clearedEmpty.has("stop")).isFalse();
+
+        JSONObject nullReplacedByValue = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stop(null).addStopSequence("END").build().getBody());
+        assertThat(nullReplacedByValue.isNull("stop")).isFalse();
+        assertThat(nullReplacedByValue.getJSONArray("stop").toList()).containsExactly("END");
+
+        // string form -> array form via the accumulating path
+        OpenRouterResponsesRequest stringToArray = client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stop("###").addStopSequence("END").build();
+        assertThat(stringToArray.stop()).isNull();
+        assertThat(stringToArray.stopSequences()).containsExactly("END");
+        assertThat(stringToArray.isStopExplicitNull()).isFalse();
+        JSONObject stringToArrayBody = new JSONObject(stringToArray.getBody());
+        assertThat(stringToArrayBody.get("stop")).isInstanceOf(JSONArray.class);
+        assertThat(stringToArrayBody.getJSONArray("stop").toList()).containsExactly("END");
+
+        // explicit null -> array / unset / string, and array -> explicit null
+        JSONObject nullToArray = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stop(null).stopSequences(List.of("END")).build().getBody());
+        assertThat(nullToArray.has("stop")).isTrue();
+        assertThat(nullToArray.isNull("stop")).isFalse();
+        assertThat(nullToArray.getJSONArray("stop").toList()).containsExactly("END");
+
+        JSONObject nullToUnset = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stop(null).stopSequences(List.of()).build().getBody());
+        assertThat(nullToUnset.has("stop")).isFalse();
+
+        JSONObject nullToString = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stop(null).stop("###").build().getBody());
+        assertThat(nullToString.getString("stop")).isEqualTo("###");
+
+        JSONObject arrayToNull = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stopSequences(List.of("END")).stop(null).build().getBody());
+        assertThat(arrayToNull.has("stop")).isTrue();
+        assertThat(arrayToNull.isNull("stop")).isTrue();
+
+        // the setter-replaces contract within the array form (the chat
+        // builder accumulates here - this leg is the porting guard)
+        OpenRouterResponsesRequest replacedTwice = client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stopSequences(List.of("A", "B")).stopSequences(List.of("C")).build();
+        assertThat(replacedTwice.stopSequences()).containsExactly("C");
+        assertThat(new JSONObject(replacedTwice.getBody()).getJSONArray("stop").toList())
+                .containsExactly("C");
+
+        JSONObject addThenReplace = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .addStopSequence("A").stopSequences(List.of("C")).build().getBody());
+        assertThat(addThenReplace.getJSONArray("stop").toList()).containsExactly("C");
+
+        // same-form overwrite and the remaining clear/idempotent legs
+        JSONObject sameForm = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x").stop("A").stop("B").build().getBody());
+        assertThat(sameForm.getString("stop")).isEqualTo("B");
+
+        JSONObject freshNull = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x").stop(null).build().getBody());
+        assertThat(freshNull.has("stop")).isTrue();
+        assertThat(freshNull.isNull("stop")).isTrue();
+
+        JSONObject nullToNull = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x").stop(null).stop(null).build().getBody());
+        assertThat(nullToNull.has("stop")).isTrue();
+        assertThat(nullToNull.isNull("stop")).isTrue();
+
+        JSONObject freshClear = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x").stopSequences(null).build().getBody());
+        assertThat(freshClear.has("stop")).isFalse();
+
+        JSONObject freshEmpty = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x").stopSequences(List.of()).build().getBody());
+        assertThat(freshEmpty.has("stop")).isFalse();
+
+        JSONObject arrayToClear = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stopSequences(List.of("A")).stopSequences(null).build().getBody());
+        assertThat(arrayToClear.has("stop")).isFalse();
+
+        JSONObject stringToEmpty = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .stop("A").stopSequences(List.of()).build().getBody());
+        assertThat(stringToEmpty.has("stop")).isFalse();
+    }
+
+    @Test
+    void stopMaxFourIsNotPreValidated() {
+        // documented chat-completions parity: the bound is the API's to
+        // enforce (HTTP 400), the builder emits what it is given
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .addStopSequence("a").addStopSequence("b").addStopSequence("c")
+                .addStopSequence("d").addStopSequence("e")
+                .build().getBody());
+        assertThat(body.getJSONArray("stop").toList()).containsExactly("a", "b", "c", "d", "e");
+
+        assertThatThrownBy(() -> client().responses().addStopSequence(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("stop sequence");
+    }
+
+    @Test
+    void accessProgramsEmitTheObjectShape() {
+        JSONObject body = new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .accessPrograms(OpenRouterAccessPrograms.cyber("daybreak_blue"))
+                .build().getBody());
+        assertThat(body.getJSONObject("access_programs").keySet()).containsExactlyInAnyOrder("cyber");
+        assertThat(body.getJSONObject("access_programs").getString("cyber")).isEqualTo("daybreak_blue");
+
+        // unknown spellings pass through verbatim (x-speakeasy-unknown-values)
+        assertThat(new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .accessPrograms(OpenRouterAccessPrograms.cyber("daybreak_ultra"))
+                .build().getBody())
+                .getJSONObject("access_programs").getString("cyber")).isEqualTo("daybreak_ultra");
+
+        // the raw hatch covers program keys the schema does not declare
+        JSONObject template = new JSONObject().put("future_program", "x");
+        OpenRouterResponsesRequest raw = client().responses()
+                .model("openai/gpt-4o").input("x")
+                .accessPrograms(OpenRouterAccessPrograms.raw(template))
+                .build();
+        template.put("future_program", "mutated");
+        assertThat(new JSONObject(raw.getBody()).getJSONObject("access_programs").toMap())
+                .isEqualTo(Map.of("future_program", "x"));
+        assertThat(raw.accessPrograms().cyber()).isNull();
+        assertThat(raw.accessPrograms().toJson().getString("future_program")).isEqualTo("x");
+        raw.accessPrograms().toJson().put("future_program", "mutated");
+        assertThat(new JSONObject(raw.getBody()).getJSONObject("access_programs").toMap())
+                .isEqualTo(Map.of("future_program", "x"));
+
+        // unset and set-then-null omit the key
+        assertThat(new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x").build().getBody())
+                .has("access_programs")).isFalse();
+        assertThat(new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x")
+                .accessPrograms(OpenRouterAccessPrograms.cyber("standard"))
+                .accessPrograms(null)
+                .build().getBody())
+                .has("access_programs")).isFalse();
+
+        // the typed value carries the configured program
+        assertThat(OpenRouterAccessPrograms.cyber("standard").cyber()).isEqualTo("standard");
+        // wrong-typed cyber values are swallowed to null, not coerced
+        assertThat(OpenRouterAccessPrograms.raw(new JSONObject().put("cyber", 42)).cyber()).isNull();
+
+        assertThatThrownBy(() -> OpenRouterAccessPrograms.cyber(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterAccessPrograms.cyber(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> OpenRouterAccessPrograms.raw(null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

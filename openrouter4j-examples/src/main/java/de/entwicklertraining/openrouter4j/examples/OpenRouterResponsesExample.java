@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterAccessPrograms;
 import de.entwicklertraining.openrouter4j.OpenRouterCodeInterpreterServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterComputerUseServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterCustomTool;
@@ -69,6 +70,36 @@ public class OpenRouterResponsesExample {
             System.out.println("Error type:    " + response.errorType()
                     + " (canonical, stable across API formats)");
         }
+
+        // Stop sequences and access programs, built without executing to
+        // show the wire shape: stopSequences(...)/addStopSequence(...) emit
+        // the array form (at most 4 - the API enforces the bound with HTTP
+        // 400, the builder does not pre-validate it), stop(String) the
+        // single-string form, and stop(null) an explicit JSON null - a
+        // third wire state distinct from leaving the key unset, e.g. to
+        // override a preset's stop. accessPrograms is BYOK-only beyond
+        // "standard": a non-standard program is rejected with HTTP 400
+        // unless the request runs on your own OpenAI key enrolled in that
+        // program - omit the field otherwise.
+        OpenRouterResponsesRequest optionsBody = client.responses()
+                .model("openai/gpt-4o")
+                .input("Tell me a joke about programming.")
+                .stopSequences(java.util.List.of("\n", "END"))
+                .accessPrograms(OpenRouterAccessPrograms.cyber("standard"))
+                .build();
+        System.out.println("options body: " + optionsBody.getBody());
+
+        // The stop tri-state in compiled code: stop("###") sets the
+        // single-string form, stop(null) replaces it with an explicit JSON
+        // null (last form set wins) - leaving the key unset is a different
+        // wire state, spelled by never calling a stop method.
+        OpenRouterResponsesRequest explicitNullStop = client.responses()
+                .model("openai/gpt-4o")
+                .input("Tell me a joke about programming.")
+                .stop("###")
+                .stop(null)
+                .build();
+        System.out.println("explicit-null stop body: " + explicitNullStop.getBody());
 
         // Citations: output_text parts carry annotations attributing spans
         // of the answer to their sources (url_citation from web search,

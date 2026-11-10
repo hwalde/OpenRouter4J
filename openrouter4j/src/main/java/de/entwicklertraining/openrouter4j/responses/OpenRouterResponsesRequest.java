@@ -5,6 +5,7 @@ import de.entwicklertraining.api.base.streaming.SSEStreamProcessor;
 import de.entwicklertraining.api.base.streaming.StreamingFormat;
 import de.entwicklertraining.api.base.streaming.StreamingInfo;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
+import de.entwicklertraining.openrouter4j.OpenRouterAccessPrograms;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
@@ -69,6 +70,10 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
     private final Integer topLogprobs;
     private final Double frequencyPenalty;
     private final Double presencePenalty;
+    private final String stopString;
+    private final List<String> stopSequences;
+    private final boolean stopExplicitNull;
+    private final OpenRouterAccessPrograms accessPrograms;
     private final List<JSONObject> tools;
     private final String toolChoice;
     private final String toolChoiceFunctionName;
@@ -142,6 +147,10 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         this.topLogprobs = builder.topLogprobs;
         this.frequencyPenalty = builder.frequencyPenalty;
         this.presencePenalty = builder.presencePenalty;
+        this.stopString = builder.stopString;
+        this.stopSequences = builder.stopSequences == null ? null : List.copyOf(builder.stopSequences);
+        this.stopExplicitNull = builder.stopExplicitNull;
+        this.accessPrograms = builder.accessPrograms;
         this.tools = builder.tools == null ? null : List.copyOf(builder.tools);
         this.toolChoice = builder.toolChoice;
         this.toolChoiceFunctionName = builder.toolChoiceFunctionName;
@@ -308,6 +317,51 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
      */
     public Integer topLogprobs() {
         return topLogprobs;
+    }
+
+    /**
+     * JSON field: {@code stop} in its single-string form, or {@code null}
+     * when that form is not set - the other states are
+     * {@link #stopSequences()} (array form) and {@link #isStopExplicitNull()}
+     * (the explicit {@code null} form); exactly one state is emitted.
+     *
+     * @return the single stop sequence, or {@code null}
+     */
+    public String stop() {
+        return stopString;
+    }
+
+    /**
+     * JSON field: {@code stop} in its array form (immutable), or
+     * {@code null} when that form is not set - see {@link #stop()} and
+     * {@link #isStopExplicitNull()} for the other states.
+     *
+     * @return the stop sequences, or {@code null}
+     */
+    public List<String> stopSequences() {
+        return stopSequences;
+    }
+
+    /**
+     * Whether the JSON field {@code stop} is emitted as an explicit
+     * {@code null} (the third wire state - see {@link #stop()}); when false
+     * and both other accessors answer {@code null}, the key is not sent.
+     *
+     * @return {@code true} when an explicit {@code null} is emitted
+     */
+    public boolean isStopExplicitNull() {
+        return stopExplicitNull;
+    }
+
+    /**
+     * JSON field: {@code access_programs} - the OpenAI access programs this
+     * request runs under, or {@code null} when unset (the key is not sent).
+     * See {@link OpenRouterAccessPrograms} for the BYOK trap.
+     *
+     * @return the access programs value, or {@code null}
+     */
+    public OpenRouterAccessPrograms accessPrograms() {
+        return accessPrograms;
     }
 
     /**
@@ -561,6 +615,16 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         if (presencePenalty != null) {
             root.put("presence_penalty", presencePenalty);
         }
+        if (stopExplicitNull) {
+            root.put("stop", JSONObject.NULL);
+        } else if (stopString != null) {
+            root.put("stop", stopString);
+        } else if (stopSequences != null && !stopSequences.isEmpty()) {
+            root.put("stop", new JSONArray(stopSequences));
+        }
+        if (accessPrograms != null) {
+            root.put("access_programs", accessPrograms.toJson());
+        }
         if (tools != null && !tools.isEmpty()) {
             JSONArray array = new JSONArray();
             for (JSONObject tool : tools) {
@@ -772,6 +836,10 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         private Integer topLogprobs;
         private Double frequencyPenalty;
         private Double presencePenalty;
+        private String stopString;
+        private List<String> stopSequences;
+        private boolean stopExplicitNull;
+        private OpenRouterAccessPrograms accessPrograms;
         private List<JSONObject> tools;
         private String toolChoice;
         private String toolChoiceFunctionName;
@@ -1190,6 +1258,109 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          */
         public Builder presencePenalty(Double presencePenalty) {
             this.presencePenalty = presencePenalty;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code stop} to its single-string form (the
+         * wire union also accepts an array - see
+         * {@link #stopSequences(List)} / {@link #addStopSequence(String)} -
+         * and an explicit {@code null}). The three states of {@code stop}:
+         * never calling any stop method omits the key (a preset's
+         * {@code stop} or the API default applies); a value emits that
+         * value; {@code stop(null)} emits an explicit JSON {@code null} -
+         * a different wire state ("no stop sequences", e.g. overriding a
+         * preset's {@code stop}), not the same as unset. Exactly one form
+         * is emitted: this method replaces the array form, and the array
+         * methods replace this one (last form set wins). Trap: the API
+         * accepts at most 4 stop sequences; like the chat-completions
+         * builder, the library does not pre-validate that bound (the API
+         * rejects an oversized list with HTTP 400).
+         *
+         * @param stop the single stop sequence, or {@code null} to emit an
+         *             explicit JSON {@code null}
+         * @return this builder
+         */
+        public Builder stop(String stop) {
+            this.stopString = stop;
+            this.stopSequences = null;
+            this.stopExplicitNull = stop == null;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code stop} to its array form, replacing the
+         * single-string form set by {@link #stop(String)} or the explicit-
+         * {@code null} form (last form set wins) - use
+         * {@link #addStopSequence(String)} to accumulate (a single
+         * {@code stopSequences(List.of(...))} call ports mechanically from
+         * the chat-completions builder, whose {@code stopSequences(List)}
+         * accumulates instead of replacing). The three states of
+         * {@code stop}: never calling any stop method omits the key; a
+         * value emits that value; {@code stop(null)} emits an explicit
+         * JSON {@code null} - while {@code stopSequences(null)} or an empty
+         * list <b>unsets</b> the key again (omit). Trap: the API accepts at
+         * most 4 stop sequences and rejects an oversized list with HTTP
+         * 400; like the chat-completions builder, the library does not
+         * pre-validate that bound. Entries must be non-null - a null entry
+         * is rejected when the request is built.
+         *
+         * @param stops the stop sequences (replaces previous ones; the
+         *              array form is emitted only when non-empty)
+         * @return this builder
+         */
+        public Builder stopSequences(List<String> stops) {
+            this.stopString = null;
+            this.stopExplicitNull = false;
+            this.stopSequences = (stops == null || stops.isEmpty()) ? null : new ArrayList<>(stops);
+            return this;
+        }
+
+        /**
+         * Adds one entry to the array form of the JSON field {@code stop}
+         * (same name and accumulating behaviour as the chat-completions
+         * builder), replacing the single-string or explicit-{@code null}
+         * form if one was set. The three states of {@code stop}: never
+         * calling any stop method omits the key; a value emits that value
+         * (at most 4 entries - not pre-validated, the API answers HTTP 400
+         * beyond that); {@code stop(null)} emits an explicit JSON
+         * {@code null}.
+         *
+         * @param stop one stop sequence
+         * @return this builder
+         * @throws IllegalArgumentException when the stop sequence is null
+         */
+        public Builder addStopSequence(String stop) {
+            if (stop == null) {
+                throw new IllegalArgumentException("stop sequence must not be null");
+            }
+            this.stopString = null;
+            this.stopExplicitNull = false;
+            if (this.stopSequences == null) {
+                this.stopSequences = new ArrayList<>();
+            }
+            this.stopSequences.add(stop);
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code access_programs} - the OpenAI access
+         * programs this request runs under, built with
+         * {@link OpenRouterAccessPrograms#cyber(String)} /
+         * {@link OpenRouterAccessPrograms#raw(JSONObject)}. Trap: a program
+         * other than {@code "standard"} is supported only on BYOK requests
+         * that run on your own OpenAI key enrolled in that program; any
+         * other endpoint, including OpenRouter's own OpenAI credentials,
+         * rejects it with a 400 error. Requests on OpenRouter's OpenAI
+         * credentials always run {@code "standard"}. Omit the field unless
+         * your key is enrolled in a Daybreak program. {@code null} unsets
+         * the field and omits it.
+         *
+         * @param accessPrograms the access programs value
+         * @return this builder
+         */
+        public Builder accessPrograms(OpenRouterAccessPrograms accessPrograms) {
+            this.accessPrograms = accessPrograms;
             return this;
         }
 
