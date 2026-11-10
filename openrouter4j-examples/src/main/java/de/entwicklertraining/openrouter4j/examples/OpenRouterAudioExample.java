@@ -40,8 +40,15 @@ public class OpenRouterAudioExample {
                 // provider that serves the request.
                 .providerOption("openai", new JSONObject().put("prompt", "Meeting transcript"))
                 // verbose_json additionally returns segments (and words with
-                // addTimestampGranularity("word")) on OpenAI-compatible providers:
+                // addTimestampGranularity("word")) on OpenAI-compatible
+                // providers. Speaker labelling and recognition-bias terms
+                // round out the optional STT controls - both are supported
+                // only by some providers (HTTP 400 otherwise) and may cost
+                // extra; diarize requires verbose_json and then labels each
+                // word in words[] with its speaker (speaker_label):
                 // .responseFormat("verbose_json")
+                // .diarize(Boolean.TRUE)
+                // .keyterms("OpenRouter", "Scribe")
                 .execute();
 
         System.out.println("Transcript: " + transcription.text());

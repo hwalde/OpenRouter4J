@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -53,6 +54,8 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
     private final String responseFormat;
     private final Double temperature;
     private final List<String> timestampGranularities;
+    private final Boolean diarize;
+    private final List<String> keyterms;
     private final String user;
     private final String sessionId;
     private final OpenRouterTraceConfig trace;
@@ -74,6 +77,8 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         this.temperature = builder.temperature;
         this.timestampGranularities = builder.timestampGranularities == null
                 ? null : List.copyOf(builder.timestampGranularities);
+        this.diarize = builder.diarize;
+        this.keyterms = builder.keyterms == null ? null : List.copyOf(builder.keyterms);
         this.user = builder.user;
         this.sessionId = builder.sessionId;
         this.trace = builder.trace;
@@ -89,6 +94,28 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
     /** @return whether this request travels as multipart/form-data */
     public boolean isMultipart() {
         return fileBytes != null;
+    }
+
+    /**
+     * The {@code diarize} speaker-labelling flag, or {@code null} when unset
+     * (the key is not sent). {@link Boolean#FALSE} is a set value and is
+     * sent. See {@link Builder#diarize(Boolean)} for the traps.
+     *
+     * @return the diarize flag, or {@code null}
+     */
+    public Boolean diarize() {
+        return diarize;
+    }
+
+    /**
+     * The {@code keyterms} recognition-bias terms as an immutable list, or
+     * {@code null} when unset (the key is not sent). An empty list is
+     * treated as unset and is never sent.
+     *
+     * @return the keyterms, or {@code null}
+     */
+    public List<String> keyterms() {
+        return keyterms;
     }
 
     /**
@@ -172,7 +199,8 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
      * {@code input_audio} with {@code data} (raw base64, not a data URI) and
      * {@code format} (required in the JSON form), {@code language},
      * {@code response_format}, {@code temperature},
-     * {@code timestamp_granularities} (all omitted when unset).
+     * {@code timestamp_granularities}, {@code diarize}, {@code keyterms}
+     * (all omitted when unset).
      *
      * <p>In multipart mode this method returns a human-readable summary
      * instead - the real body is the multipart byte stream of
@@ -205,6 +233,16 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             }
             root.put("timestamp_granularities", arr);
         }
+        if (diarize != null) {
+            root.put("diarize", diarize.booleanValue());
+        }
+        if (keyterms != null && !keyterms.isEmpty()) {
+            JSONArray terms = new JSONArray();
+            for (String term : keyterms) {
+                terms.put(term);
+            }
+            root.put("keyterms", terms);
+        }
         if (user != null) {
             root.put("user", user);
         }
@@ -227,6 +265,8 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
                 + (temperature != null ? ", temperature=" + temperature : "")
                 + (timestampGranularities != null && !timestampGranularities.isEmpty()
                         ? ", timestamp_granularities=" + timestampGranularities : "")
+                + (diarize != null ? ", diarize=" + diarize : "")
+                + (keyterms != null && !keyterms.isEmpty() ? ", keyterms=" + keyterms : "")
                 + (user != null ? ", user=" + user : "")
                 + (sessionId != null ? ", session_id=" + sessionId : "")
                 + (trace != null ? ", trace=" + trace.toJson() : "")
@@ -260,6 +300,14 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         if (timestampGranularities != null) {
             for (String granularity : timestampGranularities) {
                 addFormField(sb, boundary, "timestamp_granularities[]", granularity);
+            }
+        }
+        if (diarize != null) {
+            addFormField(sb, boundary, "diarize", String.valueOf(diarize));
+        }
+        if (keyterms != null) {
+            for (String term : keyterms) {
+                addFormField(sb, boundary, "keyterms[]", term);
             }
         }
         if (user != null) {
@@ -319,6 +367,8 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
         private String responseFormat;
         private Double temperature;
         private List<String> timestampGranularities;
+        private Boolean diarize;
+        private List<String> keyterms;
         private String user;
         private String sessionId;
         private OpenRouterTraceConfig trace;
@@ -402,6 +452,12 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
          * the filename extension or the file part content type server-side.
          * Clears previously set base64 audio.
          *
+         * <p>Trap: the file name travels in the quoted
+         * {@code filename="..."} parameter of the part header, so
+         * {@code build()} rejects a name containing CR/LF, a quote or a
+         * backslash loudly - those would corrupt the part header or re-label
+         * the file part (parameter injection).
+         *
          * @param path the local audio file
          * @return this builder
          * @throws UncheckedIOException when the file cannot be read
@@ -482,6 +538,134 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
                 timestampGranularities.add(granularity);
             }
             return this;
+        }
+
+        /**
+         * Sets the JSON field {@code diarize} (multipart form field
+         * {@code diarize}) - label each word with the speaker who said it.
+         * The speaker labels are returned on the {@code words} array and on
+         * the segments ({@code speaker}, {@code speaker_label}). Traps:
+         * <ul>
+         *   <li>Speaker labels need {@code response_format}
+         *   {@code "verbose_json"}: {@code build()} rejects
+         *   {@code diarize(true)} unless {@link #responseFormat(String)} is
+         *   set to {@code "verbose_json"} - the API itself answers HTTP 400
+         *   for speaker labelling on a plain {@code "json"} request.</li>
+         *   <li>Word timestamps are included even when
+         *   {@code timestamp_granularities} omits {@code "word"}.</li>
+         *   <li>Only supported by some providers - the request is rejected
+         *   with HTTP 400 when the selected model cannot diarize, and
+         *   providers may charge extra.</li>
+         * </ul>
+         * {@code null} unsets the field and omits it; {@link Boolean#FALSE}
+         * is a set value and is sent. Omitted when unset.
+         *
+         * @param diarize {@code true} to label speakers, {@code false} to
+         *                disable, {@code null} to unset
+         * @return this builder
+         */
+        public Builder diarize(Boolean diarize) {
+            this.diarize = diarize;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code keyterms} (multipart form field
+         * {@code keyterms[]}) - domain terms, names or phrases to bias
+         * recognition toward. Replaces previously set terms; use
+         * {@link #addKeyTerm(String)} to accumulate. {@code null} or an
+         * empty list unsets the field and omits it. Traps: only supported by
+         * some providers - the request is rejected with HTTP 400 when the
+         * selected model cannot use keyterms, and providers may cap the
+         * number of terms or characters per term and may charge extra.
+         * Schema bounds validated loudly: each term 1-100 characters
+         * (counted in Unicode code points), at most 1000 terms, and no
+         * CR/LF characters - a term is interpolated into the multipart
+         * body like the other form values, so CR/LF would split the part.
+         *
+         * @param terms the recognition-bias terms (replaces previous ones)
+         * @return this builder
+         * @throws IllegalArgumentException when a term is null, empty,
+         *                                  over 100 characters or contains
+         *                                  CR/LF, or more than 1000 terms
+         *                                  are given
+         */
+        public Builder keyterms(List<String> terms) {
+            if (terms == null || terms.isEmpty()) {
+                this.keyterms = null;
+                return this;
+            }
+            if (terms.size() > 1000) {
+                throw new IllegalArgumentException(
+                        "keyterms must not exceed 1000 entries, got: " + terms.size());
+            }
+            List<String> checked = new ArrayList<>(terms.size());
+            for (String term : terms) {
+                checked.add(validateKeyTerm(term));
+            }
+            this.keyterms = checked;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code keyterms} from varargs - same semantics
+         * and traps as {@link #keyterms(List)}: replaces previously set
+         * terms, {@code null} or no arguments unset the field. A bare
+         * {@code keyterms(null)} is ambiguous between the two overloads at
+         * compile time - use {@code keyterms((List<String>) null)} or
+         * {@code keyterms((String[]) null)} to unset explicitly.
+         *
+         * @param terms the recognition-bias terms (replaces previous ones)
+         * @return this builder
+         * @throws IllegalArgumentException when a term is null, empty,
+         *                                  over 100 characters or contains
+         *                                  CR/LF, or more than 1000 terms
+         *                                  are given
+         */
+        public Builder keyterms(String... terms) {
+            return keyterms(terms == null ? null : Arrays.asList(terms));
+        }
+
+        /**
+         * Adds one term to the JSON field {@code keyterms} (multipart form
+         * field {@code keyterms[]}) without replacing previously set terms;
+         * {@link #keyterms(List)} replaces. Same traps and bounds as
+         * {@link #keyterms(List)}.
+         *
+         * @param term one recognition-bias term (1-100 characters)
+         * @return this builder
+         * @throws IllegalArgumentException when the term is null, empty,
+         *                                  over 100 characters or contains
+         *                                  CR/LF, or the 1000-term limit is
+         *                                  exceeded
+         */
+        public Builder addKeyTerm(String term) {
+            String checked = validateKeyTerm(term);
+            if (this.keyterms == null) {
+                this.keyterms = new ArrayList<>();
+            }
+            if (this.keyterms.size() >= 1000) {
+                throw new IllegalArgumentException("keyterms must not exceed 1000 entries");
+            }
+            this.keyterms.add(checked);
+            return this;
+        }
+
+        private String validateKeyTerm(String term) {
+            if (term == null || term.isEmpty()) {
+                throw new IllegalArgumentException("keyterm must not be null or empty");
+            }
+            // CR/LF in an interpolated multipart line would split the part
+            // header - reject loudly here and again in build().
+            if (term.indexOf('\r') >= 0 || term.indexOf('\n') >= 0) {
+                throw new IllegalArgumentException("keyterm must not contain CR/LF characters");
+            }
+            int length = term.codePointCount(0, term.length());
+            if (length > 100) {
+                throw new IllegalArgumentException(
+                        "keyterm exceeds 100 characters (Unicode code points), got: " + length);
+            }
+            return term;
         }
 
         /**
@@ -567,9 +751,27 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             rejectLineBreaks("fileName", fileName);
             rejectLineBreaks("user", user);
             rejectLineBreaks("sessionId", sessionId);
+            // The file name is interpolated into the quoted filename="..."
+            // parameter of the file part's Content-Disposition header - a
+            // quote or backslash would end the quoted string and re-label
+            // the file part (parameter injection). Reject loudly.
+            rejectQuotedStringBreaks("fileName", fileName);
+            if (keyterms != null) {
+                for (String term : keyterms) {
+                    rejectLineBreaks("keyterm", term);
+                }
+            }
             if (fileBytes == null && (audioData == null || audioFormat == null)) {
                 throw new IllegalStateException(
                         "audio is required for a transcription request - use audioByBase64, audioByPath or audioByFile");
+            }
+            // Speaker labels are only returned in the verbose_json shape;
+            // the API rejects diarize(true) with a plain json request (400) -
+            // reject the combination loudly here instead.
+            if (Boolean.TRUE.equals(diarize) && !"verbose_json".equals(responseFormat)) {
+                throw new IllegalStateException(
+                        "diarize(true) requires responseFormat(\"verbose_json\") - the API rejects "
+                                + "speaker labelling with response_format \"json\" (HTTP 400)");
             }
             return new OpenRouterSttRequest(this);
         }
@@ -578,6 +780,13 @@ public final class OpenRouterSttRequest extends OpenRouterRequest<OpenRouterSttR
             if (value != null && (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0)) {
                 throw new IllegalArgumentException(
                         field + " must not contain CR/LF characters");
+            }
+        }
+
+        private void rejectQuotedStringBreaks(String field, String value) {
+            if (value != null && (value.indexOf('"') >= 0 || value.indexOf('\\') >= 0)) {
+                throw new IllegalArgumentException(
+                        field + " must not contain quote or backslash characters");
             }
         }
 

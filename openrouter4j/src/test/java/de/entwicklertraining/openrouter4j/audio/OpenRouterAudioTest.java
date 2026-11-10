@@ -8,7 +8,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -122,6 +124,237 @@ class OpenRouterAudioTest {
                 .hasMessageContaining("CR/LF");
     }
 
+    @Test
+    void sttRejectsHeaderInjectionInFileNameLoudly() throws Exception {
+        // a quote in the file name would end the quoted filename="..."
+        // parameter of the part header and re-label the file part
+        Path quoted = tempDir.resolve("a\"; name=\"model.wav");
+        Files.write(quoted, new byte[]{0x00});
+        assertThatThrownBy(() -> new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByFile(quoted)
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("fileName must not contain quote or backslash characters");
+
+        Path backslash = tempDir.resolve("bad\\name.wav");
+        Files.write(backslash, new byte[]{0x00});
+        assertThatThrownBy(() -> new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByFile(backslash)
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("fileName must not contain quote or backslash characters");
+    }
+
+    @Test
+    void sttDiarizeAndKeytermsAreEmittedOnlyWhenSet() {
+        JSONObject body = new JSONObject(new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .responseFormat("verbose_json")
+                .diarize(Boolean.TRUE)
+                .keyterms("OpenRouter", "Scribe")
+                .build()
+                .getBody());
+
+        assertThat(body.getBoolean("diarize")).isTrue();
+        assertThat(body.getJSONArray("keyterms").toList()).containsExactly("OpenRouter", "Scribe");
+
+        JSONObject bare = new JSONObject(new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .build()
+                .getBody());
+        assertThat(bare.has("diarize")).isFalse();
+        assertThat(bare.has("keyterms")).isFalse();
+    }
+
+    @Test
+    void sttDiarizeFalseIsASetValueAndEmitted() {
+        JSONObject body = new JSONObject(new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .diarize(Boolean.FALSE)
+                .build()
+                .getBody());
+
+        assertThat(body.has("diarize")).isTrue();
+        assertThat(body.getBoolean("diarize")).isFalse();
+    }
+
+    @Test
+    void sttDiarizeNullUnsetsTheField() throws Exception {
+        OpenRouterSttRequest request = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .responseFormat("verbose_json")
+                .diarize(Boolean.TRUE)
+                .diarize(null)
+                .build();
+
+        assertThat(request.diarize()).isNull();
+        assertThat(new JSONObject(request.getBody()).has("diarize")).isFalse();
+
+        Path wav = tempDir.resolve("test.wav");
+        Files.write(wav, "fake-wav-bytes".getBytes(StandardCharsets.UTF_8));
+        OpenRouterSttRequest multipart = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByFile(wav)
+                .diarize(Boolean.FALSE)
+                .diarize(null)
+                .build();
+        assertThat(multipart.diarize()).isNull();
+        assertThat(new String(multipart.getBodyBytes(), StandardCharsets.UTF_8))
+                .doesNotContain("name=\"diarize\"");
+    }
+
+    @Test
+    void sttKeytermsSettersReplaceAndAddKeyTermAccumulates() {
+        OpenRouterSttRequest.Builder builder = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav");
+        builder.keyterms("OpenRouter", "Scribe");
+        builder.addKeyTerm("Whisper");
+        JSONObject body = new JSONObject(builder.build().getBody());
+        assertThat(body.getJSONArray("keyterms").toList())
+                .containsExactly("OpenRouter", "Scribe", "Whisper");
+
+        builder.keyterms(List.of("Mistral"));
+        body = new JSONObject(builder.build().getBody());
+        assertThat(body.getJSONArray("keyterms").toList()).containsExactly("Mistral");
+
+        builder.keyterms(List.of());
+        body = new JSONObject(builder.build().getBody());
+        assertThat(body.has("keyterms")).isFalse();
+
+        builder.keyterms("OpenRouter");
+        builder.keyterms((List<String>) null);
+        body = new JSONObject(builder.build().getBody());
+        assertThat(body.has("keyterms")).isFalse();
+
+        builder.keyterms("OpenRouter");
+        builder.keyterms((String[]) null);
+        body = new JSONObject(builder.build().getBody());
+        assertThat(body.has("keyterms")).isFalse();
+    }
+
+    @Test
+    void sttKeytermBoundsAreValidatedLoudly() {
+        OpenRouterSttRequest.Builder base = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav");
+
+        assertThatThrownBy(() -> base.keyterms((String) null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("keyterm");
+        assertThatThrownBy(() -> base.keyterms(""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> base.addKeyTerm("x".repeat(101)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("100");
+        assertThatThrownBy(() -> base.keyterms("x".repeat(101)))
+                .isInstanceOf(IllegalArgumentException.class);
+        // the 100-character bound counts Unicode code points, not UTF-16 units:
+        // 100 emoji are 100 code points but 200 UTF-16 chars (accepted above),
+        // 101 emoji are over the bound
+        assertThatThrownBy(() -> base.addKeyTerm("\uD83D\uDE00".repeat(101)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("100");
+        assertThatThrownBy(() -> base.keyterms("bad\r\nterm"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("CR/LF");
+        assertThatThrownBy(() -> base.addKeyTerm("bad\r\nterm"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("CR/LF");
+        List<String> tooMany = new ArrayList<>();
+        for (int i = 0; i < 1001; i++) {
+            tooMany.add("t" + i);
+        }
+        assertThatThrownBy(() -> base.keyterms(tooMany))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1000");
+
+        // exactly at the bounds: 100 code points and 1000 terms are accepted
+        builderWithBoundsAccepted();
+    }
+
+    private void builderWithBoundsAccepted() {
+        OpenRouterSttRequest.Builder builder = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav");
+        builder.addKeyTerm("x".repeat(100));
+        // 100 emoji: 100 code points (accepted) though 200 UTF-16 chars
+        builder.addKeyTerm("\uD83D\uDE00".repeat(100));
+        List<String> maxTerms = new ArrayList<>();
+        for (int i = 0; i < 1000; i++) {
+            maxTerms.add("t" + i);
+        }
+        builder.keyterms(maxTerms);
+        JSONObject body = new JSONObject(builder.build().getBody());
+        assertThat(body.getJSONArray("keyterms").length()).isEqualTo(1000);
+
+        // the 1000-term cap holds for the accumulating path too
+        assertThatThrownBy(() -> builder.addKeyTerm("one-too-many"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1000");
+    }
+
+    @Test
+    void sttDiarizeRequiresVerboseJsonLoudly() {
+        assertThatThrownBy(() -> new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .diarize(Boolean.TRUE)
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("verbose_json");
+        assertThatThrownBy(() -> new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .responseFormat("json")
+                .diarize(Boolean.TRUE)
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("verbose_json");
+
+        // diarize(false) and unset pass without verbose_json
+        new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .diarize(Boolean.FALSE)
+                .build();
+        new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .diarize(Boolean.TRUE)
+                .responseFormat("verbose_json")
+                .build();
+    }
+
+    @Test
+    void sttRequestAccessorsExposeDiarizeAndKeyterms() {
+        OpenRouterSttRequest request = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .responseFormat("verbose_json")
+                .diarize(Boolean.TRUE)
+                .keyterms("OpenRouter")
+                .build();
+
+        assertThat(request.diarize()).isTrue();
+        assertThat(request.keyterms()).containsExactly("OpenRouter");
+        assertThatThrownBy(() -> request.keyterms().add("x"))
+                .isInstanceOf(UnsupportedOperationException.class);
+
+        OpenRouterSttRequest bare = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .build();
+        assertThat(bare.diarize()).isNull();
+        assertThat(bare.keyterms()).isNull();
+    }
+
     // ---------- STT: multipart form ----------
 
     @Test
@@ -151,6 +384,33 @@ class OpenRouterAudioTest {
         assertThat(bodyBytes).contains(audio);
         assertThat(bodyText).endsWith("--\r\n").contains("\r\n--" + request.getContentType()
                 .split("boundary=")[1]);
+    }
+
+    @Test
+    void sttMultipartFormCarriesDiarizeAndKeyterms() throws Exception {
+        Path wav = tempDir.resolve("test.wav");
+        Files.write(wav, "fake-wav-bytes".getBytes(StandardCharsets.UTF_8));
+
+        OpenRouterSttRequest request = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByFile(wav)
+                .responseFormat("verbose_json")
+                .diarize(Boolean.TRUE)
+                .keyterms("OpenRouter", "Scribe")
+                .build();
+
+        String bodyText = new String(request.getBodyBytes(), StandardCharsets.UTF_8);
+        assertThat(bodyText).contains("name=\"diarize\"").contains("true");
+        assertThat(bodyText).contains("name=\"keyterms[]\"")
+                .contains("OpenRouter").contains("Scribe");
+        assertThat(request.getBody()).contains("diarize=true").contains("keyterms=[OpenRouter, Scribe]");
+
+        OpenRouterSttRequest bare = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByFile(wav)
+                .build();
+        String bareText = new String(bare.getBodyBytes(), StandardCharsets.UTF_8);
+        assertThat(bareText).doesNotContain("name=\"diarize\"").doesNotContain("name=\"keyterms[]\"");
     }
 
     // ---------- STT: response ----------
@@ -217,6 +477,37 @@ class OpenRouterAudioTest {
         assertThat(response.words()).hasSize(1);
         assertThat(response.words().get(0).word()).isEqualTo("Hello");
         assertThat(response.words().get(0).end()).isEqualTo(0.4);
+    }
+
+    @Test
+    void sttResponseExposesSpeakerLabels() {
+        String fixture = """
+                {
+                  "text": "Hello there.",
+                  "segments": [
+                    {"id": 0, "start": 0, "end": 3.2, "text": "Hello there.", "speaker": 0,
+                     "speaker_label": "speaker_0"},
+                    {"id": 1, "start": 3.2, "end": 5.0, "text": "Hi.", "speaker_label": 42}
+                  ],
+                  "words": [
+                    {"word": "Hello", "start": 0, "end": 0.4, "speaker": 0,
+                     "speaker_label": "speaker_0"},
+                    {"word": "there.", "start": 0.4, "end": 0.8, "speaker_label": null}
+                  ]
+                }
+                """;
+        OpenRouterSttResponse response = new OpenRouterSttRequest.Builder(client())
+                .model("openai/whisper-large-v3")
+                .audioByBase64("UklGRiQA", "wav")
+                .responseFormat("verbose_json")
+                .diarize(Boolean.TRUE)
+                .build()
+                .createResponse(fixture);
+
+        assertThat(response.segments().get(0).speakerLabel()).isEqualTo("speaker_0");
+        assertThat(response.segments().get(1).speakerLabel()).isNull();
+        assertThat(response.words().get(0).speakerLabel()).isEqualTo("speaker_0");
+        assertThat(response.words().get(1).speakerLabel()).isNull();
     }
 
     @Test

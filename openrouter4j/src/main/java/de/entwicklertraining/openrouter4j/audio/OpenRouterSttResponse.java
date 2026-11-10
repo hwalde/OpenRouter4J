@@ -259,6 +259,23 @@ public final class OpenRouterSttResponse extends OpenRouterResponse<OpenRouterSt
             return optInt("speaker");
         }
 
+        /**
+         * @return the provider speaker label for the segment (present when
+         *         the provider labels speakers with a string), or
+         *         {@code null}
+         */
+        public String speakerLabel() {
+            try {
+                if (!json.has("speaker_label") || json.isNull("speaker_label")) {
+                    return null;
+                }
+                Object value = json.get("speaker_label");
+                return value instanceof String label ? label : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
         private Integer optInt(String key) {
             try {
                 if (!json.has(key) || json.isNull(key)) {
@@ -326,6 +343,22 @@ public final class OpenRouterSttResponse extends OpenRouterResponse<OpenRouterSt
                 }
                 Object value = json.get("speaker");
                 return value instanceof Number number ? number.intValue() : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * @return the provider speaker label for the word (present when the
+         *         provider labels speakers with a string), or {@code null}
+         */
+        public String speakerLabel() {
+            try {
+                if (!json.has("speaker_label") || json.isNull("speaker_label")) {
+                    return null;
+                }
+                Object value = json.get("speaker_label");
+                return value instanceof String label ? label : null;
             } catch (Exception e) {
                 return null;
             }
