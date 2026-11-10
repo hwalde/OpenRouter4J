@@ -33,6 +33,7 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
     private final String voice;
     private final String responseFormat;
     private final Double speed;
+    private final String instructions;
     private final List<JSONObject> inputReferences;
     private final String user;
     private final String sessionId;
@@ -47,6 +48,7 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         this.voice = builder.voice;
         this.responseFormat = builder.responseFormat;
         this.speed = builder.speed;
+        this.instructions = builder.instructions;
         this.inputReferences = builder.inputReferences == null
                 ? null : List.copyOf(builder.inputReferences);
         this.user = builder.user;
@@ -64,6 +66,35 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
     /** @return the text to synthesize */
     public String input() {
         return input;
+    }
+
+    /**
+     * The {@code instructions} delivery instructions, or {@code null} when
+     * unset (the key is not sent). See {@link Builder#instructions(String)}
+     * for which providers honor them.
+     *
+     * @return the delivery instructions, or {@code null}
+     */
+    public String instructions() {
+        return instructions;
+    }
+
+    /**
+     * The configured {@code input_references} parts as detached copies
+     * (mutating them cannot change this request), or {@code null} when none
+     * were set. See {@link Builder#addVoiceReferenceAudio(String, String)},
+     * {@link Builder#addVoiceReferenceText(String)} and
+     * {@link Builder#addVoiceReferenceImageUrl(String)} for the audio,
+     * transcript and image part shapes, and
+     * {@link Builder#addInputReferenceRaw(JSONObject)} for the verbatim
+     * hatch.
+     *
+     * @return the input reference parts, or {@code null}
+     */
+    public List<JSONObject> inputReferences() {
+        return inputReferences == null
+                ? null
+                : inputReferences.stream().map(p -> new JSONObject(p.toString())).toList();
     }
 
     /**
@@ -134,8 +165,8 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
     /**
      * JSON path: the request body - {@code model} and {@code input}
      * (required), {@code voice}, {@code response_format}, {@code speed},
-     * {@code input_references} (all omitted when unset), {@code user} and
-     * {@code session_id} (omitted when unset).
+     * {@code instructions}, {@code input_references} (all omitted when
+     * unset), {@code user} and {@code session_id} (omitted when unset).
      *
      * @return the JSON body of this request
      */
@@ -152,6 +183,9 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         }
         if (speed != null) {
             root.put("speed", speed);
+        }
+        if (instructions != null) {
+            root.put("instructions", instructions);
         }
         if (inputReferences != null && !inputReferences.isEmpty()) {
             JSONArray refs = new JSONArray();
@@ -214,6 +248,7 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         private String voice;
         private String responseFormat;
         private Double speed;
+        private String instructions;
         private List<JSONObject> inputReferences;
         private String user;
         private String sessionId;
@@ -339,6 +374,22 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         }
 
         /**
+         * Sets the JSON field {@code instructions} - delivery instructions
+         * for the whole request, such as tone, pacing or emotion (e.g.
+         * {@code "Speak in a warm and friendly tone."}). Honored by the
+         * OpenAI {@code gpt-4o-mini-tts} models, Gemini TTS and Fish Audio
+         * models; silently ignored by other providers. {@code null} unsets
+         * the field and omits it.
+         *
+         * @param instructions the delivery instructions
+         * @return this builder
+         */
+        public Builder instructions(String instructions) {
+            this.instructions = instructions;
+            return this;
+        }
+
+        /**
          * Adds a provider-specific passthrough option to the JSON field
          * {@code provider.options[providerSlug]}, e.g.
          * {@code providerOption("openai", new JSONObject())}. Only the
@@ -367,7 +418,13 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
          * {@code input_references} as an {@code input_audio} part (for
          * stateless voice cloning; the sample may be a base64 data URI or
          * raw base64 - max 20 MiB of base64 / 15 MiB decoded audio). Only
-         * routed to endpoints that support voice cloning.
+         * routed to endpoints that support voice cloning. One to three
+         * parts per request (the API rejects more with HTTP 400); the Nth
+         * audio part is addressable from {@code input} as {@code @AudioN}
+         * on providers that support multiple references. With multiple
+         * clips, add each clip's transcript with
+         * {@link #addVoiceReferenceText(String)} directly after it - the
+         * parts are sent in append order.
          *
          * @param base64OrDataUrl the reference audio, base64-encoded
          * @param format the optional audio format of the reference audio
@@ -397,7 +454,9 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
         /**
          * Adds the transcript of the accompanying reference audio to the
          * JSON field {@code input_references} as a {@code text} part (max
-         * 10000 characters).
+         * 10000 characters). With multiple clips each transcript must
+         * immediately follow the clip it transcribes - the library keeps
+         * append order and never reorders the parts.
          *
          * @param transcript the transcript of the reference audio
          * @return this builder
@@ -417,6 +476,72 @@ public final class OpenRouterSpeechRequest extends OpenRouterRequest<OpenRouterS
             part.put("type", "text");
             part.put("text", transcript);
             inputReferences.add(part);
+            return this;
+        }
+
+        /**
+         * Adds a reference image to the JSON field {@code input_references}
+         * as an {@code image_url} part - a JPEG, PNG or WebP image as a
+         * base64 data URI (max 20 MiB of base64) or a public http(s) URL
+         * (remote images are downloaded - 15 MiB max - and forwarded as
+         * bytes, never as the URL). Two documented shapes, distinguished by what else is in the
+         * list: alongside {@code input_audio} parts it is a <b>scene
+         * image</b> describing the setting a cloned voice speaks in; on its
+         * own (image mode) it describes the desired voice (voice design).
+         * Traps: at most one {@code image_url} part per request (the API
+         * rejects more with HTTP 400); image mode is routed only to
+         * endpoints that support image references, and audio mode with an
+         * image only to those that support both. The parts are sent in
+         * append order - the library never reorders them (with multiple
+         * audio clips each transcript must immediately follow its clip).
+         *
+         * @param url the reference image as a base64 data URI or http(s) URL
+         * @return this builder
+         * @throws IllegalArgumentException when the URL is null or empty
+         */
+        public Builder addVoiceReferenceImageUrl(String url) {
+            if (url == null || url.isEmpty()) {
+                throw new IllegalArgumentException("voice reference image url must not be null or empty");
+            }
+            if (inputReferences == null) {
+                inputReferences = new ArrayList<>();
+            }
+            JSONObject part = new JSONObject();
+            part.put("type", "image_url");
+            part.put("image_url", new JSONObject().put("url", url));
+            inputReferences.add(part);
+            return this;
+        }
+
+        /**
+         * Adds one verbatim {@code input_references} part from a raw JSON
+         * object - the escape hatch for {@code SpeechInputReference} shapes
+         * beyond the {@link #addVoiceReferenceAudio(String, String)} /
+         * {@link #addVoiceReferenceText(String)} /
+         * {@link #addVoiceReferenceImageUrl(String)} conveniences (e.g. an
+         * {@code input_audio} part carrying {@code url} instead of
+         * {@code data}, or other shapes the schema allows but the typed
+         * factories do not cover). The object is stored as a
+         * detached copy, so later mutations of the caller's instance cannot
+         * change the request. Deliberately a distinct name rather than an
+         * {@code addInputReference} overload, so future typed overloads stay
+         * unambiguous at compile time (the {@code markupRaw} precedent).
+         * Same append-order semantics as the typed factories; the at-most-
+         * one-image rule applies to raw parts too and is enforced by the
+         * API (HTTP 400), not by this builder.
+         *
+         * @param part the raw {@code SpeechInputReference} part
+         * @return this builder
+         * @throws IllegalArgumentException when the part is null
+         */
+        public Builder addInputReferenceRaw(JSONObject part) {
+            if (part == null) {
+                throw new IllegalArgumentException("input reference part must not be null");
+            }
+            if (inputReferences == null) {
+                inputReferences = new ArrayList<>();
+            }
+            inputReferences.add(new JSONObject(part.toString()));
             return this;
         }
 

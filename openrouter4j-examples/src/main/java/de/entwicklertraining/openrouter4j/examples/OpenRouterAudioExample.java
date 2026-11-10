@@ -2,6 +2,7 @@ package de.entwicklertraining.openrouter4j.examples;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterTraceConfig;
+import de.entwicklertraining.openrouter4j.audio.OpenRouterSpeechRequest;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSpeechResponse;
 import de.entwicklertraining.openrouter4j.audio.OpenRouterSttResponse;
 import org.json.JSONObject;
@@ -59,12 +60,16 @@ public class OpenRouterAudioExample {
 
         // 2. Text-to-speech: the response body is the raw audio bytes
         //    (audio/mpeg for mp3, audio/pcm for pcm - 16-bit little-endian).
+        //    instructions(...) are delivery hints (tone, pacing, emotion) -
+        //    honored by the gpt-4o-mini-tts, Gemini TTS and Fish Audio
+        //    models, silently ignored elsewhere.
         OpenRouterSpeechResponse speech = client.audio().speech()
                 .model("mistralai/voxtral-mini-tts-2603")
                 .input("Hello from OpenRouter4J.")
                 .voice("en_paul_neutral")
                 .responseFormat("mp3")
                 .speed(1.0)
+                .instructions("Speak in a warm and friendly tone.")
                 .user("end-user-42")
                 .trace(OpenRouterTraceConfig.builder()
                         .traceId("support-call-4711")
@@ -72,6 +77,29 @@ public class OpenRouterAudioExample {
                         .build())
                 .providerOption("openai", new JSONObject())
                 .execute();
+
+        // 3. Voice cloning/design reference parts - built here without
+        //    executing to show the wire shape (no live call, no real asset):
+        //    1-3 audio clips (addVoiceReferenceAudio), each transcript
+        //    directly after its clip (addVoiceReferenceText), plus at most
+        //    one image_url scene image (addVoiceReferenceImageUrl) - or
+        //    exactly one image part on its own for voice design - and
+        //    addInputReferenceRaw(JSONObject), the verbatim hatch for
+        //    SpeechInputReference shapes the typed factories do not cover
+        //    (e.g. a url-based clip). The parts are sent in append order;
+        //    the API rejects a second image part with HTTP 400.
+        OpenRouterSpeechRequest referenceBody = client.audio().speech()
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello from OpenRouter4J.")
+                .addVoiceReferenceAudio("data:audio/wav;base64,UklGRuQXDABXQVZF", "wav")
+                .addVoiceReferenceText("I used to rule the world.")
+                .addVoiceReferenceImageUrl("data:image/png;base64,iVBORw0KGgo")
+                .addInputReferenceRaw(new JSONObject()
+                        .put("type", "input_audio")
+                        .put("input_audio", new JSONObject()
+                                .put("url", "https://example.com/reference.wav")))
+                .build();
+        System.out.println("reference body: " + referenceBody.getBody());
 
         Path out = Path.of("generated-speech.mp3");
         Files.write(out, speech.bytes());

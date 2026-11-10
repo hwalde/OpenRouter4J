@@ -1,6 +1,7 @@
 package de.entwicklertraining.openrouter4j.audio;
 
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -568,6 +569,152 @@ class OpenRouterAudioTest {
         JSONObject textPart = body.getJSONArray("input_references").getJSONObject(1);
         assertThat(textPart.getString("type")).isEqualTo("text");
         assertThat(textPart.getString("text")).isEqualTo("I used to rule the world.");
+    }
+
+    @Test
+    void speechInstructionsAreEmittedOnlyWhenSet() {
+        OpenRouterSpeechRequest request = new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello world")
+                .instructions("Speak in a warm and friendly tone.")
+                .build();
+
+        JSONObject body = new JSONObject(request.getBody());
+        assertThat(body.getString("instructions")).isEqualTo("Speak in a warm and friendly tone.");
+        assertThat(request.instructions()).isEqualTo("Speak in a warm and friendly tone.");
+
+        OpenRouterSpeechRequest bare = new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello world")
+                .build();
+        assertThat(new JSONObject(bare.getBody()).has("instructions")).isFalse();
+        assertThat(bare.instructions()).isNull();
+
+        OpenRouterSpeechRequest unset = new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello world")
+                .instructions("Speak slowly.")
+                .instructions(null)
+                .build();
+        assertThat(new JSONObject(unset.getBody()).has("instructions")).isFalse();
+        assertThat(unset.instructions()).isNull();
+    }
+
+    @Test
+    void speechSceneImageAndRawReferenceShapes() {
+        JSONObject body = new JSONObject(new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello world")
+                .addVoiceReferenceAudio("data:audio/wav;base64,UklGRuQXDABXQVZF", "wav")
+                .addVoiceReferenceText("I used to rule the world.")
+                .addVoiceReferenceImageUrl("data:image/png;base64,iVBORw0KGgo")
+                .build()
+                .getBody());
+
+        JSONArray refs = body.getJSONArray("input_references");
+        assertThat(refs.length()).isEqualTo(3);
+        JSONObject audioPart = refs.getJSONObject(0);
+        assertThat(audioPart.keySet()).containsExactlyInAnyOrder("type", "input_audio");
+        assertThat(audioPart.getJSONObject("input_audio").keySet())
+                .containsExactlyInAnyOrder("data", "format");
+        assertThat(audioPart.getJSONObject("input_audio").getString("data"))
+                .isEqualTo("data:audio/wav;base64,UklGRuQXDABXQVZF");
+        JSONObject textPart = refs.getJSONObject(1);
+        assertThat(textPart.keySet()).containsExactlyInAnyOrder("type", "text");
+        assertThat(textPart.getString("text")).isEqualTo("I used to rule the world.");
+        JSONObject imagePart = refs.getJSONObject(2);
+        assertThat(imagePart.keySet()).containsExactlyInAnyOrder("type", "image_url");
+        assertThat(imagePart.getString("type")).isEqualTo("image_url");
+        assertThat(imagePart.getJSONObject("image_url").keySet()).containsExactlyInAnyOrder("url");
+        assertThat(imagePart.getJSONObject("image_url").getString("url"))
+                .isEqualTo("data:image/png;base64,iVBORw0KGgo");
+
+        // the verbatim hatch passes unknown shapes through untouched
+        JSONObject rawPart = new JSONObject()
+                .put("type", "input_audio")
+                .put("input_audio", new JSONObject().put("url", "https://example.com/reference.wav"))
+                .put("provider_extension", new JSONObject().put("x", 1));
+        JSONObject rawBody = new JSONObject(new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello world")
+                .addInputReferenceRaw(rawPart)
+                .build()
+                .getBody());
+        JSONObject emitted = rawBody.getJSONArray("input_references").getJSONObject(0);
+        assertThat(emitted.keySet()).containsExactlyInAnyOrder("type", "input_audio", "provider_extension");
+        assertThat(emitted.getJSONObject("input_audio").keySet()).containsExactlyInAnyOrder("url");
+        assertThat(emitted.getJSONObject("input_audio").getString("url"))
+                .isEqualTo("https://example.com/reference.wav");
+        assertThat(emitted.getJSONObject("provider_extension").getInt("x")).isEqualTo(1);
+
+        assertThatThrownBy(() -> new OpenRouterSpeechRequest.Builder(client())
+                .addVoiceReferenceImageUrl(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("voice reference image url");
+        assertThatThrownBy(() -> new OpenRouterSpeechRequest.Builder(client())
+                .addVoiceReferenceImageUrl(""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("voice reference image url");
+        assertThatThrownBy(() -> new OpenRouterSpeechRequest.Builder(client())
+                .addInputReferenceRaw(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("input reference part");
+    }
+
+    @Test
+    void speechReferencePartsKeepAppendOrderAcrossFactories() {
+        JSONObject body = new JSONObject(new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello world")
+                .addVoiceReferenceAudio("data:audio/wav;base64,UklGRuQ", "wav")
+                .addInputReferenceRaw(new JSONObject()
+                        .put("type", "input_audio")
+                        .put("input_audio", new JSONObject().put("url", "https://example.com/r.wav")))
+                .addVoiceReferenceText("transcript")
+                .addVoiceReferenceImageUrl("data:image/png;base64,iVBORw0KGgo")
+                .build()
+                .getBody());
+
+        JSONArray refs = body.getJSONArray("input_references");
+        assertThat(refs.length()).isEqualTo(4);
+        assertThat(refs.getJSONObject(0).getString("type")).isEqualTo("input_audio");
+        assertThat(refs.getJSONObject(0).getJSONObject("input_audio").has("data")).isTrue();
+        assertThat(refs.getJSONObject(1).getString("type")).isEqualTo("input_audio");
+        assertThat(refs.getJSONObject(1).getJSONObject("input_audio").has("url")).isTrue();
+        assertThat(refs.getJSONObject(2).getString("type")).isEqualTo("text");
+        assertThat(refs.getJSONObject(3).getString("type")).isEqualTo("image_url");
+    }
+
+    @Test
+    void speechInputReferencesAreSnapshotAndHandedOutAsCopies() {
+        JSONObject template = new JSONObject()
+                .put("type", "image_url")
+                .put("image_url", new JSONObject().put("url", "https://example.com/original.png"));
+        OpenRouterSpeechRequest.Builder builder = new OpenRouterSpeechRequest.Builder(client())
+                .model("mistralai/voxtral-mini-tts-2603")
+                .input("Hello world")
+                .addInputReferenceRaw(template);
+
+        // mutating the caller's object after the add cannot change the request
+        template.getJSONObject("image_url").put("url", "https://example.com/mutated.png");
+        OpenRouterSpeechRequest request = builder.build();
+        assertThat(new JSONObject(request.getBody()).getJSONArray("input_references")
+                .getJSONObject(0).getJSONObject("image_url").getString("url"))
+                .isEqualTo("https://example.com/original.png");
+
+        // the accessor hands out detached copies
+        List<JSONObject> copies = request.inputReferences();
+        copies.get(0).getJSONObject("image_url").put("url", "https://example.com/via-accessor.png");
+        assertThat(request.inputReferences().get(0).getJSONObject("image_url").getString("url"))
+                .isEqualTo("https://example.com/original.png");
+        assertThat(request.inputReferences()).hasSize(1);
+
+        // builder reuse after build() cannot rewrite the built request
+        builder.addVoiceReferenceText("extra");
+        assertThat(request.inputReferences()).hasSize(1);
+
+        assertThat(new OpenRouterSpeechRequest.Builder(client())
+                .model("m").input("i").build().inputReferences()).isNull();
     }
 
     @Test
