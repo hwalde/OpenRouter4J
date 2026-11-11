@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.chat.completion;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.entwicklertraining.api.base.ApiClient;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsDetails;
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
 import de.entwicklertraining.openrouter4j.OpenRouterTokenLogprob;
 import org.json.JSONArray;
@@ -861,6 +862,27 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
         }
         Object value = details.opt(key);
         return value instanceof Number number ? number.intValue() : null;
+    }
+
+    /**
+     * Returns the deferred-tools run totals from
+     * {@code usage.deferred_tools_details} - the token totals summed over
+     * <b>every</b> upstream model call of a deferred-tools run (the native
+     * usage fields report only the final call). Present on streaming
+     * responses via the terminal usage chunk like
+     * {@link #serverToolUseDetails()}.
+     *
+     * @return the typed details view, or {@code null} when absent (no
+     *         deferred-tools run, or a malformed value)
+     * @see OpenRouterDeferredToolsDetails
+     */
+    public OpenRouterDeferredToolsDetails deferredToolsDetails() {
+        JSONObject usage = usage();
+        if (usage == null) {
+            return null;
+        }
+        JSONObject details = usage.optJSONObject("deferred_tools_details");
+        return details != null ? new OpenRouterDeferredToolsDetails(details) : null;
     }
 
     /**

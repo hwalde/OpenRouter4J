@@ -7,6 +7,7 @@ import de.entwicklertraining.api.base.streaming.StreamingInfo;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterContextManagementEdit;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsControl;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterSafeguard;
@@ -83,6 +84,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
     private final List<OpenRouterPlugin> plugins;
     private final List<OpenRouterStopCondition> stopServerToolsWhen;
     private final OpenRouterTraceConfig trace;
+    private final OpenRouterDeferredToolsControl deferredTools;
     private final List<OpenRouterContextManagementEdit> contextManagementEdits;
     private final List<OpenRouterSafeguard> safeguards;
     private final List<String> providerOrder;
@@ -209,6 +211,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         this.stopServerToolsWhen = builder.stopServerToolsWhen.isEmpty()
                 ? null : List.copyOf(builder.stopServerToolsWhen);
         this.trace = builder.trace;
+        this.deferredTools = builder.deferredTools;
         this.contextManagementEdits = builder.contextManagementEdits.isEmpty()
                 ? null : List.copyOf(builder.contextManagementEdits);
         this.safeguards = builder.safeguards.isEmpty()
@@ -277,6 +280,14 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
      */
     public List<OpenRouterSafeguard> safeguards() {
         return safeguards == null ? List.of() : safeguards;
+    }
+
+    /**
+     * @return the deferred-tool protocol control object
+     *         ({@code deferred_tools}), or {@code null} when unset
+     */
+    public OpenRouterDeferredToolsControl deferredTools() {
+        return deferredTools;
     }
 
     /**
@@ -556,6 +567,9 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         if (trace != null) {
             root.put("trace", trace.toJson());
         }
+        if (deferredTools != null) {
+            root.put("deferred_tools", deferredTools.toJson());
+        }
         if (contextManagementEdits != null && !contextManagementEdits.isEmpty()) {
             JSONArray edits = new JSONArray();
             for (OpenRouterContextManagementEdit edit : contextManagementEdits) {
@@ -711,6 +725,7 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
         private final List<OpenRouterContextManagementEdit> contextManagementEdits = new ArrayList<>();
         private final List<OpenRouterSafeguard> safeguards = new ArrayList<>();
         private OpenRouterTraceConfig trace;
+        private OpenRouterDeferredToolsControl deferredTools;
         private List<String> providerOrder;
         private List<String> providerOnly;
         private List<String> providerIgnore;
@@ -1570,6 +1585,31 @@ public final class OpenRouterMessagesRequest extends OpenRouterRequest<OpenRoute
          */
         public Builder trace(OpenRouterTraceConfig trace) {
             this.trace = trace;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code deferred_tools} - the control object that
+         * opts the conversation into OpenRouter's versioned router-level
+         * deferred-tool protocol (the router withholds the deferred tools from
+         * the model and serves their discovery with its own search and call
+         * wrappers on any model).
+         * <p>
+         * JSON field: {@code deferred_tools}. Default: unset (the key is not
+         * sent). {@code null} unsets a previously set control object again.
+         * Build the value with {@link OpenRouterDeferredToolsControl#builder()}.
+         * <p>
+         * Traps: the Batch API rejects {@code deferred_tools}; a conversation
+         * cannot be enabled partway once earlier assistant messages carry tool
+         * calls; the portable profile needs the catalog byte-stable across
+         * turns. The full trap list lives on
+         * {@link OpenRouterDeferredToolsControl}.
+         *
+         * @param deferredTools the control object, or {@code null} to unset
+         * @return this builder
+         */
+        public Builder deferredTools(OpenRouterDeferredToolsControl deferredTools) {
+            this.deferredTools = deferredTools;
             return this;
         }
 

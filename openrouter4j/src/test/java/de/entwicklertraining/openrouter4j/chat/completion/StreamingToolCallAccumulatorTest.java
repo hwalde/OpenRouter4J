@@ -251,6 +251,33 @@ class StreamingToolCallAccumulatorTest {
     }
 
     @Test
+    void syntheticResponseCarriesDeferredToolsDetailsFromTheTerminalUsageChunk() {
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        accumulator.onData(contentChunk("Hello"));
+        accumulator.onData(new JSONObject()
+                .put("id", "gen-xxx")
+                .put("choices", new JSONArray())
+                .put("usage", new JSONObject()
+                        .put("total_tokens", 25)
+                        .put("deferred_tools_details", new JSONObject()
+                                .put("turns", 2)
+                                .put("prompt_tokens", 2400)
+                                .put("completion_tokens", 180)
+                                .put("total_tokens", 2580)))
+                .toString());
+
+        var response = new OpenRouterChatCompletionResponse(
+                handler.buildSyntheticResponseJson(accumulator, "test/model"), null);
+
+        assertThat(response.deferredToolsDetails()).isNotNull();
+        assertThat(response.deferredToolsDetails().turns()).isEqualTo(2);
+        assertThat(response.deferredToolsDetails().promptTokens()).isEqualTo(2400);
+        assertThat(response.deferredToolsDetails().completionTokens()).isEqualTo(180);
+        assertThat(response.deferredToolsDetails().totalTokens()).isEqualTo(2580);
+    }
+
+    @Test
     void midStreamErrorChunkIsCapturedAndNotForwarded() {
         accumulator.onData(contentChunk("Hello"));
         accumulator.onData(errorChunk("Rate limit exceeded", 429, "rate_limit_exceeded", "provider_error"));

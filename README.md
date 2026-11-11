@@ -70,7 +70,7 @@ Add the dependency from Maven Central:
 <dependency>
     <groupId>de.entwicklertraining</groupId>
     <artifactId>openrouter4j</artifactId>
-    <version>1.38.0</version>
+    <version>1.39.0</version>
 </dependency>
 ```
 

@@ -1,5 +1,6 @@
 package de.entwicklertraining.openrouter4j.messages;
 
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsDetails;
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -496,6 +497,28 @@ public final class OpenRouterMessagesResponse extends OpenRouterResponse<OpenRou
         try {
             JSONObject usage = usage();
             return usage != null ? usage.optString("service_tier", null) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * JSON path: {@code usage.deferred_tools_details} - the totals of a
+     * deferred-tools run summed over <b>every</b> upstream model call (the
+     * native usage fields report only the final call).
+     *
+     * @return the typed details view, or {@code null} when absent (no
+     *         deferred-tools run, or a malformed value)
+     * @see de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsDetails
+     */
+    public OpenRouterDeferredToolsDetails deferredToolsDetails() {
+        try {
+            JSONObject usage = usage();
+            if (usage == null) {
+                return null;
+            }
+            JSONObject details = usage.optJSONObject("deferred_tools_details");
+            return details != null ? new OpenRouterDeferredToolsDetails(details) : null;
         } catch (Exception e) {
             return null;
         }

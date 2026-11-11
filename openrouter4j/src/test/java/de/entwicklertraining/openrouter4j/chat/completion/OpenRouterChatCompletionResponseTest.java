@@ -368,6 +368,61 @@ class OpenRouterChatCompletionResponseTest {
     }
 
     @Test
+    void deferredToolsDetailsAreSurfaced() {
+        OpenRouterChatCompletionResponse response = responseOf("""
+                {
+                  "choices": [{"index": 0, "message": {"role": "assistant", "content": "Done"}, "finish_reason": "stop"}],
+                  "usage": {
+                    "prompt_tokens": 100,
+                    "completion_tokens": 20,
+                    "deferred_tools_details": {
+                      "turns": 2,
+                      "prompt_tokens": 2400,
+                      "completion_tokens": 180,
+                      "total_tokens": 2580
+                    }
+                  }
+                }
+                """);
+
+        assertThat(response.deferredToolsDetails()).isNotNull();
+        assertThat(response.deferredToolsDetails().turns()).isEqualTo(2);
+        assertThat(response.deferredToolsDetails().promptTokens()).isEqualTo(2400);
+        assertThat(response.deferredToolsDetails().completionTokens()).isEqualTo(180);
+        assertThat(response.deferredToolsDetails().totalTokens()).isEqualTo(2580);
+        assertThat(response.deferredToolsDetails().json().getInt("turns")).isEqualTo(2);
+    }
+
+    @Test
+    void deferredToolsDetailsReturnNullWhenAbsentOrMalformed() {
+        OpenRouterChatCompletionResponse withoutUsage = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}]}
+                """);
+        assertThat(withoutUsage.deferredToolsDetails()).isNull();
+
+        OpenRouterChatCompletionResponse withoutDetails = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}], "usage": {"total_tokens": 15}}
+                """);
+        assertThat(withoutDetails.deferredToolsDetails()).isNull();
+
+        OpenRouterChatCompletionResponse malformedDetails = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}],
+                 "usage": {"deferred_tools_details": {"turns": "two", "prompt_tokens": null, "completion_tokens": {}}}}
+                """);
+        assertThat(malformedDetails.deferredToolsDetails()).isNotNull();
+        assertThat(malformedDetails.deferredToolsDetails().turns()).isNull();
+        assertThat(malformedDetails.deferredToolsDetails().promptTokens()).isNull();
+        assertThat(malformedDetails.deferredToolsDetails().completionTokens()).isNull();
+        assertThat(malformedDetails.deferredToolsDetails().totalTokens()).isNull();
+
+        OpenRouterChatCompletionResponse notAnObject = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}],
+                 "usage": {"deferred_tools_details": "none"}}
+                """);
+        assertThat(notAnObject.deferredToolsDetails()).isNull();
+    }
+
+    @Test
     void messageModelAndMessageNameAreSurfaced() {
         OpenRouterChatCompletionResponse response = responseOf("""
                 {

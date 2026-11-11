@@ -102,6 +102,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     private final Double preferredMinThroughput; // provider.preferred_min_throughput (tokens/s, p50)
     private final OpenRouterPercentileCutoffs preferredMinThroughputCutoffs; // provider.preferred_min_throughput object form
     private final Boolean zdr; // provider.zdr (Zero Data Retention routing)
+    private final OpenRouterDeferredToolsControl deferredTools; // deferred_tools - deferred-tool protocol control object
     private final boolean stream; // Enable streaming responses
 
     private static final Set<String> ALLOWED_EXTENSIONS =
@@ -207,7 +208,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             Double preferredMinThroughput,
             OpenRouterPercentileCutoffs preferredMinThroughputCutoffs,
             Boolean zdr,
-            boolean stream
+            boolean stream,
+            OpenRouterDeferredToolsControl deferredTools
     ) {
         super(builder);
         this.client = client;
@@ -292,6 +294,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         this.preferredMinThroughputCutoffs = preferredMinThroughputCutoffs;
         this.zdr = zdr;
         this.stream = stream;
+        this.deferredTools = deferredTools;
     }
 
     public String model() {
@@ -700,6 +703,16 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
     }
 
     /**
+     * The deferred-tool protocol control object ({@code deferred_tools}), or
+     * {@code null} when unset (the model sees the full tool list).
+     *
+     * @see OpenRouterDeferredToolsControl
+     */
+    public OpenRouterDeferredToolsControl deferredTools() {
+        return deferredTools;
+    }
+
+    /**
      * The requested capacity tier ({@code service_tier}: {@code "auto"}, {@code "default"},
      * {@code "fast"}, {@code "flex"}, {@code "priority"} or {@code "scale"} - {@code "fast"}
      * is an alias for {@code "priority"}), or {@code null} when unset.
@@ -960,6 +973,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             b.modalities.addAll(modalities);
         }
         b.imageConfig = imageConfig;
+        b.deferredTools = deferredTools;
         b.serviceTier = serviceTier;
         b.predictionContent = predictionContent;
         if (predictionParts != null) {
@@ -1346,6 +1360,12 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
             root.put("image_config", imageConfig.toJson());
         }
 
+        // Deferred-tool protocol control object. Emitted only when set; the
+        // tool-call conversation loop carries it into every follow-up turn.
+        if (deferredTools != null) {
+            root.put("deferred_tools", deferredTools.toJson());
+        }
+
         // Predicted outputs: static content the supported model can largely reuse,
         // reducing latency when much of the response is known in advance.
         // Emitted only when set; the string form wins when both forms are given.
@@ -1491,6 +1511,7 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         private final List<OpenRouterPlugin> plugins = new ArrayList<>();
         private final List<String> modalities = new ArrayList<>();
         private OpenRouterImageConfig imageConfig;
+        private OpenRouterDeferredToolsControl deferredTools;
         private String serviceTier;
         private String predictionContent;
         private final List<String> predictionParts = new ArrayList<>();
@@ -3145,6 +3166,39 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
         }
 
         /**
+         * Sets {@code deferred_tools}: opts the conversation into OpenRouter's
+         * versioned router-level deferred-tool protocol - the router withholds
+         * the deferred tools from the model, serves their discovery with its
+         * own search and call wrappers on any model, keeps the provider-facing
+         * tool list stable and replays assistant reasoning unchanged on
+         * continuation turns.
+         * <p>
+         * JSON field: {@code deferred_tools}. Default: unset (the key is not
+         * sent). {@code null} unsets a previously set control object again.
+         * Build the value with {@link OpenRouterDeferredToolsControl#builder()}
+         * (required: {@code protocol("v1")}, {@code profile}, {@code
+         * validation("runtime")} and a {@link OpenRouterDeferredToolsSearchStrategy}
+         * search).
+         * <p>
+         * Traps: the tool-call loop carries the control object into every
+         * follow-up turn; the Batch API rejects {@code deferred_tools}; a
+         * conversation cannot be enabled partway once earlier assistant
+         * messages carry tool calls; the portable profile needs the catalog
+         * byte-stable across turns; {@code openrouter:tool_search} in
+         * {@code tools} is not accepted here - this protocol is its
+         * replacement on Chat Completions. The full trap list lives on
+         * {@link OpenRouterDeferredToolsControl}.
+         *
+         * @param deferredTools the control object, or {@code null} to unset
+         * @return This builder instance
+         * @see <a href="https://openrouter.ai/docs/guides/features/server-tools/tool-search">Server tools: tool search</a>
+         */
+        public Builder deferredTools(OpenRouterDeferredToolsControl deferredTools) {
+            this.deferredTools = deferredTools;
+            return this;
+        }
+
+        /**
          * Sets {@code service_tier}: pins the request to a capacity tier, the explicit
          * counterpart to the {@code :nitro}/{@code :floor} model variants.
          * <p>
@@ -3908,7 +3962,8 @@ public final class OpenRouterChatCompletionRequest extends OpenRouterRequest<Ope
                     preferredMinThroughput,
                     preferredMinThroughputCutoffs,
                     zdr,
-                    shouldStream
+                    shouldStream,
+                    deferredTools
             );
             applyHeaders(request);
             return request;

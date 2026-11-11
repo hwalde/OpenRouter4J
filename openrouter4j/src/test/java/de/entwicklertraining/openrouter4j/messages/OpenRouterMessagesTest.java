@@ -9,6 +9,8 @@ import de.entwicklertraining.openrouter4j.OpenRouterToolLifecycleBlock;
 import de.entwicklertraining.openrouter4j.OpenRouterToolReference;
 import de.entwicklertraining.openrouter4j.OpenRouterCompactEdit;
 import de.entwicklertraining.openrouter4j.OpenRouterContextManagementEdit;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsControl;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsSearchStrategy;
 import de.entwicklertraining.openrouter4j.OpenRouterJsonSchema;
 import de.entwicklertraining.openrouter4j.OpenRouterModerationPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
@@ -48,6 +50,71 @@ class OpenRouterMessagesTest {
 
         assertThat(request.getRelativeUrl()).isEqualTo("/messages");
         assertThat(request.getHttpMethod()).isEqualTo("POST");
+    }
+
+    @Test
+    void deferredToolsIsEmittedOnlyWhenSet() {
+        assertThat(new JSONObject(minimalBuilder().build().getBody()).has("deferred_tools")).isFalse();
+        assertThat(minimalBuilder().build().deferredTools()).isNull();
+
+        OpenRouterDeferredToolsControl control = OpenRouterDeferredToolsControl.builder()
+                .protocol("v1")
+                .profile("portable")
+                .validation("runtime")
+                .search(OpenRouterDeferredToolsSearchStrategy.regex(5))
+                .build();
+        OpenRouterMessagesRequest request = minimalBuilder().deferredTools(control).build();
+
+        JSONObject deferredTools = new JSONObject(request.getBody()).getJSONObject("deferred_tools");
+        assertThat(deferredTools.keySet()).containsExactlyInAnyOrder("protocol", "profile", "validation", "search");
+        assertThat(deferredTools.getJSONObject("search").getString("type")).isEqualTo("regex");
+        assertThat(request.deferredTools()).isSameAs(control);
+
+        OpenRouterMessagesRequest unset = minimalBuilder().deferredTools(control).deferredTools(null).build();
+        assertThat(new JSONObject(unset.getBody()).has("deferred_tools")).isFalse();
+        assertThat(unset.deferredTools()).isNull();
+    }
+
+    @Test
+    void deferredToolsDetailsAreReadFromTheUsage() {
+        OpenRouterMessagesResponse response = minimalBuilder().build().createResponse("""
+                {
+                  "id": "msg_01",
+                  "role": "assistant",
+                  "content": [{"type": "text", "text": "Done"}],
+                  "usage": {
+                    "input_tokens": 12,
+                    "output_tokens": 18,
+                    "deferred_tools_details": {
+                      "turns": 2,
+                      "prompt_tokens": 2400,
+                      "completion_tokens": 180,
+                      "total_tokens": 2580
+                    }
+                  }
+                }
+                """);
+
+        assertThat(response.deferredToolsDetails()).isNotNull();
+        assertThat(response.deferredToolsDetails().turns()).isEqualTo(2);
+        assertThat(response.deferredToolsDetails().promptTokens()).isEqualTo(2400);
+        assertThat(response.deferredToolsDetails().completionTokens()).isEqualTo(180);
+        assertThat(response.deferredToolsDetails().totalTokens()).isEqualTo(2580);
+
+        assertThat(minimalBuilder().build().createResponse("{\"usage\": {\"input_tokens\": 1}}")
+                .deferredToolsDetails()).isNull();
+        assertThat(minimalBuilder().build().createResponse("{}").deferredToolsDetails()).isNull();
+
+        OpenRouterMessagesResponse malformed = minimalBuilder().build().createResponse("""
+                {"usage": {"deferred_tools_details": {"turns": "two", "total_tokens": null}}}
+                """);
+        assertThat(malformed.deferredToolsDetails()).isNotNull();
+        assertThat(malformed.deferredToolsDetails().turns()).isNull();
+        assertThat(malformed.deferredToolsDetails().totalTokens()).isNull();
+
+        assertThat(minimalBuilder().build().createResponse("""
+                {"usage": {"deferred_tools_details": "none"}}
+                """).deferredToolsDetails()).isNull();
     }
 
     @Test

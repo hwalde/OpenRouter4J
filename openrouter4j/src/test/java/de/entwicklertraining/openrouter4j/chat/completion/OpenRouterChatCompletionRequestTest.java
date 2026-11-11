@@ -5,6 +5,8 @@ import de.entwicklertraining.openrouter4j.OpenRouterAppAttribution;
 import de.entwicklertraining.openrouter4j.OpenRouterCacheMarker;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterDatetimeServerTool;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsControl;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsSearchStrategy;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterGenericServerTool;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
@@ -2406,6 +2408,76 @@ class OpenRouterChatCompletionRequestTest {
                 List.of(new JSONObject().put("role", "user").put("content", "continue")));
 
         assertThat(new JSONObject(next.getBody()).getJSONObject("provider").getBoolean("zdr")).isTrue();
+    }
+
+    private OpenRouterDeferredToolsControl deferredToolsControl() {
+        return OpenRouterDeferredToolsControl.builder()
+                .protocol("v1")
+                .profile("portable")
+                .validation("runtime")
+                .search(OpenRouterDeferredToolsSearchStrategy.bm25(5))
+                .build();
+    }
+
+    @Test
+    void deferredToolsIsEmittedOnlyWhenSet() {
+        assertThat(bodyOf(baseBuilder()).has("deferred_tools")).isFalse();
+        assertThat(baseBuilder().build().deferredTools()).isNull();
+
+        OpenRouterDeferredToolsControl control = deferredToolsControl();
+        OpenRouterChatCompletionRequest request = baseBuilder().deferredTools(control).build();
+
+        JSONObject deferredTools = new JSONObject(request.getBody()).getJSONObject("deferred_tools");
+        assertThat(deferredTools.keySet()).containsExactlyInAnyOrder("protocol", "profile", "validation", "search");
+        assertThat(deferredTools.getString("protocol")).isEqualTo("v1");
+        assertThat(deferredTools.getJSONObject("search").getString("type")).isEqualTo("bm25");
+        assertThat(request.deferredTools()).isSameAs(control);
+    }
+
+    @Test
+    void deferredToolsSetThenNullIsUnset() {
+        OpenRouterChatCompletionRequest request = baseBuilder()
+                .deferredTools(deferredToolsControl())
+                .deferredTools(null)
+                .build();
+
+        assertThat(new JSONObject(request.getBody()).has("deferred_tools")).isFalse();
+        assertThat(request.deferredTools()).isNull();
+    }
+
+    @Test
+    void deferredToolsIsPropagatedToToolLoopFollowUpRequests() throws Exception {
+        OpenRouterChatCompletionRequest initial = builderWithTool()
+                .deferredTools(OpenRouterDeferredToolsControl.builder()
+                        .protocol("v1")
+                        .profile("universal")
+                        .validation("runtime")
+                        .search(OpenRouterDeferredToolsSearchStrategy.custom("search_catalog", "tool_names", 5))
+                        .minDeferredTools(3)
+                        .build())
+                .build();
+
+        var handler = new OpenRouterChatCompletionCallHandler(new OpenRouterClient());
+
+        OpenRouterChatCompletionRequest next = handler.buildNextRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")));
+        JSONObject deferredTools = new JSONObject(next.getBody()).getJSONObject("deferred_tools");
+        assertThat(deferredTools.getString("profile")).isEqualTo("universal");
+        assertThat(deferredTools.getInt("min_deferred_tools")).isEqualTo(3);
+        assertThat(deferredTools.getJSONObject("search").getString("tool_id")).isEqualTo("search_catalog");
+
+        OpenRouterChatCompletionRequest streamed = handler.buildStreamingRequest(
+                initial,
+                List.of(new JSONObject().put("role", "user").put("content", "continue")),
+                new StreamingToolCallAccumulator(new StreamingResponseHandler<String>() {
+                    @Override public void onData(String chunk) { }
+                    @Override public void onComplete() { }
+                    @Override public void onError(Throwable error) { }
+                }));
+        JSONObject streamedTools = new JSONObject(streamed.getBody()).getJSONObject("deferred_tools");
+        assertThat(streamedTools.getString("profile")).isEqualTo("universal");
+        assertThat(streamedTools.getJSONObject("search").getString("result_key")).isEqualTo("tool_names");
     }
 
     @Test

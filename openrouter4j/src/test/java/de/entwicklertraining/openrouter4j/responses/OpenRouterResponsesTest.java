@@ -1,6 +1,8 @@
 package de.entwicklertraining.openrouter4j.responses;
 
 import de.entwicklertraining.openrouter4j.OpenRouterAccessPrograms;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsControl;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsSearchStrategy;
 import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import org.json.JSONArray;
@@ -37,6 +39,74 @@ class OpenRouterResponsesTest {
         assertThat(body.keySet()).containsExactlyInAnyOrder("model", "input");
         assertThat(body.getString("model")).isEqualTo("openai/gpt-4o");
         assertThat(body.getString("input")).isEqualTo("Tell me a joke");
+    }
+
+    @Test
+    void deferredToolsIsEmittedOnlyWhenSet() {
+        assertThat(new JSONObject(client().responses()
+                .model("openai/gpt-4o").input("x").build().getBody()).has("deferred_tools")).isFalse();
+        assertThat(client().responses().model("openai/gpt-4o").input("x").build().deferredTools()).isNull();
+
+        OpenRouterDeferredToolsControl control = OpenRouterDeferredToolsControl.builder()
+                .protocol("v1")
+                .profile("universal")
+                .validation("runtime")
+                .search(OpenRouterDeferredToolsSearchStrategy.custom("search_catalog", "tool_names"))
+                .interfaceMode("code_mode")
+                .build();
+        OpenRouterResponsesRequest request = client().responses()
+                .model("openai/gpt-4o").input("x").deferredTools(control).build();
+
+        JSONObject deferredTools = new JSONObject(request.getBody()).getJSONObject("deferred_tools");
+        assertThat(deferredTools.keySet()).containsExactlyInAnyOrder(
+                "protocol", "profile", "validation", "search", "interface");
+        assertThat(deferredTools.getString("interface")).isEqualTo("code_mode");
+        assertThat(deferredTools.getJSONObject("search").getString("tool_id")).isEqualTo("search_catalog");
+        assertThat(request.deferredTools()).isSameAs(control);
+
+        OpenRouterResponsesRequest unset = client().responses()
+                .model("openai/gpt-4o").input("x").deferredTools(control).deferredTools(null).build();
+        assertThat(new JSONObject(unset.getBody()).has("deferred_tools")).isFalse();
+        assertThat(unset.deferredTools()).isNull();
+    }
+
+    @Test
+    void deferredToolsDetailsAreReadFromTheUsage() {
+        OpenRouterResponsesResponse response = responseOf("""
+                {
+                  "id": "resp_01",
+                  "usage": {
+                    "input_tokens": 10,
+                    "output_tokens": 25,
+                    "deferred_tools_details": {
+                      "turns": 2,
+                      "prompt_tokens": 2400,
+                      "completion_tokens": 180,
+                      "total_tokens": 2580
+                    }
+                  }
+                }
+                """);
+
+        assertThat(response.deferredToolsDetails()).isNotNull();
+        assertThat(response.deferredToolsDetails().turns()).isEqualTo(2);
+        assertThat(response.deferredToolsDetails().promptTokens()).isEqualTo(2400);
+        assertThat(response.deferredToolsDetails().completionTokens()).isEqualTo(180);
+        assertThat(response.deferredToolsDetails().totalTokens()).isEqualTo(2580);
+
+        assertThat(responseOf("{\"usage\": {\"input_tokens\": 1}}").deferredToolsDetails()).isNull();
+        assertThat(responseOf("{}").deferredToolsDetails()).isNull();
+
+        OpenRouterResponsesResponse malformed = responseOf("""
+                {"usage": {"deferred_tools_details": {"turns": "two", "prompt_tokens": {}}}}
+                """);
+        assertThat(malformed.deferredToolsDetails()).isNotNull();
+        assertThat(malformed.deferredToolsDetails().turns()).isNull();
+        assertThat(malformed.deferredToolsDetails().promptTokens()).isNull();
+
+        assertThat(responseOf("""
+                {"usage": {"deferred_tools_details": 7}}
+                """).deferredToolsDetails()).isNull();
     }
 
     @Test

@@ -1,5 +1,6 @@
 package de.entwicklertraining.openrouter4j.responses;
 
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsDetails;
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -237,6 +238,20 @@ public final class OpenRouterResponsesResponse extends OpenRouterResponse<OpenRo
     /** @return the raw {@code usage} object, or {@code null} when absent */
     public JSONObject usage() {
         return json.optJSONObject("usage");
+    }
+
+    /**
+     * JSON path: {@code usage.deferred_tools_details} - the totals of a
+     * deferred-tools run summed over <b>every</b> upstream model call (the
+     * native usage fields report only the final call).
+     *
+     * @return the typed details view, or {@code null} when absent (no
+     *         deferred-tools run, or a malformed value)
+     * @see de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsDetails
+     */
+    public OpenRouterDeferredToolsDetails deferredToolsDetails() {
+        JSONObject details = usageDetails("deferred_tools_details");
+        return details != null ? new OpenRouterDeferredToolsDetails(details) : null;
     }
 
     private JSONObject usageDetails(String key) {

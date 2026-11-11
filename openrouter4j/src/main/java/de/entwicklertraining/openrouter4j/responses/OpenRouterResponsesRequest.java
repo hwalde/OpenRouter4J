@@ -7,6 +7,7 @@ import de.entwicklertraining.api.base.streaming.StreamingInfo;
 import de.entwicklertraining.api.base.streaming.StreamingResponseHandler;
 import de.entwicklertraining.openrouter4j.OpenRouterAccessPrograms;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
+import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsControl;
 import de.entwicklertraining.openrouter4j.OpenRouterImageConfig;
 import de.entwicklertraining.openrouter4j.OpenRouterPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterPercentileCutoffs;
@@ -126,6 +127,7 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
     private final String promptId;
     private final JSONObject promptVariables;
     private final OpenRouterImageConfig imageConfig;
+    private final OpenRouterDeferredToolsControl deferredTools;
     private final Boolean debugEchoUpstreamBody;
     private final JSONObject textFormat;
     private final String textVerbosity;
@@ -205,6 +207,7 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         this.promptId = builder.promptId;
         this.promptVariables = builder.promptVariables == null ? null : new JSONObject(builder.promptVariables.toString());
         this.imageConfig = builder.imageConfig;
+        this.deferredTools = builder.deferredTools;
         this.debugEchoUpstreamBody = builder.debugEchoUpstreamBody;
         this.textFormat = builder.textFormat == null ? null : new JSONObject(builder.textFormat.toString());
         this.textVerbosity = builder.textVerbosity;
@@ -265,6 +268,16 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
      */
     public OpenRouterImageConfig imageConfig() {
         return imageConfig;
+    }
+
+    /**
+     * The deferred-tool protocol control object ({@code deferred_tools}), or
+     * {@code null} when unset (the model sees the full tool list).
+     *
+     * @return the control object, or {@code null}
+     */
+    public OpenRouterDeferredToolsControl deferredTools() {
+        return deferredTools;
     }
 
     /**
@@ -572,6 +585,9 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         }
         if (imageConfig != null) {
             root.put("image_config", imageConfig.toJson());
+        }
+        if (deferredTools != null) {
+            root.put("deferred_tools", deferredTools.toJson());
         }
         if (debugEchoUpstreamBody != null) {
             root.put("debug", new JSONObject().put("echo_upstream_body", debugEchoUpstreamBody));
@@ -894,6 +910,7 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
         private String promptId;
         private JSONObject promptVariables;
         private OpenRouterImageConfig imageConfig;
+        private OpenRouterDeferredToolsControl deferredTools;
         private Boolean debugEchoUpstreamBody;
         private JSONObject textFormat;
         private String textVerbosity;
@@ -1090,6 +1107,30 @@ public final class OpenRouterResponsesRequest extends OpenRouterRequest<OpenRout
          */
         public Builder imageConfig(OpenRouterImageConfig config) {
             this.imageConfig = config;
+            return this;
+        }
+
+        /**
+         * Sets the JSON field {@code deferred_tools} - the control object that
+         * opts the conversation into OpenRouter's versioned router-level
+         * deferred-tool protocol (the router withholds the deferred tools from
+         * the model and serves their discovery with its own search and call
+         * wrappers on any model). Emitted only when set.
+         * <p>
+         * {@code null} unsets a previously set control object again. Build the
+         * value with {@link OpenRouterDeferredToolsControl#builder()}.
+         * <p>
+         * Traps: the Batch API rejects {@code deferred_tools}; a conversation
+         * cannot be enabled partway once earlier assistant messages carry tool
+         * calls; the portable profile needs the catalog byte-stable across
+         * turns. The full trap list lives on
+         * {@link OpenRouterDeferredToolsControl}.
+         *
+         * @param deferredTools the control object, or {@code null} to unset
+         * @return this builder
+         */
+        public Builder deferredTools(OpenRouterDeferredToolsControl deferredTools) {
+            this.deferredTools = deferredTools;
             return this;
         }
 
