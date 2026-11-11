@@ -3,6 +3,7 @@ package de.entwicklertraining.openrouter4j.guardrailpolicies;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,25 +81,25 @@ public final class OpenRouterGuardrailModelAvailabilityPolicyConfig {
 
         /** Sets {@code allowed_models}: the models requests may use. {@code null} unsets. */
         public Builder allowedModels(List<String> allowedModels) {
-            set("allowed_models", allowedModels);
+            set("allowed_models", allowedModels == null ? null : List.copyOf(allowedModels));
             return this;
         }
 
         /** Sets {@code ignored_models}: the models requests may not use. {@code null} unsets. */
         public Builder ignoredModels(List<String> ignoredModels) {
-            set("ignored_models", ignoredModels);
+            set("ignored_models", ignoredModels == null ? null : List.copyOf(ignoredModels));
             return this;
         }
 
         /** Sets {@code allowed_providers}: the providers requests may use. {@code null} unsets. */
         public Builder allowedProviders(List<String> allowedProviders) {
-            set("allowed_providers", allowedProviders);
+            set("allowed_providers", allowedProviders == null ? null : List.copyOf(allowedProviders));
             return this;
         }
 
         /** Sets {@code ignored_providers}: the providers requests may not use. {@code null} unsets. */
         public Builder ignoredProviders(List<String> ignoredProviders) {
-            set("ignored_providers", ignoredProviders);
+            set("ignored_providers", ignoredProviders == null ? null : List.copyOf(ignoredProviders));
             return this;
         }
 
@@ -107,7 +108,7 @@ public final class OpenRouterGuardrailModelAvailabilityPolicyConfig {
             if (allowedDataRegions != null && allowedDataRegions.isEmpty()) {
                 throw new IllegalArgumentException("allowed_data_regions needs at least one entry");
             }
-            set("allowed_data_regions", allowedDataRegions);
+            set("allowed_data_regions", allowedDataRegions == null ? null : List.copyOf(allowedDataRegions));
             return this;
         }
 
@@ -200,19 +201,19 @@ public final class OpenRouterGuardrailModelAvailabilityPolicyConfig {
 
         /** Sets {@code platform_banned_authors}. {@code null} unsets. */
         public Builder platformBannedAuthors(List<String> platformBannedAuthors) {
-            set("platform_banned_authors", platformBannedAuthors);
+            set("platform_banned_authors", platformBannedAuthors == null ? null : List.copyOf(platformBannedAuthors));
             return this;
         }
 
         /** Sets {@code platform_banned_models}. {@code null} unsets. */
         public Builder platformBannedModels(List<String> platformBannedModels) {
-            set("platform_banned_models", platformBannedModels);
+            set("platform_banned_models", platformBannedModels == null ? null : List.copyOf(platformBannedModels));
             return this;
         }
 
         /** Sets {@code platform_banned_providers}. {@code null} unsets. */
         public Builder platformBannedProviders(List<String> platformBannedProviders) {
-            set("platform_banned_providers", platformBannedProviders);
+            set("platform_banned_providers", platformBannedProviders == null ? null : List.copyOf(platformBannedProviders));
             return this;
         }
 
@@ -229,7 +230,12 @@ public final class OpenRouterGuardrailModelAvailabilityPolicyConfig {
          * valid and means "no restriction".
          */
         public OpenRouterGuardrailModelAvailabilityPolicyConfig build() {
-            return new OpenRouterGuardrailModelAvailabilityPolicyConfig(new LinkedHashMap<>(values));
+            Map<String, Object> copy = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> e : values.entrySet()) {
+                Object value = e.getValue();
+                copy.put(e.getKey(), value instanceof List<?> list ? new ArrayList<>(list) : value);
+            }
+            return new OpenRouterGuardrailModelAvailabilityPolicyConfig(copy);
         }
     }
 }

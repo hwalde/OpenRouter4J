@@ -309,7 +309,12 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
          * valid and means "no moderation".
          */
         public OpenRouterGuardrailModerationPolicyConfig build() {
-            return new OpenRouterGuardrailModerationPolicyConfig(new LinkedHashMap<>(values));
+            Map<String, Object> copy = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> e : values.entrySet()) {
+                Object value = e.getValue();
+                copy.put(e.getKey(), value instanceof List<?> list ? new ArrayList<>(list) : value);
+            }
+            return new OpenRouterGuardrailModerationPolicyConfig(copy);
         }
     }
 }

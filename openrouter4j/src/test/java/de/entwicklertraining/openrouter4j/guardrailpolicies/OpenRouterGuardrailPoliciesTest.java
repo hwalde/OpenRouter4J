@@ -150,6 +150,10 @@ class OpenRouterGuardrailPoliciesTest {
         assertThatThrownBy(() -> client().guardrailPolicies().deleteModerationPolicy("p1").build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("workspace_id");
+        // the empty-string half of the guard is enforced too
+        assertThatThrownBy(() -> client().guardrailPolicies().getBudgetPolicy("p1").workspaceId("").build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("workspace_id");
     }
 
     @Test
@@ -451,17 +455,46 @@ class OpenRouterGuardrailPoliciesTest {
     void moderationConfigValuesAreDetachedCopies() {
         JSONObject armor = new JSONObject().put("v", 1);
         java.util.List<String> providers = new java.util.ArrayList<>(List.of("provider-1"));
+        java.util.List<String> imageProviders = new java.util.ArrayList<>(List.of("image-1"));
+        java.util.List<String> patterns = new java.util.ArrayList<>(List.of("pattern-1"));
         var config = OpenRouterGuardrailModerationPolicyConfig.builder()
                 .armor(armor)
                 .platformModeratedProviders(providers)
+                .platformImageModeratedProviders(imageProviders)
+                .contentFilterPatterns(patterns)
                 .build();
 
         armor.put("v", 2);
         providers.add("provider-2");
+        imageProviders.add("image-2");
+        patterns.add("pattern-2");
 
         JSONObject json = config.toJson();
         assertThat(json.getJSONObject("armor").getInt("v")).isEqualTo(1);
         assertThat(json.getJSONArray("platform_moderated_providers").length()).isEqualTo(1);
+        assertThat(json.getJSONArray("platform_image_moderated_providers").length()).isEqualTo(1);
+        assertThat(json.getJSONArray("content_filter_patterns").length()).isEqualTo(1);
+    }
+
+    @Test
+    void modelAvailabilityConfigValuesAreDetachedCopies() {
+        java.util.List<String> models = new java.util.ArrayList<>(List.of("openai/gpt-4o"));
+        java.util.List<String> banned = new java.util.ArrayList<>(List.of("acme"));
+        java.util.List<String> regions = new java.util.ArrayList<>(List.of("europe"));
+        var config = OpenRouterGuardrailModelAvailabilityPolicyConfig.builder()
+                .allowedModels(models)
+                .platformBannedProviders(banned)
+                .allowedDataRegions(regions)
+                .build();
+
+        models.add("anthropic/claude");
+        banned.clear();
+        regions.clear();
+
+        JSONObject json = config.toJson();
+        assertThat(json.getJSONArray("allowed_models").length()).isEqualTo(1);
+        assertThat(json.getJSONArray("platform_banned_providers").length()).isEqualTo(1);
+        assertThat(json.getJSONArray("allowed_data_regions").length()).isEqualTo(1);
     }
 
     @Test
@@ -582,6 +615,19 @@ class OpenRouterGuardrailPoliciesTest {
                 .workspaceId("ws-1").build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("name");
+        assertThatThrownBy(() -> client().guardrailPolicies().createModelAvailabilityPolicy()
+                .name("N").workspaceId("ws-1").build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("config");
+        assertThatThrownBy(() -> client().guardrailPolicies().createModelAvailabilityPolicy()
+                .name("N").config(OpenRouterGuardrailModelAvailabilityPolicyConfig.builder().build()).build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("workspace_id");
+        assertThatThrownBy(() -> client().guardrailPolicies().createModerationPolicy()
+                .config(OpenRouterGuardrailModerationPolicyConfig.builder().build())
+                .workspaceId("ws-1").build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("name");
         assertThatThrownBy(() -> client().guardrailPolicies().createModerationPolicy()
                 .name("N").workspaceId("ws-1").build())
                 .isInstanceOf(IllegalStateException.class)
@@ -647,6 +693,15 @@ class OpenRouterGuardrailPoliciesTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("name");
         // the required trio is enforced on every update copy
+        assertThatThrownBy(() -> client().guardrailPolicies().updateBudgetPolicy("p1")
+                .config(budgetConfig()).workspaceId("ws-1").build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("name");
+        assertThatThrownBy(() -> client().guardrailPolicies().updateModerationPolicy("p1")
+                .config(OpenRouterGuardrailModerationPolicyConfig.builder().build())
+                .workspaceId("ws-1").build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("name");
         assertThatThrownBy(() -> client().guardrailPolicies().updateModelAvailabilityPolicy("p1")
                 .name("N").workspaceId("ws-1").build())
                 .isInstanceOf(IllegalStateException.class)
