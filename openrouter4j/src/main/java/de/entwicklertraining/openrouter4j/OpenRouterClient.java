@@ -43,6 +43,7 @@ import de.entwicklertraining.openrouter4j.extractions.OpenRouterExtractionsReque
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationContentRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationFeedbackRequest;
 import de.entwicklertraining.openrouter4j.generation.OpenRouterGenerationRequest;
+import de.entwicklertraining.openrouter4j.guardrailpolicies.*;
 import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailAllKeyAssignmentsListRequest;
 import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailAllMemberAssignmentsListRequest;
 import de.entwicklertraining.openrouter4j.guardrails.OpenRouterGuardrailCreateRequest;
@@ -533,6 +534,19 @@ public final class OpenRouterClient extends ApiClient {
      */
     public OpenRouterGuardrails guardrails() {
         return new OpenRouterGuardrails(this);
+    }
+
+    /**
+     * Manages the guardrail policies of the account (the typed successors of
+     * the monolithic guardrail CRUD): the workspace-wide (account-level)
+     * policies, the budget / model-availability / moderation policy CRUD per
+     * workspace and the policy assignment endpoints (management key
+     * required).
+     *
+     * @return the starting point for the guardrail policy requests
+     */
+    public OpenRouterGuardrailPolicies guardrailPolicies() {
+        return new OpenRouterGuardrailPolicies(this);
     }
 
     /**
@@ -1648,6 +1662,288 @@ public final class OpenRouterClient extends ApiClient {
          */
         public OpenRouterGuardrailMembersUnassignRequest.Builder unassignMembers(String id) {
             return new OpenRouterGuardrailMembersUnassignRequest.Builder(client, id);
+        }
+    }
+
+    /**
+     * Facade for the guardrail policy endpoints (management key required):
+     * the workspace-wide (account-level) policy CRUD, the typed budget /
+     * model-availability / moderation policy CRUD and the policy assignment
+     * reads and changes.
+     *
+     * <p><b>Two levels.</b> A workspace-wide policy (the {@code account}
+     * routes) applies to every member and API key of an assigned workspace
+     * and cannot be loosened by a member/key policy; a member or API key
+     * holds at most one policy of each type per workspace. When levels
+     * combine, the stricter rule wins: filters union, {@code block} beats
+     * {@code redact}, and every budget is checked separately - budgets are
+     * per-subject, never a shared pool. Defaults exist at both levels and can
+     * be replaced or removed.
+     *
+     * <p><b>Assignments.</b> The assignment change PUT carries an
+     * {@code expected_assignment} optimistic-concurrency guard and fails with
+     * HTTP 409 when the stored state changed since it was read. The
+     * {@code policy_type} of the assignment endpoints additionally accepts
+     * {@code "rate_limit"}, which has no policy CRUD routes of its own in the
+     * current spec - the enum value is accepted verbatim and documented.
+     */
+    public static class OpenRouterGuardrailPolicies {
+        private final OpenRouterClient client;
+
+        /**
+         * @param client the client used to send the requests
+         */
+        public OpenRouterGuardrailPolicies(OpenRouterClient client) {
+            this.client = client;
+        }
+
+        /**
+         * Lists the workspace-wide (account-level) policies:
+         * GET /guardrails/policies/account (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailAccountPoliciesListRequest.Builder listAccountPolicies() {
+            return new OpenRouterGuardrailAccountPoliciesListRequest.Builder(client);
+        }
+
+        /**
+         * Creates one workspace-wide (account-level) policy:
+         * POST /guardrails/policies/account (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailAccountPolicyCreateRequest.Builder createAccountPolicy() {
+            return new OpenRouterGuardrailAccountPolicyCreateRequest.Builder(client, null);
+        }
+
+        /**
+         * Updates one workspace-wide (account-level) policy:
+         * PUT /guardrails/policies/account/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailAccountPolicyUpdateRequest.Builder updateAccountPolicy(String id) {
+            return new OpenRouterGuardrailAccountPolicyUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes one workspace-wide (account-level) policy:
+         * DELETE /guardrails/policies/account/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailAccountPolicyDeleteRequest.Builder deleteAccountPolicy(String id) {
+            return new OpenRouterGuardrailAccountPolicyDeleteRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the budget policies of a workspace:
+         * GET /guardrails/policies/budget (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailBudgetPoliciesListRequest.Builder listBudgetPolicies() {
+            return new OpenRouterGuardrailBudgetPoliciesListRequest.Builder(client);
+        }
+
+        /**
+         * Creates one budget policy:
+         * POST /guardrails/policies/budget (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailBudgetPolicyCreateRequest.Builder createBudgetPolicy() {
+            return new OpenRouterGuardrailBudgetPolicyCreateRequest.Builder(client);
+        }
+
+        /**
+         * Reads one budget policy:
+         * GET /guardrails/policies/budget/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailBudgetPolicyGetRequest.Builder getBudgetPolicy(String id) {
+            return new OpenRouterGuardrailBudgetPolicyGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Updates one budget policy:
+         * PUT /guardrails/policies/budget/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailBudgetPolicyUpdateRequest.Builder updateBudgetPolicy(String id) {
+            return new OpenRouterGuardrailBudgetPolicyUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes one budget policy:
+         * DELETE /guardrails/policies/budget/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailBudgetPolicyDeleteRequest.Builder deleteBudgetPolicy(String id) {
+            return new OpenRouterGuardrailBudgetPolicyDeleteRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the model-availability policies of a workspace:
+         * GET /guardrails/policies/model-availability (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModelAvailabilityPoliciesListRequest.Builder listModelAvailabilityPolicies() {
+            return new OpenRouterGuardrailModelAvailabilityPoliciesListRequest.Builder(client);
+        }
+
+        /**
+         * Creates one model-availability policy:
+         * POST /guardrails/policies/model-availability (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModelAvailabilityPolicyCreateRequest.Builder createModelAvailabilityPolicy() {
+            return new OpenRouterGuardrailModelAvailabilityPolicyCreateRequest.Builder(client);
+        }
+
+        /**
+         * Reads one model-availability policy:
+         * GET /guardrails/policies/model-availability/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModelAvailabilityPolicyGetRequest.Builder getModelAvailabilityPolicy(String id) {
+            return new OpenRouterGuardrailModelAvailabilityPolicyGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Updates one model-availability policy:
+         * PUT /guardrails/policies/model-availability/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModelAvailabilityPolicyUpdateRequest.Builder updateModelAvailabilityPolicy(String id) {
+            return new OpenRouterGuardrailModelAvailabilityPolicyUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes one model-availability policy:
+         * DELETE /guardrails/policies/model-availability/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModelAvailabilityPolicyDeleteRequest.Builder deleteModelAvailabilityPolicy(String id) {
+            return new OpenRouterGuardrailModelAvailabilityPolicyDeleteRequest.Builder(client, id);
+        }
+
+        /**
+         * Lists the moderation policies of a workspace:
+         * GET /guardrails/policies/moderation (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModerationPoliciesListRequest.Builder listModerationPolicies() {
+            return new OpenRouterGuardrailModerationPoliciesListRequest.Builder(client);
+        }
+
+        /**
+         * Creates one moderation policy:
+         * POST /guardrails/policies/moderation (management key required).
+         *
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModerationPolicyCreateRequest.Builder createModerationPolicy() {
+            return new OpenRouterGuardrailModerationPolicyCreateRequest.Builder(client);
+        }
+
+        /**
+         * Reads one moderation policy:
+         * GET /guardrails/policies/moderation/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModerationPolicyGetRequest.Builder getModerationPolicy(String id) {
+            return new OpenRouterGuardrailModerationPolicyGetRequest.Builder(client, id);
+        }
+
+        /**
+         * Updates one moderation policy:
+         * PUT /guardrails/policies/moderation/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModerationPolicyUpdateRequest.Builder updateModerationPolicy(String id) {
+            return new OpenRouterGuardrailModerationPolicyUpdateRequest.Builder(client, id);
+        }
+
+        /**
+         * Deletes one moderation policy:
+         * DELETE /guardrails/policies/moderation/{id} (management key required).
+         *
+         * @param id the id (UUID) of the policy
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailModerationPolicyDeleteRequest.Builder deleteModerationPolicy(String id) {
+            return new OpenRouterGuardrailModerationPolicyDeleteRequest.Builder(client, id);
+        }
+
+        /**
+         * Reads the policy assignment of one API key:
+         * GET /guardrails/policies/assignments/api-keys/{hash}
+         * (management key required).
+         *
+         * @param hash the API key hash
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailApiKeyPolicyAssignmentGetRequest.Builder apiKeyPolicyAssignment(String hash) {
+            return new OpenRouterGuardrailApiKeyPolicyAssignmentGetRequest.Builder(client, hash);
+        }
+
+        /**
+         * Changes the policy assignment of one API key:
+         * PUT /guardrails/policies/assignments/api-keys/{hash}
+         * (management key required).
+         *
+         * @param hash the API key hash
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailApiKeyPolicyAssignmentChangeRequest.Builder changeApiKeyPolicyAssignment(String hash) {
+            return new OpenRouterGuardrailApiKeyPolicyAssignmentChangeRequest.Builder(client, hash);
+        }
+
+        /**
+         * Reads the policy assignment of one organization member:
+         * GET /guardrails/policies/assignments/members/{member_id}
+         * (management key required).
+         *
+         * @param memberId the organization member user id
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailMemberPolicyAssignmentGetRequest.Builder memberPolicyAssignment(String memberId) {
+            return new OpenRouterGuardrailMemberPolicyAssignmentGetRequest.Builder(client, memberId);
+        }
+
+        /**
+         * Changes the policy assignment of one organization member:
+         * PUT /guardrails/policies/assignments/members/{member_id}
+         * (management key required).
+         *
+         * @param memberId the organization member user id
+         * @return the starting point for the request
+         */
+        public OpenRouterGuardrailMemberPolicyAssignmentChangeRequest.Builder changeMemberPolicyAssignment(String memberId) {
+            return new OpenRouterGuardrailMemberPolicyAssignmentChangeRequest.Builder(client, memberId);
         }
     }
 

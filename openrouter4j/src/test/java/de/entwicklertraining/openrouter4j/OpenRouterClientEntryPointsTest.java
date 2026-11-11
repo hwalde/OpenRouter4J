@@ -226,6 +226,77 @@ class OpenRouterClientEntryPointsTest {
     }
 
     @Test
+    void guardrailPoliciesEntryPointsProduceTheManagementRequests() {
+        var budgetConfig = de.entwicklertraining.openrouter4j.guardrailpolicies.OpenRouterGuardrailBudgetPolicyConfig
+                .builder().limitUsd(1.0).resetInterval("daily").includeByokInBudgets(false).build();
+        var policy = de.entwicklertraining.openrouter4j.guardrailpolicies.OpenRouterGuardrailPolicyRequest
+                .budget("N", budgetConfig).build();
+
+        assertThat(client().guardrailPolicies().listAccountPolicies().build().getRelativeUrl())
+                .isEqualTo("/guardrails/policies/account");
+        assertThat(client().guardrailPolicies().createAccountPolicy().policy(policy).build().getHttpMethod())
+                .isEqualTo("POST");
+        assertThat(client().guardrailPolicies().updateAccountPolicy("p1").policy(policy).build().getRelativeUrl())
+                .isEqualTo("/guardrails/policies/account/p1");
+        assertThat(client().guardrailPolicies().deleteAccountPolicy("p1").build().getHttpMethod())
+                .isEqualTo("DELETE");
+
+        assertThat(client().guardrailPolicies().listBudgetPolicies().workspaceId("ws-1").build().getRelativeUrl())
+                .isEqualTo("/guardrails/policies/budget?workspace_id=ws-1");
+        assertThat(client().guardrailPolicies().createBudgetPolicy().name("N").config(budgetConfig)
+                .workspaceId("ws-1").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().guardrailPolicies().getBudgetPolicy("p1").workspaceId("ws-1").build().getRelativeUrl())
+                .startsWith("/guardrails/policies/budget/p1");
+        assertThat(client().guardrailPolicies().updateBudgetPolicy("p1").name("N").build().getHttpMethod())
+                .isEqualTo("PUT");
+        assertThat(client().guardrailPolicies().deleteBudgetPolicy("p1").workspaceId("ws-1").build().getRelativeUrl())
+                .startsWith("/guardrails/policies/budget/p1");
+
+        assertThat(client().guardrailPolicies().listModelAvailabilityPolicies().workspaceId("ws-1").build()
+                .getRelativeUrl()).startsWith("/guardrails/policies/model-availability");
+        assertThat(client().guardrailPolicies().createModelAvailabilityPolicy().name("N")
+                .config(de.entwicklertraining.openrouter4j.guardrailpolicies.OpenRouterGuardrailModelAvailabilityPolicyConfig
+                        .builder().build())
+                .workspaceId("ws-1").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().guardrailPolicies().getModelAvailabilityPolicy("p1").workspaceId("ws-1").build()
+                .getRelativeUrl()).startsWith("/guardrails/policies/model-availability/p1");
+        assertThat(client().guardrailPolicies().updateModelAvailabilityPolicy("p1").name("N").build()
+                .getHttpMethod()).isEqualTo("PUT");
+        assertThat(client().guardrailPolicies().deleteModelAvailabilityPolicy("p1").workspaceId("ws-1").build()
+                .getRelativeUrl()).startsWith("/guardrails/policies/model-availability/p1");
+
+        assertThat(client().guardrailPolicies().listModerationPolicies().workspaceId("ws-1").build()
+                .getRelativeUrl()).startsWith("/guardrails/policies/moderation");
+        assertThat(client().guardrailPolicies().createModerationPolicy().name("N")
+                .config(de.entwicklertraining.openrouter4j.guardrailpolicies.OpenRouterGuardrailModerationPolicyConfig
+                        .builder().build())
+                .workspaceId("ws-1").build().getHttpMethod()).isEqualTo("POST");
+        assertThat(client().guardrailPolicies().getModerationPolicy("p1").workspaceId("ws-1").build()
+                .getRelativeUrl()).startsWith("/guardrails/policies/moderation/p1");
+        assertThat(client().guardrailPolicies().updateModerationPolicy("p1").name("N").build()
+                .getHttpMethod()).isEqualTo("PUT");
+        assertThat(client().guardrailPolicies().deleteModerationPolicy("p1").workspaceId("ws-1").build()
+                .getRelativeUrl()).startsWith("/guardrails/policies/moderation/p1");
+
+        assertThat(client().guardrailPolicies().apiKeyPolicyAssignment("h").workspaceId("ws-1")
+                .policyType("budget").build().getRelativeUrl())
+                .startsWith("/guardrails/policies/assignments/api-keys/h");
+        var expectedAssignment = de.entwicklertraining.openrouter4j.guardrailpolicies.OpenRouterGuardrailPolicyAssignmentState
+                .of(java.util.List.of(), java.util.List.of(), false);
+        assertThat(client().guardrailPolicies().changeApiKeyPolicyAssignment("h").workspaceId("ws-1")
+                .policyType("budget").policyId("p1").assigned(true)
+                .expectedAssignment(expectedAssignment).build().getHttpMethod())
+                .isEqualTo("PUT");
+        assertThat(client().guardrailPolicies().memberPolicyAssignment("u1").workspaceId("ws-1")
+                .policyType("budget").build().getRelativeUrl())
+                .startsWith("/guardrails/policies/assignments/members/u1");
+        assertThat(client().guardrailPolicies().changeMemberPolicyAssignment("u1").workspaceId("ws-1")
+                .policyType("budget").policyId("p1").assigned(false)
+                .expectedAssignment(expectedAssignment).build().getHttpMethod())
+                .isEqualTo("PUT");
+    }
+
+    @Test
     void byokEntryPointsProduceTheManagementRequests() {
         assertThat(client().byok().list().build().getRelativeUrl()).isEqualTo("/byok");
         assertThat(client().byok().create().provider("openai").key("sk-secret").build().getHttpMethod()).isEqualTo("POST");
