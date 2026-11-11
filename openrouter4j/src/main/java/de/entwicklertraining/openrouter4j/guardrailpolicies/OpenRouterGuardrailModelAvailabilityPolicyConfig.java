@@ -102,8 +102,11 @@ public final class OpenRouterGuardrailModelAvailabilityPolicyConfig {
             return this;
         }
 
-        /** Sets {@code allowed_data_regions}: the data regions requests may use (min 1 entry). {@code null} unsets. */
+        /** Sets {@code allowed_data_regions}: the data regions requests may use (the API requires at least one entry - validated loudly; empty is rejected). {@code null} unsets. */
         public Builder allowedDataRegions(List<String> allowedDataRegions) {
+            if (allowedDataRegions != null && allowedDataRegions.isEmpty()) {
+                throw new IllegalArgumentException("allowed_data_regions needs at least one entry");
+            }
             set("allowed_data_regions", allowedDataRegions);
             return this;
         }

@@ -247,8 +247,8 @@ class OpenRouterClientEntryPointsTest {
                 .workspaceId("ws-1").build().getHttpMethod()).isEqualTo("POST");
         assertThat(client().guardrailPolicies().getBudgetPolicy("p1").workspaceId("ws-1").build().getRelativeUrl())
                 .startsWith("/guardrails/policies/budget/p1");
-        assertThat(client().guardrailPolicies().updateBudgetPolicy("p1").name("N").build().getHttpMethod())
-                .isEqualTo("PUT");
+        assertThat(client().guardrailPolicies().updateBudgetPolicy("p1").name("N").config(budgetConfig)
+                .workspaceId("ws-1").build().getHttpMethod()).isEqualTo("PUT");
         assertThat(client().guardrailPolicies().deleteBudgetPolicy("p1").workspaceId("ws-1").build().getRelativeUrl())
                 .startsWith("/guardrails/policies/budget/p1");
 
@@ -260,7 +260,10 @@ class OpenRouterClientEntryPointsTest {
                 .workspaceId("ws-1").build().getHttpMethod()).isEqualTo("POST");
         assertThat(client().guardrailPolicies().getModelAvailabilityPolicy("p1").workspaceId("ws-1").build()
                 .getRelativeUrl()).startsWith("/guardrails/policies/model-availability/p1");
-        assertThat(client().guardrailPolicies().updateModelAvailabilityPolicy("p1").name("N").build()
+        assertThat(client().guardrailPolicies().updateModelAvailabilityPolicy("p1").name("N")
+                .config(de.entwicklertraining.openrouter4j.guardrailpolicies.OpenRouterGuardrailModelAvailabilityPolicyConfig
+                        .builder().build())
+                .workspaceId("ws-1").build()
                 .getHttpMethod()).isEqualTo("PUT");
         assertThat(client().guardrailPolicies().deleteModelAvailabilityPolicy("p1").workspaceId("ws-1").build()
                 .getRelativeUrl()).startsWith("/guardrails/policies/model-availability/p1");
@@ -273,7 +276,10 @@ class OpenRouterClientEntryPointsTest {
                 .workspaceId("ws-1").build().getHttpMethod()).isEqualTo("POST");
         assertThat(client().guardrailPolicies().getModerationPolicy("p1").workspaceId("ws-1").build()
                 .getRelativeUrl()).startsWith("/guardrails/policies/moderation/p1");
-        assertThat(client().guardrailPolicies().updateModerationPolicy("p1").name("N").build()
+        assertThat(client().guardrailPolicies().updateModerationPolicy("p1").name("N")
+                .config(de.entwicklertraining.openrouter4j.guardrailpolicies.OpenRouterGuardrailModerationPolicyConfig
+                        .builder().build())
+                .workspaceId("ws-1").build()
                 .getHttpMethod()).isEqualTo("PUT");
         assertThat(client().guardrailPolicies().deleteModerationPolicy("p1").workspaceId("ws-1").build()
                 .getRelativeUrl()).startsWith("/guardrails/policies/moderation/p1");

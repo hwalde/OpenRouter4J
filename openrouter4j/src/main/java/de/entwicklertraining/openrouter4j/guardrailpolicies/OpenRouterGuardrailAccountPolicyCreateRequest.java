@@ -3,8 +3,6 @@ package de.entwicklertraining.openrouter4j.guardrailpolicies;
 import de.entwicklertraining.api.base.ApiRequestBuilderBase;
 import de.entwicklertraining.openrouter4j.OpenRouterClient;
 import de.entwicklertraining.openrouter4j.OpenRouterRequest;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.json.JSONArray;
@@ -25,21 +23,12 @@ import org.json.JSONObject;
 public final class OpenRouterGuardrailAccountPolicyCreateRequest extends OpenRouterRequest<OpenRouterGuardrailAccountPolicyResponse<OpenRouterGuardrailAccountPolicyCreateRequest>> {
 
     private final OpenRouterClient client;
-    private final String id;
     private final OpenRouterGuardrailPolicyRequest policy;
 
     private OpenRouterGuardrailAccountPolicyCreateRequest(Builder builder) {
         super(builder);
         this.client = builder.client;
-        this.id = builder.id;
         this.policy = builder.policy;
-    }
-
-    /**
-     * @return the URL-encoded path segment (empty on the create route)
-     */
-    public String id() {
-        return id == null ? null : URLEncoder.encode(id, StandardCharsets.UTF_8);
     }
 
     /** @return the policy request value as sent */
@@ -73,19 +62,16 @@ public final class OpenRouterGuardrailAccountPolicyCreateRequest extends OpenRou
     public static final class Builder extends ApiRequestBuilderBase<Builder, OpenRouterGuardrailAccountPolicyCreateRequest> {
 
         private final OpenRouterClient client;
-        private final String id;
         private OpenRouterGuardrailPolicyRequest policy;
 
         /**
          * Creates a builder bound to the given client.
          *
          * @param client the client used to send the request
-         * @param id the id (UUID) of the policy ({@code null} on the create route)
          */
-        public Builder(OpenRouterClient client, String id) {
+        public Builder(OpenRouterClient client) {
             super(client);
             this.client = client;
-            this.id = id;
         }
 
         /**

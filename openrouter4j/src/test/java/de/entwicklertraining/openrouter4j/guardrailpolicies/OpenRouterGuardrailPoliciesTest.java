@@ -75,6 +75,23 @@ class OpenRouterGuardrailPoliciesTest {
                 .workspaceId("ws-1").offset(-1).build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("offset");
+        // the same validation in the model-availability and moderation copies
+        assertThatThrownBy(() -> client().guardrailPolicies().listModelAvailabilityPolicies()
+                .workspaceId("ws-1").limit(101).build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("limit");
+        assertThatThrownBy(() -> client().guardrailPolicies().listModerationPolicies()
+                .workspaceId("ws-1").offset(-1).build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("offset");
+
+        // the documented boundary values are accepted
+        assertThat(client().guardrailPolicies().listBudgetPolicies()
+                .workspaceId("ws-1").offset(0).limit(1).build().getRelativeUrl())
+                .isEqualTo("/guardrails/policies/budget?offset=0&limit=1&workspace_id=ws-1");
+        assertThat(client().guardrailPolicies().listBudgetPolicies()
+                .workspaceId("ws-1").limit(100).build().getRelativeUrl())
+                .contains("limit=100");
     }
 
     @Test
@@ -83,10 +100,16 @@ class OpenRouterGuardrailPoliciesTest {
                 .getRelativeUrl()).isEqualTo("/guardrails/policies/budget/p1?workspace_id=ws-1");
         assertThat(client().guardrailPolicies().deleteBudgetPolicy("p1").workspaceId("ws-1").build()
                 .getHttpMethod()).isEqualTo("DELETE");
+        assertThat(client().guardrailPolicies().deleteAccountPolicy("p1").build().getRelativeUrl())
+                .isEqualTo("/guardrails/policies/account/p1");
         assertThat(client().guardrailPolicies().getModelAvailabilityPolicy("p1").workspaceId("ws-1").build()
-                .getRelativeUrl()).startsWith("/guardrails/policies/model-availability/p1");
+                .getRelativeUrl()).isEqualTo("/guardrails/policies/model-availability/p1?workspace_id=ws-1");
+        assertThat(client().guardrailPolicies().deleteModelAvailabilityPolicy("p1").workspaceId("ws-1").build()
+                .getRelativeUrl()).isEqualTo("/guardrails/policies/model-availability/p1?workspace_id=ws-1");
         assertThat(client().guardrailPolicies().getModerationPolicy("p1").workspaceId("ws-1").build()
-                .getRelativeUrl()).startsWith("/guardrails/policies/moderation/p1");
+                .getRelativeUrl()).isEqualTo("/guardrails/policies/moderation/p1?workspace_id=ws-1");
+        assertThat(client().guardrailPolicies().deleteModerationPolicy("p1").workspaceId("ws-1").build()
+                .getRelativeUrl()).isEqualTo("/guardrails/policies/moderation/p1?workspace_id=ws-1");
         assertThat(client().guardrailPolicies().updateAccountPolicy("p1")
                 .policy(OpenRouterGuardrailPolicyRequest.budget("N", budgetConfig()).build()).build()
                 .getRelativeUrl())
@@ -280,6 +303,75 @@ class OpenRouterGuardrailPoliciesTest {
     }
 
     @Test
+    void modelAvailabilityConfigAllTypedSettersLandOnTheirWireKeys() {
+        JSONObject json = OpenRouterGuardrailModelAvailabilityPolicyConfig.builder()
+                .allowedModels(List.of("m1"))
+                .ignoredModels(List.of("m2"))
+                .allowedProviders(List.of("p1"))
+                .ignoredProviders(List.of("p2"))
+                .allowedDataRegions(List.of("europe"))
+                .requireEuDataRegion(true)
+                .enforceZdr(true)
+                .enforceZdrAnthropic(true)
+                .enforceZdrGoogle(true)
+                .enforceZdrOpenai(true)
+                .enforceZdrXai(true)
+                .enforceZdrOther(true)
+                .allowSafetyRetentionGoogle(true)
+                .allowSafetyRetentionOther(true)
+                .enforceFirstPartyHarnessModels(true)
+                .enableFreeModelTraining(true)
+                .enableFreeModelPublication(true)
+                .enablePaidModelTraining(true)
+                .platformBannedAuthors(List.of("a1"))
+                .platformBannedModels(List.of("mm1"))
+                .platformBannedProviders(List.of("pp1"))
+                .build().toJson();
+
+        assertThat(json.keySet()).containsExactlyInAnyOrder(
+                "allowed_models", "ignored_models", "allowed_providers", "ignored_providers",
+                "allowed_data_regions", "require_eu_data_region",
+                "enforce_zdr", "enforce_zdr_anthropic", "enforce_zdr_google", "enforce_zdr_openai",
+                "enforce_zdr_xai", "enforce_zdr_other",
+                "allow_safety_retention_google", "allow_safety_retention_other",
+                "enforce_first_party_harness_models",
+                "enable_free_model_training", "enable_free_model_publication", "enable_paid_model_training",
+                "platform_banned_authors", "platform_banned_models", "platform_banned_providers");
+        assertThat(json.getJSONArray("allowed_models").getString(0)).isEqualTo("m1");
+        assertThat(json.getJSONArray("ignored_models").getString(0)).isEqualTo("m2");
+        assertThat(json.getJSONArray("allowed_providers").getString(0)).isEqualTo("p1");
+        assertThat(json.getJSONArray("allowed_data_regions").getString(0)).isEqualTo("europe");
+        assertThat(json.getBoolean("require_eu_data_region")).isTrue();
+        assertThat(json.getBoolean("enforce_zdr_anthropic")).isTrue();
+        assertThat(json.getBoolean("enforce_zdr_google")).isTrue();
+        assertThat(json.getBoolean("enforce_zdr_openai")).isTrue();
+        assertThat(json.getBoolean("enforce_zdr_xai")).isTrue();
+        assertThat(json.getBoolean("enforce_zdr_other")).isTrue();
+        assertThat(json.getBoolean("allow_safety_retention_other")).isTrue();
+        assertThat(json.getBoolean("enforce_first_party_harness_models")).isTrue();
+        assertThat(json.getBoolean("enable_free_model_training")).isTrue();
+        assertThat(json.getBoolean("enable_free_model_publication")).isTrue();
+        assertThat(json.getBoolean("enable_paid_model_training")).isTrue();
+        assertThat(json.getJSONArray("platform_banned_authors").getString(0)).isEqualTo("a1");
+        assertThat(json.getJSONArray("platform_banned_models").getString(0)).isEqualTo("mm1");
+        assertThat(json.getJSONArray("platform_banned_providers").getString(0)).isEqualTo("pp1");
+
+        // a second set-then-null leg beyond allowed_models
+        JSONObject unset = OpenRouterGuardrailModelAvailabilityPolicyConfig.builder()
+                .enforceZdr(true)
+                .enforceZdr(null)
+                .allowedDataRegions(List.of("europe"))
+                .allowedDataRegions(null)
+                .build().toJson();
+        assertThat(unset.keySet()).isEmpty();
+
+        assertThatThrownBy(() -> OpenRouterGuardrailModelAvailabilityPolicyConfig.builder()
+                .allowedDataRegions(List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least one");
+    }
+
+    @Test
     void modelAvailabilityConfigEmitsOnlySetFields() {
         JSONObject empty = OpenRouterGuardrailModelAvailabilityPolicyConfig.builder().build().toJson();
         assertThat(empty.keySet()).isEmpty();
@@ -341,13 +433,50 @@ class OpenRouterGuardrailPoliciesTest {
         JSONObject json = OpenRouterGuardrailModerationPolicyConfig.builder()
                 .addContentFilterBuiltinRaw(new JSONObject().put("slug", "future-slug").put("action", "flag")
                         .put("unknown_entry_key", 1))
+                .addContentFilterRaw(new JSONObject().put("pattern", "raw-pattern").put("action", "block")
+                        .put("label", "raw"))
+                .addContentFilter("simple-pattern", "flag")
                 .addPiiFilterRaw(new JSONObject().put("entity_type", "custom").put("action", "block"))
+                .enableModelArmorInjectionProtection(true)
+                .modelArmorInjectionConfidenceLevel("high")
+                .lakeraInjectionProtectionMode("flag")
+                .broadcastModelArmorFlaggedRequests(true)
+                .platformImageModeratedProviders(List.of("provider-1"))
                 .build().toJson();
 
         assertThat(json.getJSONArray("content_filter_builtins").getJSONObject(0).getInt("unknown_entry_key"))
                 .isEqualTo(1);
+        assertThat(json.getJSONArray("content_filters").getJSONObject(0).getString("pattern"))
+                .isEqualTo("raw-pattern");
+        assertThat(json.getJSONArray("content_filters").getJSONObject(0).getString("label"))
+                .isEqualTo("raw");
+        assertThat(json.getJSONArray("content_filters").getJSONObject(1).getString("pattern"))
+                .isEqualTo("simple-pattern");
+        assertThat(json.getJSONArray("content_filters").getJSONObject(1).has("label")).isFalse();
         assertThat(json.getJSONArray("pii_filters").getJSONObject(0).getString("entity_type"))
                 .isEqualTo("custom");
+        assertThat(json.getBoolean("enable_model_armor_injection_protection")).isTrue();
+        assertThat(json.getString("model_armor_injection_confidence_level")).isEqualTo("high");
+        assertThat(json.getString("lakera_injection_protection_mode")).isEqualTo("flag");
+        assertThat(json.getBoolean("broadcast_model_armor_flagged_requests")).isTrue();
+        assertThat(json.getJSONArray("platform_image_moderated_providers").getString(0))
+                .isEqualTo("provider-1");
+
+        assertThatThrownBy(() -> OpenRouterGuardrailModerationPolicyConfig.builder()
+                .addContentFilter("", "block"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pattern");
+        assertThatThrownBy(() -> OpenRouterGuardrailModerationPolicyConfig.builder()
+                .addContentFilterBuiltin("secrets", "block", "x".repeat(101), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("label");
+        assertThatThrownBy(() -> OpenRouterGuardrailModerationPolicyConfig.builder()
+                .addPiiFilter("email_address", "redact", 1.5))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("scoreThreshold");
+        assertThatThrownBy(() -> OpenRouterGuardrailModerationPolicyConfig.builder()
+                .addContentFilterRaw(null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ------------------------------------------------------------------
@@ -411,13 +540,15 @@ class OpenRouterGuardrailPoliciesTest {
     }
 
     @Test
-    void typedUpdateEmitsOnlyPresentFieldsAndEnforcesTheAssignmentPair() {
+    void typedUpdateIsAFullReplaceAndEnforcesTheAssignmentPair() {
         OpenRouterGuardrailBudgetPolicyUpdateRequest minimal = client().guardrailPolicies()
                 .updateBudgetPolicy("p1")
                 .name("Budget A renamed")
+                .config(budgetConfig())
+                .workspaceId("ws-1")
                 .build();
         JSONObject body = new JSONObject(minimal.getBody());
-        assertThat(body.keySet()).containsExactly("name");
+        assertThat(body.keySet()).containsExactlyInAnyOrder("name", "config", "workspace_id");
 
         JSONObject full = new JSONObject(client().guardrailPolicies()
                 .updateBudgetPolicy("p1")
@@ -435,12 +566,28 @@ class OpenRouterGuardrailPoliciesTest {
                 "opted_out_api_key_hashes", "opted_out_member_ids");
         assertThat(full.getBoolean("is_workspace_default")).isFalse();
 
+        // the PUT is a full replace: name, config and workspace_id are all required
+        assertThatThrownBy(() -> client().guardrailPolicies().updateBudgetPolicy("p1").name("N").build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("config");
         assertThatThrownBy(() -> client().guardrailPolicies().updateBudgetPolicy("p1")
-                .name("N").apiKeyHashes(List.of("h1")).build())
+                .name("N").config(budgetConfig()).build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("workspace_id");
+
+        assertThatThrownBy(() -> client().guardrailPolicies().updateBudgetPolicy("p1")
+                .name("N").config(budgetConfig()).workspaceId("ws-1")
+                .apiKeyHashes(List.of("h1")).build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("sent together");
-        assertThatThrownBy(() -> client().guardrailPolicies().updateBudgetPolicy("p1")
-                .name("N").memberIds(List.of("u1")).build())
+        assertThatThrownBy(() -> client().guardrailPolicies().updateModelAvailabilityPolicy("p1")
+                .name("N").config(OpenRouterGuardrailModelAvailabilityPolicyConfig.builder().build())
+                .workspaceId("ws-1").memberIds(List.of("u1")).build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("sent together");
+        assertThatThrownBy(() -> client().guardrailPolicies().updateModerationPolicy("p1")
+                .name("N").config(OpenRouterGuardrailModerationPolicyConfig.builder().build())
+                .workspaceId("ws-1").apiKeyHashes(List.of("h1")).build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("sent together");
         assertThatThrownBy(() -> client().guardrailPolicies().updateModelAvailabilityPolicy("p1").build())
@@ -449,6 +596,66 @@ class OpenRouterGuardrailPoliciesTest {
         assertThatThrownBy(() -> client().guardrailPolicies().updateModerationPolicy("..").name("N").build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot be addressed by path");
+    }
+
+    @Test
+    void modelAvailabilityAndModerationUpdateBodiesCarryEveryField() {
+        JSONObject maFull = new JSONObject(client().guardrailPolicies()
+                .updateModelAvailabilityPolicy("p1")
+                .name("MA renamed")
+                .config(OpenRouterGuardrailModelAvailabilityPolicyConfig.builder()
+                        .allowedModels(List.of("openai/gpt-4o")).build())
+                .workspaceId("ws-1")
+                .apiKeyHashes(List.of("h1"))
+                .memberIds(List.of("u1"))
+                .isWorkspaceDefault(false)
+                .optedOutApiKeyHashes(List.of("h2"))
+                .optedOutMemberIds(List.of("u2"))
+                .build().getBody());
+        assertThat(maFull.keySet()).containsExactlyInAnyOrder("name", "config", "workspace_id",
+                "api_key_hashes", "member_ids", "is_workspace_default",
+                "opted_out_api_key_hashes", "opted_out_member_ids");
+        assertThat(maFull.getJSONObject("config").getJSONArray("allowed_models").getString(0))
+                .isEqualTo("openai/gpt-4o");
+
+        JSONObject modMinimal = new JSONObject(client().guardrailPolicies()
+                .updateModerationPolicy("p1")
+                .name("Mod renamed")
+                .config(OpenRouterGuardrailModerationPolicyConfig.builder().build())
+                .workspaceId("ws-1")
+                .build().getBody());
+        assertThat(modMinimal.keySet()).containsExactlyInAnyOrder("name", "config", "workspace_id");
+    }
+
+    @Test
+    void modelAvailabilityCreateBodyIsEmittedPerClass() {
+        JSONObject minimal = new JSONObject(client().guardrailPolicies()
+                .createModelAvailabilityPolicy()
+                .name("MA")
+                .config(OpenRouterGuardrailModelAvailabilityPolicyConfig.builder()
+                        .allowedModels(List.of("openai/gpt-4o")).build())
+                .workspaceId("ws-1")
+                .build().getBody());
+        assertThat(minimal.keySet()).containsExactlyInAnyOrder("name", "policy_type", "config", "workspace_id");
+        assertThat(minimal.getString("policy_type")).isEqualTo("model_availability");
+        assertThat(minimal.getJSONObject("config").getJSONArray("allowed_models").getString(0))
+                .isEqualTo("openai/gpt-4o");
+        assertThat(minimal.has("is_workspace_default")).isFalse();
+
+        JSONObject full = new JSONObject(client().guardrailPolicies()
+                .createModelAvailabilityPolicy()
+                .name("MA")
+                .config(OpenRouterGuardrailModelAvailabilityPolicyConfig.builder().build())
+                .workspaceId("ws-1")
+                .apiKeyHashes(List.of("h1"))
+                .memberIds(List.of("u1"))
+                .isWorkspaceDefault(true)
+                .optedOutApiKeyHashes(List.of("h2"))
+                .optedOutMemberIds(List.of("u2"))
+                .build().getBody());
+        assertThat(full.keySet()).containsExactlyInAnyOrder("name", "policy_type", "config", "workspace_id",
+                "api_key_hashes", "member_ids", "is_workspace_default",
+                "opted_out_api_key_hashes", "opted_out_member_ids");
     }
 
     // ------------------------------------------------------------------
@@ -504,7 +711,21 @@ class OpenRouterGuardrailPoliciesTest {
         assertThat(body.getBoolean("assigned")).isTrue();
         JSONObject state = body.getJSONObject("expected_assignment");
         assertThat(state.getJSONArray("policy_ids").getString(0)).isEqualTo("policy-1");
+        assertThat(state.getJSONArray("workspace_default_policy_ids").length()).isEqualTo(0);
         assertThat(state.getBoolean("opted_out")).isFalse();
+
+        JSONObject inherited = new JSONObject(client().guardrailPolicies()
+                .changeApiKeyPolicyAssignment("key-hash-1")
+                .workspaceId("ws-1")
+                .policyType("budget")
+                .policyId("policy-1")
+                .assigned(true)
+                .expectedAssignment(OpenRouterGuardrailPolicyAssignmentState.of(
+                        List.of(), List.of("inherited-policy"), true))
+                .build().getBody()).getJSONObject("expected_assignment");
+        assertThat(inherited.getJSONArray("workspace_default_policy_ids").getString(0))
+                .isEqualTo("inherited-policy");
+        assertThat(inherited.getBoolean("opted_out")).isTrue();
 
         assertThatThrownBy(() -> client().guardrailPolicies().changeMemberPolicyAssignment("u1")
                 .workspaceId("ws-1").policyType("budget").policyId("p1").assigned(true).build())
@@ -514,6 +735,10 @@ class OpenRouterGuardrailPoliciesTest {
                 .workspaceId("ws-1").policyType("budget").policyId("p1").expectedAssignment(expected).build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("assigned");
+        assertThatThrownBy(() -> client().guardrailPolicies().changeApiKeyPolicyAssignment("h")
+                .workspaceId("ws-1").policyType("budget").assigned(true).expectedAssignment(expected).build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("policy_id");
     }
 
     // ------------------------------------------------------------------
@@ -666,5 +891,24 @@ class OpenRouterGuardrailPoliciesTest {
         assertThat(create.createResponse("{\"data\": {\"id\": \"p1\", \"workspace_count\": 1}}")
                 .data().workspaceCount()).isEqualTo(1);
         assertThat(create.createResponse("{}").data()).isNull();
+
+        // the account list wrapper: junk rows dropped, total_count read back
+        var accountList = client().guardrailPolicies().listAccountPolicies().build()
+                .createResponse("{\"data\": [{\"id\": \"p1\"}, \"junk\"], \"total_count\": 3}");
+        assertThat(accountList.items()).hasSize(1);
+        assertThat(accountList.items().get(0).id()).isEqualTo("p1");
+        assertThat(accountList.totalCount()).isEqualTo(3);
+        assertThat(client().guardrailPolicies().listAccountPolicies().build()
+                .createResponse("{\"total_count\": \"many\"}").totalCount()).isNull();
+
+        // the typed policy wrapper (create/update answers)
+        var policyResponse = client().guardrailPolicies()
+                .createBudgetPolicy().name("N").config(budgetConfig()).workspaceId("ws-1").build()
+                .createResponse("{\"data\": {\"id\": \"p1\", \"policy_type\": \"budget\"}}");
+        assertThat(policyResponse.data().id()).isEqualTo("p1");
+        assertThat(policyResponse.data().policyType()).isEqualTo("budget");
+        assertThat(client().guardrailPolicies()
+                .createBudgetPolicy().name("N").config(budgetConfig()).workspaceId("ws-1").build()
+                .createResponse("{}").data()).isNull();
     }
 }

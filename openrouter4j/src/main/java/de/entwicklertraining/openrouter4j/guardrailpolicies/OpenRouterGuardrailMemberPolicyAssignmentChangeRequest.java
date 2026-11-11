@@ -21,7 +21,7 @@ import org.json.JSONObject;
 public final class OpenRouterGuardrailMemberPolicyAssignmentChangeRequest extends OpenRouterRequest<OpenRouterGuardrailPolicyAssignmentChangeResponse<OpenRouterGuardrailMemberPolicyAssignmentChangeRequest>> {
 
     private final OpenRouterClient client;
-    private final String member_id;
+    private final String memberId;
     private final String workspaceId;
     private final String policyType;
     private final String policyId;
@@ -31,7 +31,7 @@ public final class OpenRouterGuardrailMemberPolicyAssignmentChangeRequest extend
     private OpenRouterGuardrailMemberPolicyAssignmentChangeRequest(Builder builder) {
         super(builder);
         this.client = builder.client;
-        this.member_id = builder.member_id;
+        this.memberId = builder.memberId;
         this.workspaceId = builder.workspaceId;
         this.policyType = builder.policyType;
         this.policyId = builder.policyId;
@@ -42,14 +42,14 @@ public final class OpenRouterGuardrailMemberPolicyAssignmentChangeRequest extend
     /**
      * @return the URL-encoded path segment
      */
-    public String member_id() {
-        return URLEncoder.encode(member_id, StandardCharsets.UTF_8);
+    public String memberId() {
+        return URLEncoder.encode(memberId, StandardCharsets.UTF_8);
     }
 
     @Override
     public String getRelativeUrl() {
         return "/guardrails/policies/assignments/members/" +
-                URLEncoder.encode(member_id, StandardCharsets.UTF_8);
+                URLEncoder.encode(memberId, StandardCharsets.UTF_8);
     }
 
     @Override
@@ -79,7 +79,7 @@ public final class OpenRouterGuardrailMemberPolicyAssignmentChangeRequest extend
     public static final class Builder extends ApiRequestBuilderBase<Builder, OpenRouterGuardrailMemberPolicyAssignmentChangeRequest> {
 
         private final OpenRouterClient client;
-        private String member_id;
+        private String memberId;
         private String workspaceId;
         private String policyType;
         private String policyId;
@@ -89,12 +89,12 @@ public final class OpenRouterGuardrailMemberPolicyAssignmentChangeRequest extend
          * Creates a builder bound to the given client.
          *
          * @param client the client used to send the request
-         * @param member_id members the subject's identifying path segment
+         * @param memberId the organization member user id identifying the subject (URL-encoded into the path segment)
          */
-        public Builder(OpenRouterClient client, String member_id) {
+        public Builder(OpenRouterClient client, String memberId) {
             super(client);
             this.client = client;
-            this.member_id = member_id;
+            this.memberId = memberId;
         }
 
         /**
@@ -154,11 +154,11 @@ public final class OpenRouterGuardrailMemberPolicyAssignmentChangeRequest extend
 
         @Override
         public OpenRouterGuardrailMemberPolicyAssignmentChangeRequest build() {
-            if (member_id == null || member_id.isEmpty()) {
-                throw new IllegalStateException("member_id is required");
+            if (memberId == null || memberId.isEmpty()) {
+                throw new IllegalStateException("memberId is required");
             }
-            if (".".equals(member_id) || "..".equals(member_id)) {
-                throw new IllegalStateException("member_id of \".\" or \"..\" cannot be addressed by path");
+            if (".".equals(memberId) || "..".equals(memberId)) {
+                throw new IllegalStateException("memberId of \".\" or \"..\" cannot be addressed by path");
             }
             if (workspaceId == null || workspaceId.isEmpty()) {
                 throw new IllegalStateException("workspace_id is required");

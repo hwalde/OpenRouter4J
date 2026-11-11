@@ -1714,7 +1714,7 @@ public final class OpenRouterClient extends ApiClient {
          * @return the starting point for the request
          */
         public OpenRouterGuardrailAccountPolicyCreateRequest.Builder createAccountPolicy() {
-            return new OpenRouterGuardrailAccountPolicyCreateRequest.Builder(client, null);
+            return new OpenRouterGuardrailAccountPolicyCreateRequest.Builder(client);
         }
 
         /**

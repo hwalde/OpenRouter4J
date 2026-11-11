@@ -92,7 +92,7 @@ public final class OpenRouterGuardrailApiKeyPolicyAssignmentGetRequest extends O
          * Creates a builder bound to the given client.
          *
          * @param client the client used to send the request
-         * @param hash api keys the subject's identifying path segment
+         * @param hash the API key hash identifying the subject (URL-encoded into the path segment)
          */
         public Builder(OpenRouterClient client, String hash) {
             super(client);

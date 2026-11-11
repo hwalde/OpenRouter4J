@@ -91,9 +91,9 @@ public final class OpenRouterGuardrailModerationPolicyGetRequest extends OpenRou
 
 
     /**
-     * * Sets the query parameter {@code workspace_id} (required): the
-     *          * workspace the policy belongs to. Validated loudly at
-     *          * {@link #build()}.
+     * Sets the query parameter {@code workspace_id} (required): the
+     * workspace the policy belongs to. Validated loudly at
+     * {@link #build()}.
      */
         public Builder workspaceId(String workspaceId) {
             this.workspaceId = workspaceId;

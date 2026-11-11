@@ -76,12 +76,8 @@ public final class OpenRouterGuardrailModerationPolicyUpdateRequest extends Open
     public String getBody() {
         JSONObject body = new JSONObject();
         body.put("name", name);
-        if (config != null) {
-            body.put("config", config.toJson());
-        }
-        if (workspaceId != null) {
-            body.put("workspace_id", workspaceId);
-        }
+        body.put("config", config.toJson());
+        body.put("workspace_id", workspaceId);
         if (apiKeyHashes != null) {
             body.put("api_key_hashes", new JSONArray(apiKeyHashes));
         }
@@ -134,9 +130,8 @@ public final class OpenRouterGuardrailModerationPolicyUpdateRequest extends Open
         }
 
         /**
-         * Sets the body field {@code name} (required on update, even
-         * though only fields present change): the policy name (1-255
-         * characters).
+         * Sets the body field {@code name} (required): the policy name
+         * (1-255 characters).
          */
         public Builder name(String name) {
             this.name = name;
@@ -144,8 +139,9 @@ public final class OpenRouterGuardrailModerationPolicyUpdateRequest extends Open
         }
 
         /**
-         * Sets the body field {@code config}: the moderation authoring config
-         * that replaces the stored one. Omit to keep it.
+         * Sets the body field {@code config} (required): the authoring
+         * config that replaces the stored one - the PUT is a full replace,
+         * send the full config every time.
          */
         public Builder config(OpenRouterGuardrailModerationPolicyConfig config) {
             this.config = config;
@@ -153,8 +149,8 @@ public final class OpenRouterGuardrailModerationPolicyUpdateRequest extends Open
         }
 
         /**
-         * Sets the body field {@code workspace_id}: the workspace the
-         * policy belongs to.
+         * Sets the body field {@code workspace_id} (required): the
+         * workspace the policy belongs to.
          */
         public Builder workspaceId(String workspaceId) {
             this.workspaceId = workspaceId;
@@ -225,6 +221,12 @@ public final class OpenRouterGuardrailModerationPolicyUpdateRequest extends Open
             }
             if (name.codePointCount(0, name.length()) > 255) {
                 throw new IllegalStateException("name must be at most 255 characters");
+            }
+            if (config == null) {
+                throw new IllegalStateException("config is required (the PUT replaces name and settings)");
+            }
+            if (workspaceId == null || workspaceId.isEmpty()) {
+                throw new IllegalStateException("workspace_id is required");
             }
             if ((apiKeyHashes == null) != (memberIds == null)) {
                 throw new IllegalStateException(

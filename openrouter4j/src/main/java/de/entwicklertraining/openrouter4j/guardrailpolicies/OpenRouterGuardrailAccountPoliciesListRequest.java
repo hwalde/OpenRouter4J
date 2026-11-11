@@ -85,10 +85,10 @@ public final class OpenRouterGuardrailAccountPoliciesListRequest extends OpenRou
 
 
     /**
-     * * Sets the query parameter {@code offset}: number of records to skip
-     *          * for pagination. When both {@code offset} and {@code limit} are
-     *          * omitted, the full list is returned. {@code null} unsets the
-     *          * parameter.
+     * Sets the query parameter {@code offset}: number of records to skip
+     * for pagination. When both {@code offset} and {@code limit} are
+     * omitted, the full list is returned. {@code null} unsets the
+     * parameter.
      */
         public Builder offset(Integer offset) {
             this.offset = offset;
@@ -96,10 +96,10 @@ public final class OpenRouterGuardrailAccountPoliciesListRequest extends OpenRou
         }
 
     /**
-     * * Sets the query parameter {@code limit}: maximum number of records
-     *          * to return (1-100). When both {@code offset} and {@code limit} are
-     *          * omitted, the full list is returned. {@code null} unsets the
-     *          * parameter.
+     * Sets the query parameter {@code limit}: maximum number of records
+     * to return (1-100). When both {@code offset} and {@code limit} are
+     * omitted, the full list is returned. {@code null} unsets the
+     * parameter.
      */
         public Builder limit(Integer limit) {
             this.limit = limit;

@@ -116,6 +116,7 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
          * verbatim) fields included.
          */
         public Builder addContentFilterBuiltin(String slug, String action, String label, String scanScope) {
+            checkLabel(label);
             JSONObject entry = new JSONObject().put("slug", slug).put("action", action);
             if (label != null) {
                 entry.put("label", label);
@@ -127,8 +128,9 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
         }
 
         /**
-         * Adds one {@code content_filter_builtins[]} entry verbatim. The
-         * object must carry the required {@code slug} and {@code action}.
+         * Adds one {@code content_filter_builtins[]} entry verbatim - the
+         * API rejects entries without the required {@code slug} and
+         * {@code action} keys.
          */
         public Builder addContentFilterBuiltinRaw(JSONObject entry) {
             return addEntry("content_filter_builtins", entry);
@@ -139,6 +141,9 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
          * ({@code pattern} 1-100,000 characters, {@code action}).
          */
         public Builder addContentFilter(String pattern, String action) {
+            if (pattern == null || pattern.isEmpty() || pattern.length() > 100_000) {
+                throw new IllegalArgumentException("pattern must be 1-100,000 characters");
+            }
             return addContentFilterRaw(new JSONObject().put("pattern", pattern).put("action", action));
         }
 
@@ -147,6 +152,10 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
          * {@code label} (max 100 characters).
          */
         public Builder addContentFilter(String pattern, String action, String label) {
+            checkLabel(label);
+            if (pattern == null || pattern.isEmpty() || pattern.length() > 100_000) {
+                throw new IllegalArgumentException("pattern must be 1-100,000 characters");
+            }
             JSONObject entry = new JSONObject().put("pattern", pattern).put("action", action);
             if (label != null) {
                 entry.put("label", label);
@@ -155,8 +164,9 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
         }
 
         /**
-         * Adds one {@code content_filters[]} entry verbatim. The object must
-         * carry the required {@code pattern} and {@code action}.
+         * Adds one {@code content_filters[]} entry verbatim - the API
+         * rejects entries without the required {@code pattern} and
+         * {@code action} keys.
          */
         public Builder addContentFilterRaw(JSONObject entry) {
             return addEntry("content_filters", entry);
@@ -168,6 +178,9 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
          * {@code score_threshold} 0-1).
          */
         public Builder addPiiFilter(String entityType, String action, Double scoreThreshold) {
+            if (scoreThreshold != null && (scoreThreshold.doubleValue() < 0 || scoreThreshold.doubleValue() > 1)) {
+                throw new IllegalArgumentException("scoreThreshold must be between 0 and 1, was: " + scoreThreshold);
+            }
             JSONObject entry = new JSONObject().put("entity_type", entityType).put("action", action);
             if (scoreThreshold != null) {
                 entry.put("score_threshold", scoreThreshold.doubleValue());
@@ -176,8 +189,9 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
         }
 
         /**
-         * Adds one {@code pii_filters[]} entry verbatim. The object must
-         * carry the required {@code entity_type} and {@code action}.
+         * Adds one {@code pii_filters[]} entry verbatim - the API rejects
+         * entries without the required {@code entity_type} and
+         * {@code action} keys.
          */
         public Builder addPiiFilterRaw(JSONObject entry) {
             return addEntry("pii_filters", entry);
@@ -189,7 +203,7 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
          * a set list replaces the previous one.
          */
         public Builder contentFilterPatterns(List<String> contentFilterPatterns) {
-            set("content_filter_patterns", contentFilterPatterns);
+            set("content_filter_patterns", contentFilterPatterns == null ? null : List.copyOf(contentFilterPatterns));
             return this;
         }
 
@@ -248,6 +262,12 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
         public Builder armor(JSONObject armor) {
             set("armor", armor);
             return this;
+        }
+
+        private static void checkLabel(String label) {
+            if (label != null && label.length() > 100) {
+                throw new IllegalArgumentException("label must be at most 100 characters");
+            }
         }
 
         /** Sets {@code platform_moderated_providers}. {@code null} unsets. */

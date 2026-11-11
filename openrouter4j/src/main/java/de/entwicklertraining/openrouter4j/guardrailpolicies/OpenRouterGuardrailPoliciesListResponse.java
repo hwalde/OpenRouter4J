@@ -55,9 +55,7 @@ public final class OpenRouterGuardrailPoliciesListResponse<T extends OpenRouterR
      * @return the count, or {@code null} when absent or not a number
      */
     public Integer totalCount() {
-        if (!json.has("total_count") || json.isNull("total_count")) {
-            return null;
-        }
-        return (int) json.optLong("total_count");
+        Object value = json.opt("total_count");
+        return value instanceof Number n ? n.intValue() : null;
     }
 }

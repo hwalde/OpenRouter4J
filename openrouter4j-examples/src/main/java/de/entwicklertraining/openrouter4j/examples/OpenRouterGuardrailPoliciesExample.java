@@ -103,12 +103,19 @@ public class OpenRouterGuardrailPoliciesExample {
                     .execute();
         }
 
-        // 6. Update (the name is required even on update; api_key_hashes and
-        //    member_ids are complete new lists and must be sent together) and
-        //    delete the policy again (permanent).
+        // 6. Update (the PUT is a full replace: name, config and workspace_id
+        //    are all required; api_key_hashes and member_ids are complete new
+        //    lists and must be sent together) and delete the policy again
+        //    (permanent).
         if (policyId != null) {
             client.guardrailPolicies().updateBudgetPolicy(policyId)
                     .name("Engineering monthly budget (renamed)")
+                    .config(OpenRouterGuardrailBudgetPolicyConfig.builder()
+                            .limitUsd(250.0)
+                            .resetInterval("monthly")
+                            .includeByokInBudgets(false)
+                            .build())
+                    .workspaceId("<workspace id>")
                     .execute();
             // client.guardrailPolicies().deleteBudgetPolicy(policyId)
             //         .workspaceId("<workspace id>").execute();  // permanent

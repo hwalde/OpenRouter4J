@@ -36,10 +36,10 @@ public final class OpenRouterGuardrailAccountPolicyUpdateRequest extends OpenRou
     }
 
     /**
-     * @return the URL-encoded path segment (empty on the create route)
+     * @return the URL-encoded path segment
      */
     public String id() {
-        return id == null ? null : URLEncoder.encode(id, StandardCharsets.UTF_8);
+        return URLEncoder.encode(id, StandardCharsets.UTF_8);
     }
 
     /** @return the policy request value as sent */
@@ -81,7 +81,7 @@ public final class OpenRouterGuardrailAccountPolicyUpdateRequest extends OpenRou
          * Creates a builder bound to the given client.
          *
          * @param client the client used to send the request
-         * @param id the id (UUID) of the policy ({@code null} on the create route)
+         * @param id the id (UUID) of the policy
          */
         public Builder(OpenRouterClient client, String id) {
             super(client);
