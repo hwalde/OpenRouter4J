@@ -260,7 +260,7 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
          * shape is carried unchanged; {@code null} unsets.
          */
         public Builder armor(JSONObject armor) {
-            set("armor", armor);
+            set("armor", armor == null ? null : new JSONObject(armor.toString()));
             return this;
         }
 
@@ -272,13 +272,13 @@ public final class OpenRouterGuardrailModerationPolicyConfig {
 
         /** Sets {@code platform_moderated_providers}. {@code null} unsets. */
         public Builder platformModeratedProviders(List<String> platformModeratedProviders) {
-            set("platform_moderated_providers", platformModeratedProviders);
+            set("platform_moderated_providers", platformModeratedProviders == null ? null : List.copyOf(platformModeratedProviders));
             return this;
         }
 
         /** Sets {@code platform_image_moderated_providers}. {@code null} unsets. */
         public Builder platformImageModeratedProviders(List<String> platformImageModeratedProviders) {
-            set("platform_image_moderated_providers", platformImageModeratedProviders);
+            set("platform_image_moderated_providers", platformImageModeratedProviders == null ? null : List.copyOf(platformImageModeratedProviders));
             return this;
         }
 

@@ -108,6 +108,9 @@ public final class OpenRouterGuardrailBudgetPolicyGetRequest extends OpenRouterR
         if (".".equals(id) || "..".equals(id)) {
             throw new IllegalStateException("id of \".\" or \"..\" cannot be addressed by path");
         }
+        if (workspaceId == null || workspaceId.isEmpty()) {
+            throw new IllegalStateException("workspace_id is required");
+        }
             return new OpenRouterGuardrailBudgetPolicyGetRequest(this);
         }
 
