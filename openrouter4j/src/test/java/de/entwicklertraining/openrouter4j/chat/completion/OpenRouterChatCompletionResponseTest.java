@@ -420,6 +420,18 @@ class OpenRouterChatCompletionResponseTest {
                  "usage": {"deferred_tools_details": "none"}}
                 """);
         assertThat(notAnObject.deferredToolsDetails()).isNull();
+
+        OpenRouterChatCompletionResponse wrongTypedUsage = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}],
+                 "usage": "none"}
+                """);
+        assertThat(wrongTypedUsage.deferredToolsDetails()).isNull();
+
+        OpenRouterChatCompletionResponse nullDetails = responseOf("""
+                {"choices": [{"index": 0, "message": {"role": "assistant", "content": "Hi"}, "finish_reason": "stop"}],
+                 "usage": {"deferred_tools_details": null}}
+                """);
+        assertThat(nullDetails.deferredToolsDetails()).isNull();
     }
 
     @Test

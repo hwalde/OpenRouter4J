@@ -107,6 +107,14 @@ class OpenRouterResponsesTest {
         assertThat(responseOf("""
                 {"usage": {"deferred_tools_details": 7}}
                 """).deferredToolsDetails()).isNull();
+
+        assertThat(responseOf("""
+                {"usage": "none"}
+                """).deferredToolsDetails()).isNull();
+
+        assertThat(responseOf("""
+                {"usage": {"deferred_tools_details": null}}
+                """).deferredToolsDetails()).isNull();
     }
 
     @Test

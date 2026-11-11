@@ -115,6 +115,14 @@ class OpenRouterMessagesTest {
         assertThat(minimalBuilder().build().createResponse("""
                 {"usage": {"deferred_tools_details": "none"}}
                 """).deferredToolsDetails()).isNull();
+
+        assertThat(minimalBuilder().build().createResponse("""
+                {"usage": "none"}
+                """).deferredToolsDetails()).isNull();
+
+        assertThat(minimalBuilder().build().createResponse("""
+                {"usage": {"deferred_tools_details": null}}
+                """).deferredToolsDetails()).isNull();
     }
 
     @Test

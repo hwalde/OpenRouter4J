@@ -265,8 +265,12 @@ public final class OpenRouterDeferredToolsControl {
          * profile of this release - router-built search and call wrappers for
          * the {@code defer_loading} tools, fixed catalog) or {@code
          * "universal"} (every wrappable tool deferred, catalog rebuilt per
-         * request). Unknown spellings are passed through verbatim - the
-         * schema allows unknown values here.
+         * request). The schema declares exactly these two values with
+         * unknown values allowed ({@code x-speakeasy-unknown-values: allow}),
+         * so other spellings are passed through verbatim like on
+         * {@link #scope(String)} - but only {@code portable} / {@code
+         * universal} are documented, so an unknown spelling travels at the
+         * caller's risk and the router may reject it.
          */
         public Builder profile(String profile) {
             if (profile == null || profile.isEmpty()) {
@@ -370,6 +374,10 @@ public final class OpenRouterDeferredToolsControl {
          * validated loudly). Repeated only when it changes; recorded in the
          * response's {@code catalog_index} discovery record so it is replayed
          * with the conversation. {@code null} unsets the field.
+         * <p>
+         * The bound counts the trimmed length and the value travels untrimmed
+         * (the server trims before the bounds apply) - the check bounds the
+         * content, not the surrounding whitespace padding.
          */
         public Builder hint(String hint) {
             if (hint == null) {

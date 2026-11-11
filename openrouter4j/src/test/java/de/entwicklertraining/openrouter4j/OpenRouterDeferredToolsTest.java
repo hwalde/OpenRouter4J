@@ -295,4 +295,15 @@ class OpenRouterDeferredToolsTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("search");
     }
+
+    @Test
+    void detailsViewReadsANullArgumentAsAnEmptyObject() {
+        OpenRouterDeferredToolsDetails details = new OpenRouterDeferredToolsDetails(null);
+
+        assertThat(details.turns()).isNull();
+        assertThat(details.promptTokens()).isNull();
+        assertThat(details.completionTokens()).isNull();
+        assertThat(details.totalTokens()).isNull();
+        assertThat(details.json().keySet()).isEmpty();
+    }
 }

@@ -44,8 +44,11 @@ public final class OpenRouterDeferredToolsSearchStrategy {
      * Router-local safe-regex retrieval with a hit cap:
      * {@code {"type": "regex", "max_results": n}}.
      *
-     * @param maxResults the maximum number of tools one search may return,
-     *        or {@code null} to omit the field (the router default applies)
+     * @param maxResults the maximum number of tools one search may return
+     *        (the docs: defaults to {@code 5}, accepts 1-100 - outside that
+     *        range the router answers 400; the schema itself declares no
+     *        bounds, so the value is not validated here), or {@code null} to
+     *        omit the field (the router default applies)
      */
     public static OpenRouterDeferredToolsSearchStrategy regex(Integer maxResults) {
         JSONObject json = new JSONObject();
@@ -67,8 +70,11 @@ public final class OpenRouterDeferredToolsSearchStrategy {
      * Router-local BM25 keyword retrieval with a hit cap:
      * {@code {"type": "bm25", "max_results": n}}.
      *
-     * @param maxResults the maximum number of tools one search may return,
-     *        or {@code null} to omit the field (the router default applies)
+     * @param maxResults the maximum number of tools one search may return
+     *        (the docs: defaults to {@code 5}, accepts 1-100 - outside that
+     *        range the router answers 400; the schema itself declares no
+     *        bounds, so the value is not validated here), or {@code null} to
+     *        omit the field (the router default applies)
      */
     public static OpenRouterDeferredToolsSearchStrategy bm25(Integer maxResults) {
         JSONObject json = new JSONObject();
@@ -102,8 +108,10 @@ public final class OpenRouterDeferredToolsSearchStrategy {
      *
      * @param toolId the name of the client tool that executes the search
      * @param resultKey the result field carrying the found tool identities
-     * @param maxResults the maximum number of tools one search may return,
-     *        or {@code null} to omit the field
+     * @param maxResults the maximum number of tools one search may return
+     *        (the docs: defaults to {@code 5}, accepts 1-100; not validated
+     *        here - see {@link #regex(Integer)}), or {@code null} to omit the
+     *        field
      * @return the built strategy
      */
     public static OpenRouterDeferredToolsSearchStrategy custom(String toolId, String resultKey, Integer maxResults) {
