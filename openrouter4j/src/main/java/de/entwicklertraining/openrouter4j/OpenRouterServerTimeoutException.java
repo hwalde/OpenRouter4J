@@ -9,9 +9,9 @@ import de.entwicklertraining.api.base.ApiErrorContext;
  * <p>Enriched form of {@code ApiClient.HTTP_504_ServerTimeoutException}: catch clauses
  * for the api-base type keep working, and the error-body accessors of
  * {@link OpenRouterErrorMetadata} ride along. The Intern API answers its own timeouts
- * as {@code 408} with {@code reason: "timeout", retryable: true} - that status has no
- * dedicated type here and arrives as {@code ApiClient.ApiClientException}, readable via
- * {@link OpenRouterErrorMetadata#of(Throwable)}. Not retried by the client.
+ * as {@code 408} (seen with {@code reason: "timeout", retryable: true}) - that status has
+ * no dedicated type here and arrives as {@code ApiClient.ApiClientException}, readable
+ * via {@link OpenRouterErrorMetadata#of(Throwable)}. Not retried by the client.
  *
  * <p>Registered by {@link OpenRouterClient} for HTTP 504 (client-side retry of this
  * status: no). Created by the transport with the composed message

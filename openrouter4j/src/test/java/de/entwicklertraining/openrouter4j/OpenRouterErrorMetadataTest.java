@@ -37,32 +37,52 @@ class OpenRouterErrorMetadataTest {
     private static HttpServer server418;
     private static String baseUrl;
     private static String baseUrl418;
+    private static final java.util.Map<String, java.util.concurrent.atomic.AtomicInteger> hits =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static void respond(com.sun.net.httpserver.HttpExchange exchange, int status,
+                                String body, Map<String, String> headers) throws java.io.IOException {
+        headers.forEach((k, v) -> exchange.getResponseHeaders().add(k, v));
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(status, bytes.length);
+        try (OutputStream out = exchange.getResponseBody()) {
+            out.write(bytes);
+        }
+    }
+
+    private static String errorBody(int code, String reason, boolean retryable) {
+        return "{\"error\":{\"message\":\"m" + code + "\",\"code\":" + code + ","
+                + "\"metadata\":{\"reason\":\"" + reason + "\",\"retryable\":" + retryable + "}}}";
+    }
+
+    /** Dispatches per request input: "NNN" answers status NNN with a metadata body. */
+    private static void dispatch(com.sun.net.httpserver.HttpExchange exchange) throws java.io.IOException {
+        String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        String input = request.replaceAll(".*\"input\":\"([^\"]*)\".*", "$1");
+        hits.computeIfAbsent(input, k -> new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
+        switch (input) {
+            case "400" -> respond(exchange, 400, errorBody(400, "bad_request", false), Map.of());
+            case "403" -> respond(exchange, 403, errorBody(403, "forbidden", false), Map.of());
+            case "404" -> respond(exchange, 404, errorBody(404, "not_found", false), Map.of());
+            case "500", "retry-500" -> respond(exchange, 500, errorBody(500, "server", true), Map.of());
+            case "503" -> respond(exchange, 503, errorBody(503, "unavailable", true), Map.of());
+            case "504" -> respond(exchange, 504, errorBody(504, "gateway_timeout", false), Map.of());
+            case "retry-404" -> respond(exchange, 404, errorBody(404, "not_found", false), Map.of());
+            default -> respond(exchange, 429, ERROR_BODY,
+                    Map.of("Retry-After", "30", "X-RateLimit-Remaining", "0"));
+        }
+    }
 
     @BeforeAll
     static void startServer() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/api/v1/embeddings", exchange -> {
-            exchange.getResponseHeaders().add("Retry-After", "30");
-            exchange.getResponseHeaders().add("X-RateLimit-Remaining", "0");
-            byte[] body = ERROR_BODY.getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(429, body.length);
-            try (OutputStream out = exchange.getResponseBody()) {
-                out.write(body);
-            }
-        });
+        server.createContext("/api/v1/embeddings", OpenRouterErrorMetadataTest::dispatch);
         server.start();
         baseUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/api/v1";
 
         server418 = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server418.createContext("/api/v1/embeddings", exchange -> {
-            byte[] body = ("{\"error\":{\"message\":\"short and stout\",\"code\":418,"
-                    + "\"metadata\":{\"reason\":\"timeout\",\"retryable\":true}}}")
-                    .getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(418, body.length);
-            try (OutputStream out = exchange.getResponseBody()) {
-                out.write(body);
-            }
-        });
+        server418.createContext("/api/v1/embeddings", exchange ->
+                respond(exchange, 418, errorBody(418, "timeout", true), Map.of()));
         server418.start();
         baseUrl418 = "http://127.0.0.1:" + server418.getAddress().getPort() + "/api/v1";
     }
@@ -221,5 +241,116 @@ class OpenRouterErrorMetadataTest {
         assertEquals("timeout", view.errorReason());
         assertEquals(Boolean.TRUE, view.isRetryable());
         assertEquals(418, view.getApiErrorContext().statusCode());
+    }
+
+    // ------------------------------------------------- every registered status typed
+
+    private static void assertEnriched(String input, Class<? extends RuntimeException> expected,
+                                       Class<?> apiBaseType, String messagePrefix, String reason) {
+        OpenRouterClient client = new OpenRouterClient(
+                ApiClientSettings.builder().maxRetries(1).initialDelayMs(10).build(),
+                null, baseUrl);
+        RuntimeException ex = assertThrows(expected,
+                () -> client.embeddings().model("test-model").input(input).execute());
+        assertInstanceOf(apiBaseType, ex, "still catchable as the api-base supertype");
+        assertTrue(ex.getMessage().startsWith(messagePrefix + ": "),
+                "the composed message is unchanged, got: " + ex.getMessage());
+        assertInstanceOf(OpenRouterErrorMetadata.class, ex);
+        assertEquals(reason, ((OpenRouterErrorMetadata) ex).errorReason());
+    }
+
+    @Test
+    @DisplayName("every registered status arrives as its enriched type through the client")
+    void everyRegisteredStatusArrivesEnrichedThroughTheClient() {
+        assertEnriched("400", OpenRouterRequestRejectedException.class,
+                ApiClient.HTTP_400_RequestRejectedException.class, "HTTP 400 (Bad Request)", "bad_request");
+        assertEnriched("403", OpenRouterPermissionDeniedException.class,
+                ApiClient.HTTP_403_PermissionDeniedException.class, "HTTP 403 (Forbidden)", "forbidden");
+        assertEnriched("404", OpenRouterNotFoundException.class,
+                ApiClient.HTTP_404_NotFoundException.class, "HTTP 404 (Not Found)", "not_found");
+        assertEnriched("500", OpenRouterServerErrorException.class,
+                ApiClient.HTTP_500_ServerErrorException.class, "HTTP 500 (Internal Server Error)", "server");
+        assertEnriched("503", OpenRouterServiceUnavailableException.class,
+                ApiClient.HTTP_503_ServerUnavailableException.class, "HTTP 503 (Service Unavailable)", "unavailable");
+        assertEnriched("504", OpenRouterServerTimeoutException.class,
+                ApiClient.HTTP_504_ServerTimeoutException.class, "HTTP 504 (Gateway Timeout)", "gateway_timeout");
+    }
+
+    @Test
+    @DisplayName("the per-status retry flags are unchanged: 500 retries, 404 does not")
+    void retryFlagsUnchanged() {
+        OpenRouterClient client = new OpenRouterClient(
+                ApiClientSettings.builder().maxRetries(2).initialDelayMs(5).build(), null, baseUrl);
+
+        ApiClient.ApiTimeoutException exhausted = assertThrows(ApiClient.ApiTimeoutException.class,
+                () -> client.embeddings().model("test-model").input("retry-500").executeWithRetry());
+        assertEquals(2, hits.get("retry-500").get(), "500 is registered retryable - two attempts");
+        assertInstanceOf(OpenRouterServerErrorException.class, exhausted.getCause(),
+                "the last status exception is the cause of the retries-exhausted error");
+        assertNotNull(OpenRouterErrorMetadata.of(exhausted),
+                "the cause chain still resolves the error metadata");
+
+        assertThrows(OpenRouterNotFoundException.class,
+                () -> client.embeddings().model("test-model").input("retry-404").executeWithRetry());
+        assertEquals(1, hits.get("retry-404").get(), "404 is registered non-retryable - one attempt");
+    }
+
+    // ------------------------------------------------------------ remaining contracts
+
+    @Test
+    @DisplayName("isRetryable() answers FALSE, not null, when the body says false")
+    void retryableFalseIsNotConfusedWithUndocumented() {
+        OpenRouterNotFoundException ex = new OpenRouterNotFoundException("m",
+                context("{\"error\":{\"metadata\":{\"retryable\":false}}}", Map.of()));
+        assertEquals(Boolean.FALSE, ex.isRetryable());
+    }
+
+    @Test
+    @DisplayName("the parse edges: negative delta-seconds swallow, a past HTTP-date is 0")
+    void parseEdgesOnTheErrorSide() {
+        assertNull(new OpenRouterServiceUnavailableException("m",
+                context(ERROR_BODY, Map.of("Retry-After", "-5"))).retryAfterSeconds());
+        String past = DateTimeFormatter.RFC_1123_DATE_TIME
+                .format(ZonedDateTime.now(ZoneOffset.UTC).minusSeconds(60));
+        assertEquals(0L, new OpenRouterServiceUnavailableException("m",
+                context(ERROR_BODY, Map.of("Retry-After", past))).retryAfterSeconds());
+    }
+
+    @Test
+    @DisplayName("a context with null body and headers swallows every accessor to null")
+    void nullContextPartsSwallow() {
+        OpenRouterServerTimeoutException ex = new OpenRouterServerTimeoutException("m", context(null, null));
+        assertNull(ex.errorMetadata());
+        assertNull(ex.retryAfter());
+        assertNull(ex.retryAfterSeconds());
+    }
+
+    @Test
+    @DisplayName("a deeply nested hostile body looks empty - the swallow contract holds")
+    void deeplyNestedBodyLooksEmpty() {
+        String hostile = "[".repeat(200_000);
+        OpenRouterNotFoundException ex = new OpenRouterNotFoundException("m", context(hostile, Map.of()));
+        assertDoesNotThrow(() -> {
+            assertNull(ex.errorMetadata());
+            assertNull(ex.errorReason());
+        });
+    }
+
+    @Test
+    @DisplayName("of() resolves the context through the streaming/async wrapper layers")
+    void ofResolvesWrappedStreamingErrors() {
+        OpenRouterRateLimitOrQuotaException inner = new OpenRouterRateLimitOrQuotaException("m",
+                context(ERROR_BODY, Map.of("Retry-After", "30")));
+
+        OpenRouterErrorMetadata viaStreaming = OpenRouterErrorMetadata.of(
+                new ApiClient.StreamingException("Streaming execution failed", inner));
+        assertNotNull(viaStreaming);
+        assertEquals("in_flight_budget", viaStreaming.errorReason());
+        assertEquals(30L, viaStreaming.retryAfterSeconds());
+
+        OpenRouterErrorMetadata viaCompletion = OpenRouterErrorMetadata.of(
+                new java.util.concurrent.CompletionException(inner));
+        assertNotNull(viaCompletion);
+        assertEquals("openrouter_in_flight_budget", viaCompletion.limitSource());
     }
 }

@@ -31,6 +31,9 @@ public class OpenRouterErrorHandlingExample {
                     .execute();
             System.out.println("Answer: " + response.assistantMessage());
             System.out.println("Generation id (X-Generation-Id): " + response.generationIdHeader());
+            System.out.println("Content-Type header: " + response.header("Content-Type"));
+            System.out.println("Retry-After (normally only on errors): "
+                    + response.retryAfter() + " (" + response.retryAfterSeconds() + "s)");
         } catch (OpenRouterRateLimitOrQuotaException rateLimited) {
             // 429 - enriched: error-body metadata and the error response's headers
             System.err.println("Rate limited. reason=" + rateLimited.errorReason()

@@ -8,9 +8,11 @@ import de.entwicklertraining.api.base.ApiErrorContext;
  *
  * <p>Enriched form of {@code ApiClient.HTTP_500_ServerErrorException}: catch clauses
  * for the api-base type keep working, and the error-body accessors of
- * {@link OpenRouterErrorMetadata} ride along. Provider errors may carry the upstream's
- * own code in {@link #providerCode()} and a canonical {@link #errorType()}. The client
- * retries this status.
+ * {@link OpenRouterErrorMetadata} ride along. Trap (from the reference): when a request
+ * fails with a 500, the message is replaced with a generic string and
+ * {@code provider_code} is omitted, while {@code error_type} stays ({@code "server"}) -
+ * {@link #providerCode()} therefore answers {@code null} on this status and carries the
+ * upstream's own code only on non-500 provider errors. The client retries this status.
  *
  * <p>Registered by {@link OpenRouterClient} for HTTP 500 (client-side retry of this
  * status: yes). Created by the transport with the composed message

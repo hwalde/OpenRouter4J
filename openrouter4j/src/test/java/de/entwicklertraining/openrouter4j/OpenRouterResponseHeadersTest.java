@@ -83,24 +83,49 @@ class OpenRouterResponseHeadersTest {
         Long seconds = dateForm.retryAfterSeconds();
         assertNotNull(seconds);
         assertTrue(seconds > 30 && seconds <= 90, "HTTP-date answered as seconds until (got " + seconds + ")");
+
+        OpenRouterChatCompletionResponse edges = response();
+        edges.setResponseHeaders(Map.of("Retry-After", "-5"));
+        assertNull(edges.retryAfterSeconds(), "negative delta-seconds swallow");
+        String past = DateTimeFormatter.RFC_1123_DATE_TIME
+                .format(ZonedDateTime.now(ZoneOffset.UTC).minusSeconds(60));
+        edges.setResponseHeaders(Map.of("Retry-After", past));
+        assertEquals(0L, edges.retryAfterSeconds(), "an HTTP-date in the past answers 0");
     }
 
     // ------------------------------------------- streaming tool-call loop (synthesized)
 
     private static HttpServer server;
     private static String baseUrl;
+    private static final java.util.concurrent.atomic.AtomicInteger streamTurns =
+            new java.util.concurrent.atomic.AtomicInteger();
 
     @BeforeAll
     static void startServer() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/api/v1/chat/completions", exchange -> {
-            exchange.getResponseHeaders().add("X-Generation-Id", "gen_stream_final");
-            byte[] body = ("data: {\"id\":\"gen-s\",\"choices\":[{\"index\":0,"
-                    + "\"delta\":{\"role\":\"assistant\",\"content\":\"hello\"}}]}\n\n"
-                    + "data: [DONE]\n\n").getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(200, body.length);
+            int turn = streamTurns.incrementAndGet();
+            String body;
+            if (turn == 1) {
+                // first turn: a tool call - the loop will execute the tool and turn again
+                exchange.getResponseHeaders().add("X-Generation-Id", "gen_turn1");
+                body = "data: {\"id\":\"gen-t1\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\","
+                        + "\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\","
+                        + "\"function\":{\"name\":\"echo\",\"arguments\":\"{\\\"text\\\":\\\"hi\\\"}\"}}]}}]}\n\n"
+                        + "data: {\"id\":\"gen-t1\",\"choices\":[{\"index\":0,\"delta\":{},"
+                        + "\"finish_reason\":\"tool_calls\"}]}\n\n"
+                        + "data: [DONE]\n\n";
+            } else {
+                // second turn: plain content
+                exchange.getResponseHeaders().add("X-Generation-Id", "gen_turn2");
+                body = "data: {\"id\":\"gen-t2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\","
+                        + "\"content\":\"done\"}}]}\n\n"
+                        + "data: [DONE]\n\n";
+            }
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
             try (OutputStream out = exchange.getResponseBody()) {
-                out.write(body);
+                out.write(bytes);
             }
         });
         server.start();
@@ -113,15 +138,20 @@ class OpenRouterResponseHeadersTest {
     }
 
     @Test
-    @DisplayName("the synthesized streaming response carries the headers of the last turn")
+    @DisplayName("the synthesized streaming response carries the LAST turn's headers")
     void streamingSyntheticResponseCarriesHeaders() {
         OpenRouterClient client = new OpenRouterClient(
                 ApiClientSettings.builder().maxRetries(1).build(), null, baseUrl);
 
+        java.util.concurrent.atomic.AtomicBoolean toolExecuted =
+                new java.util.concurrent.atomic.AtomicBoolean(false);
         OpenRouterToolDefinition echoTool = OpenRouterToolDefinition.builder("echo")
                 .description("Echo the given text back")
                 .parameter("text", OpenRouterJsonSchema.stringSchema("Text to echo"), true)
-                .callback(ctx -> OpenRouterToolResult.of(new JSONObject().put("echo", "x")))
+                .callback(ctx -> {
+                    toolExecuted.set(true);
+                    return OpenRouterToolResult.of(new JSONObject().put("echo", "x"));
+                })
                 .build();
 
         OpenRouterChatCompletionResponse resp = client.chat().completion()
@@ -143,8 +173,12 @@ class OpenRouterResponseHeadersTest {
                 })
                 .execute();
 
-        assertEquals("gen_stream_final", resp.generationIdHeader(),
-                "the synthetic response of the tool-call loop carries the last turn's headers");
-        assertEquals("gen_stream_final", resp.header("x-generation-id"));
+        assertTrue(toolExecuted.get(), "the tool-call loop ran two turns");
+        assertEquals(2, streamTurns.get(), "the loop issued two HTTP turns");
+        assertEquals("gen_turn2", resp.generationIdHeader(),
+                "the synthesized response carries the last turn's headers");
+        assertNotEquals("gen_turn1", resp.generationIdHeader(),
+                "headers of earlier turns do not win");
+        assertEquals("gen_turn2", resp.header("x-generation-id"));
     }
 }

@@ -8,9 +8,10 @@ import de.entwicklertraining.api.base.ApiErrorContext;
  *
  * <p>Enriched form of {@code ApiClient.HTTP_400_RequestRejectedException}: catch
  * clauses for the api-base type keep working, and the error-body accessors of
- * {@link OpenRouterErrorMetadata} ride along. A flagged input arrives here with
- * moderation-flag metadata in {@code error.metadata} (the flag categories) - read it
- * off {@link #errorMetadata()}. Not retried by the client (the request must change).
+ * {@link OpenRouterErrorMetadata} ride along. Rejected requests arrive here for
+ * malformed input and validation failures; moderation blocks are {@code 403} answers
+ * (see {@link OpenRouterPermissionDeniedException}). Not retried by the client (the
+ * request must change).
  *
  * <p>Registered by {@link OpenRouterClient} for HTTP 400 (client-side retry of this
  * status: no). Created by the transport with the composed message

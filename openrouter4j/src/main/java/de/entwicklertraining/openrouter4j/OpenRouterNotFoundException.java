@@ -8,8 +8,8 @@ import de.entwicklertraining.api.base.ApiErrorContext;
  *
  * <p>Enriched form of {@code ApiClient.HTTP_404_NotFoundException}: catch clauses for
  * the api-base type keep working, and the error-body accessors of
- * {@link OpenRouterErrorMetadata} ride along. The Intern API documents
- * {@code reason: "not_found", retryable: false} here. Not retried by the client.
+ * {@link OpenRouterErrorMetadata} ride along. Seen on Intern API error responses:
+ * {@code reason: "not_found", retryable: false}. Not retried by the client.
  *
  * <p>Registered by {@link OpenRouterClient} for HTTP 404 (client-side retry of this
  * status: no). Created by the transport with the composed message

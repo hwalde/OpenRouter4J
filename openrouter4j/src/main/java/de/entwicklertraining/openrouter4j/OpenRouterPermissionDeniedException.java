@@ -8,9 +8,15 @@ import de.entwicklertraining.api.base.ApiErrorContext;
  *
  * <p>Enriched form of {@code ApiClient.HTTP_403_PermissionDeniedException}: catch
  * clauses for the api-base type keep working, and the error-body accessors of
- * {@link OpenRouterErrorMetadata} ride along. The management surfaces document the
+ * {@link OpenRouterErrorMetadata} ride along. The management surfaces show the
  * {@code reason} / {@code retryable} metadata pair on their error answers
- * ({@link #errorReason()} / {@link #isRetryable()}). Not retried by the client.
+ * ({@link #errorReason()} / {@link #isRetryable()}). A moderation block or guardrail
+ * block arrives here (403 "insufficient permissions, guardrail block, or moderation
+ * flag"): the documented {@code ModerationErrorMetadata} shape on {@link #errorMetadata()}
+ * is {@code reasons} (the flag categories), {@code flagged_input} (truncated to 100
+ * characters), {@code provider_name} and {@code model_slug}; {@link #limitSource()} may
+ * name a budget ("openrouter_guardrail_budget" / "openrouter_workspace_budget"). Not
+ * retried by the client.
  *
  * <p>Registered by {@link OpenRouterClient} for HTTP 403 (client-side retry of this
  * status: no). Created by the transport with the composed message

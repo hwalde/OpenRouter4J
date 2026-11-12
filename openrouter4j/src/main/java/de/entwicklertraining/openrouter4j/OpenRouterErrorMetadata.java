@@ -11,24 +11,35 @@ import org.json.JSONObject;
  *
  * <p><strong>What travels in the error body.</strong> OpenRouter error responses carry
  * {@code {"error": {"message", "code", "metadata": {...}}}}; the accessors read the
- * {@code metadata} object. Which keys appear where (from the API reference's
- * errors-and-debugging page and the published OpenAPI schemas):
+ * {@code metadata} object. The published OpenAPI schemas type {@code metadata} as an
+ * open object and do not enumerate its keys, so the value pairs below are observed
+ * behaviour documented here for orientation, not a schema guarantee:
  * <ul>
- *   <li>{@code reason} / {@code retryable} - the retry decision pair. The Intern API
- *       answers {@code 408} with {@code reason: "timeout", retryable: true} and
+ *   <li>{@code reason} / {@code retryable} - the retry decision pair. Seen on Intern API
+ *       error responses: {@code 408} with {@code reason: "timeout", retryable: true} and
  *       {@code 404} with {@code reason: "not_found", retryable: false}; the same pair
- *       appears across the management surfaces.</li>
+ *       appears across the management surfaces. The limits page documents the 402
+ *       {@code reason} values {@code "in_flight_budget_exhausted"} and
+ *       {@code "weight_exceeds_budget"}.</li>
  *   <li>{@code error_type} - a canonical error type, exposed on moderation blocks and
  *       provider errors; {@code provider_code} carries the upstream provider's own
- *       error code.</li>
+ *       error code. Trap: on a {@code 500} the reference documents the message replaced
+ *       by a generic string and {@code provider_code} omitted, while {@code error_type}
+ *       stays ({@code "server"}).</li>
  *   <li>{@code limit_source} - on {@code 402} answers, {@code "openrouter_in_flight_budget"}
  *       is the documented signal that this is a wait-and-retry rejection (together with a
- *       {@code Retry-After} response header) rather than a hard out-of-credit rejection.
- *       A {@code 402} is currently <em>not</em> registered as its own exception type in
- *       {@link OpenRouterClient}, so it arrives as {@code ApiClient.ApiClientException} -
- *       read it with {@link #of(Throwable)}.</li>
- *   <li>Moderation-flag metadata - a flagged input answers with flag categories in
- *       {@code metadata}; read them off the raw {@link #errorMetadata()} object.</li>
+ *       {@code Retry-After} response header) rather than a hard out-of-credit rejection;
+ *       the limits page also names {@code "openrouter_key_limit"} and
+ *       {@code "openrouter_credits"}, and the budget errors name
+ *       {@code "openrouter_guardrail_budget"} / {@code "openrouter_workspace_budget"}
+ *       on 403. A {@code 402} is currently <em>not</em> registered as its own exception
+ *       type in {@link OpenRouterClient}, so it arrives as
+ *       {@code ApiClient.ApiClientException} - read it with {@link #of(Throwable)}.</li>
+ *   <li>Moderation-flag metadata - a flagged input answers {@code 403} with the
+ *       documented {@code ModerationErrorMetadata} shape in {@code metadata}:
+ *       {@code reasons} (the flag categories), {@code flagged_input} (truncated to 100
+ *       characters), {@code provider_name} and {@code model_slug} - read them off the
+ *       raw {@link #errorMetadata()} object.</li>
  * </ul>
  *
  * <p><strong>Conventions.</strong> Every accessor swallows malformed data and answers
@@ -68,8 +79,10 @@ public interface OpenRouterErrorMetadata {
     }
 
     /**
-     * Returns {@code error.metadata.reason} (e.g. {@code "timeout"} on an Intern API
-     * 408, {@code "not_found"} on a 404), or {@code null} when absent or not a string.
+     * Returns {@code error.metadata.reason} (e.g. {@code "timeout"} seen on an Intern API
+     * 408, {@code "not_found"} on a 404; the limits page documents
+     * {@code "in_flight_budget_exhausted"} / {@code "weight_exceeds_budget"} on a 402),
+     * or {@code null} when absent or not a string.
      *
      * @return the reason, or {@code null}
      */
@@ -189,7 +202,9 @@ public interface OpenRouterErrorMetadata {
         }
         try {
             return new JSONObject(responseBody);
-        } catch (RuntimeException malformedBody) {
+        } catch (RuntimeException | StackOverflowError malformedBody) {
+            // StackOverflowError: a hostile body nested deeply enough to blow the
+            // recursive parser must look empty like every other malformed body
             return null;
         }
     }
