@@ -327,8 +327,14 @@ class OpenRouterErrorMetadataTest {
 
     @Test
     @DisplayName("a deeply nested hostile body looks empty - the swallow contract holds")
-    void deeplyNestedBodyLooksEmpty() {
-        String hostile = "[".repeat(200_000);
+    void deeplyNestedHostileBodyLooksEmpty() {
+        // properly nested objects past the parser's depth guard. The pinned org.json
+        // answers JSONException ("depth too large") for this shape - a RuntimeException
+        // the swallow has always covered; the StackOverflowError arm in parseBody is the
+        // belt for parsers without that guard (older/newer org.json), not what this
+        // fixture reaches today.
+        int depth = 20_000;
+        String hostile = "{\"a\":".repeat(depth) + "1" + "}".repeat(depth);
         OpenRouterNotFoundException ex = new OpenRouterNotFoundException("m", context(hostile, Map.of()));
         assertDoesNotThrow(() -> {
             assertNull(ex.errorMetadata());

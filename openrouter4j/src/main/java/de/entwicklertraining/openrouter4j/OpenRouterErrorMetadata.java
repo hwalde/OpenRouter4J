@@ -55,7 +55,7 @@ import org.json.JSONObject;
  * streaming retry loops only honor it when the client opts in
  * ({@code ApiClientSettings.builder().honorRetryAfter(true)}; OpenRouterClient leaves
  * this off, so a caller that wants the documented "honor Retry-After when present"
- * behaviour decides per call).
+ * behaviour opts in per client).
  */
 public interface OpenRouterErrorMetadata {
 
@@ -203,8 +203,9 @@ public interface OpenRouterErrorMetadata {
         try {
             return new JSONObject(responseBody);
         } catch (RuntimeException | StackOverflowError malformedBody) {
-            // StackOverflowError: a hostile body nested deeply enough to blow the
-            // recursive parser must look empty like every other malformed body
+            // RuntimeException: the pinned org.json rejects hostile shapes with a depth
+            // guard. StackOverflowError: the belt for parser versions without such a
+            // guard - either way the swallow contract holds, a malformed body looks empty.
             return null;
         }
     }
