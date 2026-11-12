@@ -158,11 +158,16 @@ public final class OpenRouterChatCompletionCallHandler {
                 OpenRouterChatCompletionRequest streamingRequest =
                         buildStreamingRequest(currentRequest, messages, accumulator);
 
+                de.entwicklertraining.api.base.ApiResponse<?> completedTurnResponse;
                 if (useRetry) {
-                    client.executeWithRetry(streamingRequest);
+                    completedTurnResponse = client.executeWithRetry(streamingRequest);
                 } else {
-                    client.execute(streamingRequest);
+                    completedTurnResponse = client.execute(streamingRequest);
                 }
+                // The synthesized response below carries the response headers of this
+                // (last completed) turn - the last turn's X-Generation-Id identifies the
+                // final generation; per-turn headers of earlier turns are not retained.
+                java.util.Map<String, String> lastTurnHeaders = completedTurnResponse.getResponseHeaders();
 
                 if (!accumulator.hasToolCalls()) {
                     if (userHandler instanceof StreamingToolCallHandler stch) {
@@ -170,10 +175,12 @@ public final class OpenRouterChatCompletionCallHandler {
                     }
                     userHandler.onComplete();
 
-                    return new OpenRouterChatCompletionResponse(
+                    OpenRouterChatCompletionResponse syntheticResponse = new OpenRouterChatCompletionResponse(
                             buildSyntheticResponseJson(accumulator, initialRequest.model()),
                             initialRequest
                     );
+                    syntheticResponse.setResponseHeaders(lastTurnHeaders);
+                    return syntheticResponse;
                 }
 
                 JSONArray toolCalls = accumulator.getAccumulatedToolCalls();

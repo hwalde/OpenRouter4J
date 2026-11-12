@@ -160,15 +160,6 @@ import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceMembersLi
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceMembersRemoveRequest;
 import de.entwicklertraining.openrouter4j.workspace.OpenRouterWorkspaceUpdateRequest;
 
-// Import exception classes
-import static de.entwicklertraining.api.base.ApiClient.HTTP_400_RequestRejectedException;
-import static de.entwicklertraining.api.base.ApiClient.HTTP_403_PermissionDeniedException;
-import static de.entwicklertraining.api.base.ApiClient.HTTP_404_NotFoundException;
-import static de.entwicklertraining.api.base.ApiClient.HTTP_429_RateLimitOrQuotaException;
-import static de.entwicklertraining.api.base.ApiClient.HTTP_500_ServerErrorException;
-import static de.entwicklertraining.api.base.ApiClient.HTTP_503_ServerUnavailableException;
-import static de.entwicklertraining.api.base.ApiClient.HTTP_504_ServerTimeoutException;
-
 /**
  * Ein Client für die OpenRouter-API mit integrierter Rate-Limit-Prüfung.
  * OpenRouter verwendet Bearer Token Authentication im Authorization Header.
@@ -222,14 +213,16 @@ public final class OpenRouterClient extends ApiClient {
 
         setBaseUrl(customBaseUrl);
 
-        // Register OpenRouter-specific HTTP status code exceptions
-        registerStatusCodeException(400, HTTP_400_RequestRejectedException.class, "HTTP 400 (Bad Request)", false);
-        registerStatusCodeException(403, HTTP_403_PermissionDeniedException.class, "HTTP 403 (Forbidden)", false);
-        registerStatusCodeException(404, HTTP_404_NotFoundException.class, "HTTP 404 (Not Found)", false);
-        registerStatusCodeException(429, HTTP_429_RateLimitOrQuotaException.class, "HTTP 429 (Rate Limited)", true);
-        registerStatusCodeException(500, HTTP_500_ServerErrorException.class, "HTTP 500 (Internal Server Error)", true);
-        registerStatusCodeException(503, HTTP_503_ServerUnavailableException.class, "HTTP 503 (Service Unavailable)", true);
-        registerStatusCodeException(504, HTTP_504_ServerTimeoutException.class, "HTTP 504 (Gateway Timeout)", false);
+        // Register OpenRouter-specific HTTP status code exceptions: the enriched
+        // subclasses carry the OpenRouterErrorMetadata accessors (error body metadata,
+        // Retry-After) and remain catchable as their api-base supertypes.
+        registerStatusCodeException(400, OpenRouterRequestRejectedException.class, "HTTP 400 (Bad Request)", false);
+        registerStatusCodeException(403, OpenRouterPermissionDeniedException.class, "HTTP 403 (Forbidden)", false);
+        registerStatusCodeException(404, OpenRouterNotFoundException.class, "HTTP 404 (Not Found)", false);
+        registerStatusCodeException(429, OpenRouterRateLimitOrQuotaException.class, "HTTP 429 (Rate Limited)", true);
+        registerStatusCodeException(500, OpenRouterServerErrorException.class, "HTTP 500 (Internal Server Error)", true);
+        registerStatusCodeException(503, OpenRouterServiceUnavailableException.class, "HTTP 503 (Service Unavailable)", true);
+        registerStatusCodeException(504, OpenRouterServerTimeoutException.class, "HTTP 504 (Gateway Timeout)", false);
     }
 
     /**
