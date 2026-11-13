@@ -1,7 +1,10 @@
 package de.entwicklertraining.openrouter4j.responses;
 
+import de.entwicklertraining.openrouter4j.OpenRouterAlignmentPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterArmorPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsDetails;
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
+import de.entwicklertraining.openrouter4j.OpenRouterSafeguardResult;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -197,6 +200,98 @@ public final class OpenRouterResponsesResponse extends OpenRouterResponse<OpenRo
      */
     public JSONObject openrouterMetadata() {
         return json.optJSONObject("openrouter_metadata");
+    }
+
+    /**
+     * JSON path: {@code alignment} - the result of the
+     * {@link OpenRouterAlignmentPlugin} for this request (Beta, schema
+     * {@code Alignment}: {@code {"calls": [...]}}), or {@code null} when
+     * absent or malformed. Swallow-and-return-{@code null} convention.
+     * <p>
+     * Traps: the {@code alignment} plugin and its response object are in Beta
+     * and the per-call record shapes may change. On a streamed Responses
+     * request, {@code alignment} travels on the {@code response} object inside
+     * the {@code response.completed} event - read it from the raw event JSON
+     * delivered to the stream handler.
+     *
+     * @return the raw {@code alignment} object, or {@code null} when absent
+     * @see OpenRouterAlignmentPlugin
+     * @see #alignmentCalls()
+     */
+    public JSONObject alignment() {
+        try {
+            return json.optJSONObject("alignment");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * JSON path: {@code alignment.calls} - the evaluated assistant-message
+     * call records in production order, empty when {@code alignment} or
+     * {@code calls} is absent (never {@code null}). Swallow-and-return-empty
+     * convention.
+     *
+     * @return the evaluated call records in order, empty when absent
+     * @see #alignment()
+     * @see OpenRouterAlignmentPlugin
+     */
+    public List<JSONObject> alignmentCalls() {
+        try {
+            JSONObject alignment = alignment();
+            List<JSONObject> result = new ArrayList<>();
+            if (alignment != null && alignment.has("calls") && !alignment.isNull("calls")) {
+                JSONArray calls = alignment.optJSONArray("calls");
+                if (calls != null) {
+                    for (int i = 0; i < calls.length(); i++) {
+                        JSONObject entry = calls.optJSONObject(i);
+                        if (entry != null) {
+                            result.add(entry);
+                        }
+                    }
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /**
+     * JSON path: {@code safeguard_results} - OpenRouter Armor's verdict for
+     * each client tool call of this response (schema
+     * {@code ArmorSafeguardResult}), present whenever Armor
+     * ({@link OpenRouterArmorPlugin}) evaluated the response (even when
+     * nothing was flagged; independent of the {@code openrouter_metadata}
+     * opt-in). Swallow-and-return-empty convention.
+     * <p>
+     * Traps: Armor is in Beta and the {@code safeguard_results} shape may
+     * change. On a streamed Responses request, {@code safeguard_results}
+     * travels on the {@code response} object inside the
+     * {@code response.completed} event - read it from the raw event JSON
+     * delivered to the stream handler.
+     *
+     * @return the safeguard results in order, empty when absent or malformed
+     *         (never {@code null})
+     * @see OpenRouterArmorPlugin
+     * @see OpenRouterSafeguardResult
+     */
+    public List<OpenRouterSafeguardResult> safeguardResults() {
+        List<OpenRouterSafeguardResult> result = new ArrayList<>();
+        try {
+            JSONArray results = json.optJSONArray("safeguard_results");
+            if (results != null) {
+                for (int i = 0; i < results.length(); i++) {
+                    JSONObject entry = results.optJSONObject(i);
+                    if (entry != null) {
+                        result.add(new OpenRouterSafeguardResult(entry));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // swallow-and-return-empty convention
+        }
+        return result;
     }
 
     /** @return the JSON field {@code usage.input_tokens} */

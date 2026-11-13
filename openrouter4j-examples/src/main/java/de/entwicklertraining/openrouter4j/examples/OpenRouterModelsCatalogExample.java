@@ -65,9 +65,15 @@ public class OpenRouterModelsCatalogExample {
         OpenRouterModelsCountResponse count = client.modelsCount().execute();
         System.out.println("Catalog size: " + count.count());
 
-        // 4. The models this account may use.
-        OpenRouterModelsListResponse<?> userModels = client.userModels().limit(5).execute();
-        System.out.println("First user models: "
+        // 4. The models this account may use (filtered by user preferences,
+        //    privacy settings, guardrails and optional harness client policy,
+        //    sorted server-side).
+        OpenRouterModelsListResponse<?> userModels = client.userModels()
+                .sort("pricing-low-to-high")
+                .client("claude_code")
+                .limit(5)
+                .execute();
+        System.out.println("First user models (claude_code, cheapest first): "
                 + userModels.models().stream().map(OpenRouterModel::id).toList());
 
         // 5. One entry with its typed pricing and architecture data.

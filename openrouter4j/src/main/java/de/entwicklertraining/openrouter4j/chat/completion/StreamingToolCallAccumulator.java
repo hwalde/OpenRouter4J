@@ -38,6 +38,8 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
     private String serviceTier;
     private JSONObject openrouterMetadata;
     private String systemFingerprint;
+    private JSONObject alignment;
+    private JSONArray safeguardResults;
     private String audioId;
     private Long audioExpiresAt;
     private final StringBuilder contentBuilder = new StringBuilder();
@@ -90,6 +92,18 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
             }
             if (json.has("system_fingerprint") && !json.isNull("system_fingerprint")) {
                 this.systemFingerprint = json.getString("system_fingerprint");
+            }
+            if (json.has("alignment") && !json.isNull("alignment")) {
+                JSONObject alignmentObj = json.optJSONObject("alignment");
+                if (alignmentObj != null) {
+                    this.alignment = alignmentObj;
+                }
+            }
+            if (json.has("safeguard_results") && !json.isNull("safeguard_results")) {
+                JSONArray resultsArr = json.optJSONArray("safeguard_results");
+                if (resultsArr != null) {
+                    this.safeguardResults = resultsArr;
+                }
             }
 
             JSONArray choices = json.optJSONArray("choices");
@@ -313,6 +327,24 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
     }
 
     /**
+     * The chunk-level {@code alignment} object delivered on the final data
+     * event when the {@code alignment} plugin ran, or {@code null} when no
+     * chunk carried one.
+     */
+    JSONObject getAlignment() {
+        return alignment;
+    }
+
+    /**
+     * The chunk-level {@code safeguard_results} array delivered on the final
+     * chunk when the {@code armor} plugin evaluated tool calls, or {@code null}
+     * when no chunk carried one.
+     */
+    JSONArray getSafeguardResults() {
+        return safeguardResults;
+    }
+
+    /**
      * The per-token log probabilities accumulated from the chunks'
      * {@code choices[0].logprobs.content} entries, appended in arrival order
      * (each chunk that carries logprobs usually contributes one token), empty
@@ -441,6 +473,8 @@ final class StreamingToolCallAccumulator implements StreamingResponseHandler<Str
         serviceTier = null;
         openrouterMetadata = null;
         systemFingerprint = null;
+        alignment = null;
+        safeguardResults = null;
         audioId = null;
         audioExpiresAt = null;
         toolCallsByIndex.clear();

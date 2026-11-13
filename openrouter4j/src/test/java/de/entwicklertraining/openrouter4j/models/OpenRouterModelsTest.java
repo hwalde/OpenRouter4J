@@ -581,6 +581,76 @@ class OpenRouterModelsTest {
     }
 
     @Test
+    void userModelsRequestEmitsSortAndClientParamsAndReadBackAccessors() {
+        // sort alone
+        OpenRouterUserModelsRequest sortOnly = new OpenRouterUserModelsRequest.Builder(client())
+                .sort("pricing-low-to-high")
+                .build();
+        assertThat(sortOnly.getRelativeUrl()).isEqualTo("/models/user?sort=pricing-low-to-high");
+        assertThat(sortOnly.sort()).isEqualTo("pricing-low-to-high");
+        assertThat(sortOnly.client()).isNull();
+        assertThat(sortOnly.offset()).isNull();
+        assertThat(sortOnly.limit()).isNull();
+        assertThat(sortOnly.outputModalities()).isNull();
+
+        // client alone (incl. underscore value claude_code)
+        OpenRouterUserModelsRequest clientOnly = new OpenRouterUserModelsRequest.Builder(client())
+                .client("claude_code")
+                .build();
+        assertThat(clientOnly.getRelativeUrl()).isEqualTo("/models/user?client=claude_code");
+        assertThat(clientOnly.client()).isEqualTo("claude_code");
+        assertThat(clientOnly.sort()).isNull();
+
+        // sort + client together
+        OpenRouterUserModelsRequest both = new OpenRouterUserModelsRequest.Builder(client())
+                .sort("design-arena-elo-high-to-low")
+                .client("codex")
+                .build();
+        assertThat(both.getRelativeUrl())
+                .isEqualTo("/models/user?sort=design-arena-elo-high-to-low&client=codex");
+        assertThat(both.sort()).isEqualTo("design-arena-elo-high-to-low");
+        assertThat(both.client()).isEqualTo("codex");
+
+        // all five query parameters in spec order
+        OpenRouterUserModelsRequest allFive = new OpenRouterUserModelsRequest.Builder(client())
+                .offset(10)
+                .limit(25)
+                .outputModalities("text", "image")
+                .sort("agentic-high-to-low")
+                .client("claude_desktop")
+                .build();
+        assertThat(allFive.getRelativeUrl())
+                .isEqualTo("/models/user?offset=10&limit=25&output_modalities=text%2Cimage&sort=agentic-high-to-low&client=claude_desktop");
+        assertThat(allFive.offset()).isEqualTo(10);
+        assertThat(allFive.limit()).isEqualTo(25);
+        assertThat(allFive.outputModalities()).isEqualTo("text,image");
+        assertThat(allFive.sort()).isEqualTo("agentic-high-to-low");
+        assertThat(allFive.client()).isEqualTo("claude_desktop");
+
+        // URL encoding of special characters in sort and client
+        OpenRouterUserModelsRequest encoded = new OpenRouterUserModelsRequest.Builder(client())
+                .sort("custom sort&x=1")
+                .client("claude_code&inject=2")
+                .build();
+        assertThat(encoded.getRelativeUrl())
+                .isEqualTo("/models/user?sort=custom+sort%26x%3D1&client=claude_code%26inject%3D2");
+
+        // set-then-null unsets sort, client, offset and limit back to the byte-identical default URL
+        OpenRouterUserModelsRequest unset = new OpenRouterUserModelsRequest.Builder(client())
+                .offset(5).offset(null)
+                .limit(10).limit(null)
+                .sort("newest").sort(null)
+                .client("codex").client(null)
+                .build();
+        assertThat(unset.getRelativeUrl()).isEqualTo("/models/user");
+        assertThat(unset.offset()).isNull();
+        assertThat(unset.limit()).isNull();
+        assertThat(unset.outputModalities()).isNull();
+        assertThat(unset.sort()).isNull();
+        assertThat(unset.client()).isNull();
+    }
+
+    @Test
     void singleModelRequestEncodesPathSegments() {
         OpenRouterModelRequest request = new OpenRouterModelRequest.Builder(client(), "openai", "gpt-4").build();
 

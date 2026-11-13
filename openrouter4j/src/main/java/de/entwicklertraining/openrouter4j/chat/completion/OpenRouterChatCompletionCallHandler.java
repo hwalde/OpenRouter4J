@@ -322,6 +322,16 @@ public final class OpenRouterChatCompletionCallHandler {
             // works on the streaming path too.
             root.put("system_fingerprint", accumulator.getSystemFingerprint());
         }
+        if (accumulator.getAlignment() != null) {
+            // Final-chunk alignment outcome - exposed so alignment() and
+            // alignmentCalls() work on the streaming path too.
+            root.put("alignment", accumulator.getAlignment());
+        }
+        if (accumulator.getSafeguardResults() != null) {
+            // Final-chunk Armor verdicts - exposed so safeguardResults()
+            // works on the streaming path too.
+            root.put("safeguard_results", accumulator.getSafeguardResults());
+        }
         if (accumulator.getLogprobs() != null) {
             // Per-chunk log probabilities (opt-in via logprobs(true)) merged into
             // the choice - exposed so logprobs(), contentLogprobs() and

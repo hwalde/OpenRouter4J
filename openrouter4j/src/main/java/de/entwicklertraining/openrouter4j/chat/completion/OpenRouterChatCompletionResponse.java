@@ -3,8 +3,11 @@ package de.entwicklertraining.openrouter4j.chat.completion;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.entwicklertraining.api.base.ApiClient;
+import de.entwicklertraining.openrouter4j.OpenRouterAlignmentPlugin;
+import de.entwicklertraining.openrouter4j.OpenRouterArmorPlugin;
 import de.entwicklertraining.openrouter4j.OpenRouterDeferredToolsDetails;
 import de.entwicklertraining.openrouter4j.OpenRouterResponse;
+import de.entwicklertraining.openrouter4j.OpenRouterSafeguardResult;
 import de.entwicklertraining.openrouter4j.OpenRouterTokenLogprob;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -1165,5 +1168,134 @@ public final class OpenRouterChatCompletionResponse extends OpenRouterResponse<O
             return null;
         }
         return details.optInt(key);
+    }
+
+    /**
+     * Returns the raw top-level {@code alignment} object reported when the
+     * request carried the {@link OpenRouterAlignmentPlugin} ({@code plugins}
+     * entry with {@code id = "alignment"}, schema {@code Alignment}:
+     * {@code {"calls": [...]}}), or {@code null} when absent or malformed.
+     * Follows the swallow-and-return-{@code null} convention.
+     * <p>
+     * Traps:
+     * <ul>
+     *   <li><b>Beta caveat:</b> the {@code alignment} plugin and its response
+     *       object are in Beta; the per-call record shapes may change. Use
+     *       {@link #alignmentCalls()} for the {@code calls[]} list.</li>
+     *   <li><b>Streaming:</b> on a streamed chat completion, {@code alignment}
+     *       arrives on the last data event before {@code [DONE]}; the
+     *       streaming accumulator captures it into the synthetic response so
+     *       this accessor works on both paths.</li>
+     *   <li><b>Enforce-mode errors:</b> when {@code mode = "enforce"} blocks a
+     *       turn with no retries left, the alignment report (including
+     *       {@code rejected}) travels inside {@code error.metadata.alignment}
+     *       instead of a completed message - read it via
+     *       {@code OpenRouterErrorMetadata.of(e).errorMetadata().optJSONObject("alignment")}
+     *       on the caught 403/503.</li>
+     *   <li><b>Automatic tool loop:</b> on a chat request whose tools carry
+     *       handlers, each loop iteration is a separate request;
+     *       {@code alignment()} / {@code alignmentCalls()} on the returned
+     *       response cover only the final turn, not the tool-call turns before
+     *       it.</li>
+     * </ul>
+     *
+     * @return the raw {@code alignment} object, or {@code null} when absent
+     * @see OpenRouterAlignmentPlugin
+     * @see #alignmentCalls()
+     */
+    public JSONObject alignment() {
+        try {
+            return getJson().optJSONObject("alignment");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the evaluated assistant-message call records from
+     * {@code alignment.calls[]} (one record per evaluated assistant message in
+     * production order, each carrying {@code call}, {@code outcome} -
+     * {@code "allowed"}, {@code "blocked"} or {@code "unavailable"} - and
+     * {@code rules[]} or {@code reason}), empty when {@code alignment} or
+     * {@code calls} is absent or when no message had content to evaluate
+     * (never {@code null}). Follows the swallow-and-return-empty convention.
+     * <p>
+     * Trap: the per-call record structure is Beta and may change; entries are
+     * exposed as raw {@link JSONObject}s for forward compatibility.
+     *
+     * @return the evaluated call records in order, empty when absent
+     * @see #alignment()
+     * @see OpenRouterAlignmentPlugin
+     */
+    public List<JSONObject> alignmentCalls() {
+        try {
+            JSONObject alignment = alignment();
+            List<JSONObject> result = new ArrayList<>();
+            if (alignment != null && alignment.has("calls") && !alignment.isNull("calls")) {
+                JSONArray calls = alignment.optJSONArray("calls");
+                if (calls != null) {
+                    for (int i = 0; i < calls.length(); i++) {
+                        JSONObject entry = calls.optJSONObject(i);
+                        if (entry != null) {
+                            result.add(entry);
+                        }
+                    }
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /**
+     * JSON path: {@code safeguard_results} - OpenRouter Armor's verdict for
+     * each client tool call of this response (schema
+     * {@code ArmorSafeguardResult}), present whenever Armor
+     * ({@link OpenRouterArmorPlugin}) evaluated the response (even when
+     * nothing was flagged). Follows the swallow-and-return-empty convention.
+     * <p>
+     * Traps:
+     * <ul>
+     *   <li><b>Beta caveat:</b> Armor is in Beta; the {@code safeguard_results}
+     *       shape may change.</li>
+     *   <li><b>Independent of {@code openrouter_metadata}:</b>
+     *       {@code safeguard_results} is delivered without needing the
+     *       {@code metadataInResponse(true)} opt-in.</li>
+     *   <li><b>Streaming:</b> on a streamed chat completion,
+     *       {@code safeguard_results} arrives at the top level of the final
+     *       chunk; the streaming accumulator captures it into the synthetic
+     *       response so this accessor works on both paths.</li>
+     *   <li><b>Automatic tool loop:</b> when tools carry handlers, the chat
+     *       {@code execute()} loop runs every tool call the response contains
+     *       and returns only the final turn. In {@code mode("audit")} (or
+     *       {@code onError("log")}) a flagged call is therefore executed by
+     *       this library, and {@code safeguardResults()} reports only the
+     *       final turn's verdicts. Use {@code mode("enforce")} to have blocked
+     *       calls withheld, or use the Responses API to inspect each turn's
+     *       verdicts before running tools.</li>
+     * </ul>
+     *
+     * @return the safeguard results in order, empty when absent or malformed
+     *         (never {@code null})
+     * @see OpenRouterArmorPlugin
+     * @see OpenRouterSafeguardResult
+     */
+    public List<OpenRouterSafeguardResult> safeguardResults() {
+        List<OpenRouterSafeguardResult> result = new ArrayList<>();
+        try {
+            JSONArray results = getJson().optJSONArray("safeguard_results");
+            if (results != null) {
+                for (int i = 0; i < results.length(); i++) {
+                    JSONObject entry = results.optJSONObject(i);
+                    if (entry != null) {
+                        result.add(new OpenRouterSafeguardResult(entry));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // swallow-and-return-empty convention
+        }
+        return result;
     }
 }
